@@ -53,6 +53,11 @@ namespace LearningAIGame.CombatSystem
         [PropertyTooltip("エネルギー回復が停止中かどうか")]
         public bool IsEnergyRecoveryPaused { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = false;
 
+        [ShowInInspector, ReadOnly]
+        [PropertyTooltip("エネルギー切れ状態かどうか（100%回復まで継続）")]
+        public bool IsEnergyDepleted { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = false;
+
+
         // 内部管理データ
         [Title("内部状態")]
         [ShowInInspector, ReadOnly]
@@ -190,7 +195,8 @@ namespace LearningAIGame.CombatSystem
         }
 
         /// <summary>
-        /// エネルギー情報の報告
+        /// エネルギー情報の報告（修正版）
+        /// エネルギー完全回復時のみモード復帰
         /// </summary>
         /// <param name="energyPercentage">エネルギー割合</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -199,14 +205,23 @@ namespace LearningAIGame.CombatSystem
             EnergyPercentage = Mathf.Clamp01(energyPercentage);
             this.onEnergyChanged.OnNext(EnergyPercentage);
 
-            // エネルギー切れ時のモード変更
-            if ( EnergyPercentage <= 0f && CurrentActionMode != ActionMode.EnergyBarrier )
-            {
-                ReportActionModeChange(ActionMode.EnergyBarrier);
-            }
-            else if ( EnergyPercentage > 0.1f && CurrentActionMode == ActionMode.EnergyBarrier )
+            // エネルギー完全回復時のみモード復帰
+            if ( EnergyPercentage >= 1f && CurrentActionMode == ActionMode.EnergyBarrier )
             {
                 ReportActionModeChange(this.previousActionMode);
+            }
+        }
+
+        /// <summary>
+        /// エネルギーバリアモードに手動で移行（修正版）
+        /// エネルギー切れ状態を基準に判定
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void ForceEnergyBarrierMode()
+        {
+            if ( IsEnergyDepleted && CurrentActionMode != ActionMode.EnergyBarrier )
+            {
+                ReportActionModeChange(ActionMode.EnergyBarrier);
             }
         }
 
@@ -245,10 +260,34 @@ namespace LearningAIGame.CombatSystem
 
         #endregion
 
-        #region 状態判定メソッド
+        #region 状態判定メソッド（修正版）
 
         /// <summary>
-        /// 指定したアクションが実行可能かどうかを判定
+        /// エネルギー切れ状態の報告（新規追加）
+        /// EnergySystemから呼び出される
+        /// </summary>
+        /// <param name="isDepleted">エネルギー切れ状態かどうか</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void ReportEnergyDepletedState(bool isDepleted)
+        {
+            if ( IsEnergyDepleted != isDepleted )
+            {
+                IsEnergyDepleted = isDepleted;
+
+                if ( isDepleted )
+                {
+                    Debug.Log($"{gameObject.name}: エネルギー切れ状態に移行");
+                }
+                else
+                {
+                    Debug.Log($"{gameObject.name}: エネルギー切れ状態を解除");
+                }
+            }
+        }
+
+        /// <summary>
+        /// 指定したアクションが実行可能かどうかを判定（修正版）
+        /// エネルギー切れ状態を正しく判定
         /// </summary>
         /// <param name="actionType">アクションタイプ</param>
         /// <returns>実行可能かどうか</returns>
@@ -259,9 +298,23 @@ namespace LearningAIGame.CombatSystem
             if ( HealthData.isStunned || HealthData.isDead )
                 return false;
 
-            // エネルギー系アクションの判定
-            if ( IsEnergyAction(actionType) && EnergyPercentage <= 0f )
-                return false;
+            // エネルギー切れ状態の制限（修正版）
+            if ( IsEnergyDepleted )
+            {
+                // エネルギー切れ中に使用可能なアクション
+                switch ( actionType )
+                {
+                    case ActionType.Walk:
+                    case ActionType.Jump:
+                    case ActionType.Guard:
+                    case ActionType.Block:
+                        return true;
+                    case ActionType.Dodge:
+                        return true; // 回避は可能だが性能低下（MovementSystemで処理）
+                    default:
+                        return false; // その他のエネルギー消費アクションは不可
+                }
+            }
 
             // 状態別の実行可能性判定
             return CurrentActionState switch
@@ -270,6 +323,7 @@ namespace LearningAIGame.CombatSystem
                 ActionState.Dodging => false, // 回避中は何もできない
                 ActionState.UsingManeuver => false, // マニューバ中は何もできない
                 ActionState.Stunned => false, // スタン中は何もできない
+                ActionState.EnergyShielding => actionType == ActionType.Dodge || actionType == ActionType.Walk, // シールド中は回避と歩行のみ
                 _ => true
             };
         }
@@ -422,12 +476,13 @@ namespace LearningAIGame.CombatSystem
         }
 
         /// <summary>
-        /// スキル使用可否の更新
+        /// スキル使用可否の更新（修正版）
+        /// エネルギー切れ状態を考慮
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateSkillAvailability()
         {
-            AnalysisData.canUseSkills = EnergyPercentage > 0.1f && !HealthData.isStunned;
+            AnalysisData.canUseSkills = !IsEnergyDepleted && !HealthData.isStunned;
             for ( int i = 0; i < AnalysisData.skillCooldowns.Length; i++ )
             {
                 if ( AnalysisData.skillCooldowns[i] > 0f )
@@ -439,12 +494,13 @@ namespace LearningAIGame.CombatSystem
         }
 
         /// <summary>
-        /// マニューバ使用可否の更新
+        /// マニューバ使用可否の更新（修正版）
+        /// エネルギー切れ状態を考慮
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateManeuverAvailability()
         {
-            AnalysisData.canUseManeuvers = EnergyPercentage > 0.2f && !HealthData.isStunned;
+            AnalysisData.canUseManeuvers = !IsEnergyDepleted && !HealthData.isStunned;
             for ( int i = 0; i < AnalysisData.maneuverCooldowns.Length; i++ )
             {
                 if ( AnalysisData.maneuverCooldowns[i] > 0f )
@@ -483,23 +539,8 @@ namespace LearningAIGame.CombatSystem
                 ActionState.Attacking => ActionType.WeakAttack, // デフォルト
                 ActionState.Guarding => ActionType.Guard,
                 ActionState.UsingManeuver => ActionType.Maneuver,
+                ActionState.EnergyShielding => ActionType.Guard, // エネルギーシールドはガード扱い
                 _ => ActionType.Walk
-            };
-        }
-
-        /// <summary>
-        /// エネルギーを消費するアクションかどうかを判定
-        /// </summary>
-        /// <param name="actionType">アクションタイプ</param>
-        /// <returns>エネルギー消費アクションかどうか</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool IsEnergyAction(ActionType actionType)
-        {
-            return actionType switch
-            {
-                ActionType.Boost or ActionType.Dodge or ActionType.SkillAttack or
-                ActionType.ShootSkill or ActionType.Maneuver => true,
-                _ => false
             };
         }
 
@@ -603,6 +644,15 @@ namespace LearningAIGame.CombatSystem
                       $"マニューバ使用可: {AnalysisData.canUseManeuvers}";
 
             Debug.Log(info);
+        }
+
+        [Button("エネルギーバリアモード強制移行", ButtonSizes.Medium)]
+        [GUIColor(1f, 1f, 0.8f)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void DebugForceEnergyBarrierMode()
+        {
+            ForceEnergyBarrierMode();
+            Debug.Log("エネルギーバリアモードに強制移行しました");
         }
 
         #endregion

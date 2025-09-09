@@ -30,7 +30,9 @@ namespace LearningAIGame.CombatSystem
         [SerializeField] private bool enablePerfectBlocking = false;
 
         [PropertyTooltip("ジャスト回避を狙うかどうか")]
-        [SerializeField] private bool enableJustDodge = true;
+        [SerializeField]
+        private bool enableJust
+            = true;
 
         [PropertyTooltip("高度な戦術を使用するかどうか")]
         [SerializeField] private bool useAdvancedTactics = true;
@@ -75,20 +77,20 @@ namespace LearningAIGame.CombatSystem
             public float distanceToOpponent;
             public bool isInMeleeRange;
             public bool isInSafeRange;
-            
+
             // 相手の状態
             public float opponentHealth;
             public float opponentEnergy;
             public ActionState opponentState;
             public AttackDirection opponentDirection;
             public bool opponentVulnerable;
-            
+
             // 自分の状態
             public float myHealth;
             public float myEnergy;
             public ActionMode myMode;
             public bool canUseSkills;
-            
+
             // 戦況判断
             public AdvantageState advantageState;
             public ThreatLevel threatLevel;
@@ -121,7 +123,7 @@ namespace LearningAIGame.CombatSystem
         protected override void DecideNextAction()
         {
             // 判断更新頻度制御
-            if (Time.time - LastDecisionTime < decisionUpdateRate)
+            if ( Time.time - LastDecisionTime < decisionUpdateRate )
             {
                 ExecutePlannedAction();
                 return;
@@ -130,7 +132,7 @@ namespace LearningAIGame.CombatSystem
             // 状況分析と判断
             var situation = AnalyzeSituation();
             PlannedAction = MakeDecision(situation);
-            
+
             // リアクションタイム考慮してアクション実行
             HandleActionExecution(PlannedAction);
             LastDecisionTime = Time.time;
@@ -151,20 +153,20 @@ namespace LearningAIGame.CombatSystem
                 distanceToOpponent = GetDistanceToOpponent(),
                 isInMeleeRange = IsInRange(5f), // Settings.attack.meleeRange の代替
                 isInSafeRange = GetDistanceToOpponent() > 8f, // Settings.movement.safeDistance の代替
-                
+
                 // 相手の状態
                 opponentHealth = OpponentData.HealthPercentage,
                 opponentEnergy = OpponentData.EnergyPercentage,
                 opponentState = OpponentData.CurrentState,
                 opponentDirection = OpponentData.CurrentDirection,
                 opponentVulnerable = IsOpponentVulnerable(),
-                
+
                 // 自分の状態
                 myHealth = CurrentHealthPercentage,
                 myEnergy = CurrentEnergyPercentage,
                 myMode = stateSystem.CurrentActionMode,
                 canUseSkills = stateSystem.AnalysisData.canUseSkills,
-                
+
                 // 戦況判断
                 advantageState = CalculateAdvantageState(),
                 threatLevel = CalculateThreatLevel()
@@ -185,11 +187,11 @@ namespace LearningAIGame.CombatSystem
 
             // 緊急行動の判定
             var emergencyAction = CheckEmergencyActions(situation);
-            if (emergencyAction != null)
+            if ( emergencyAction != null )
                 return emergencyAction;
 
             // 戦術状態に基づく判断
-            switch (CurrentTacticalState)
+            switch ( CurrentTacticalState )
             {
                 case AITacticalState.Aggressive:
                     return DecideAggressiveAction(situation);
@@ -211,13 +213,13 @@ namespace LearningAIGame.CombatSystem
         /// <returns>AIアクション</returns>
         private AIAction DecideAggressiveAction(BattleSituation situation)
         {
-            if (situation.opponentVulnerable)
+            if ( situation.opponentVulnerable )
             {
                 // 相手が脆弱な状態 - 最大火力攻撃
                 return AIAction.Create(AIActionType.Attack, 0.9f);
             }
 
-            if (situation.isInMeleeRange)
+            if ( situation.isInMeleeRange )
             {
                 // 近距離での連続攻撃
                 var attackWeight = personality.GetBehaviorWeight(ActionType.WeakAttack) * personality.aggressiveness;
@@ -235,10 +237,10 @@ namespace LearningAIGame.CombatSystem
         /// <returns>AIアクション</returns>
         private AIAction DecideDefensiveAction(BattleSituation situation)
         {
-            if (situation.opponentState == ActionState.Attacking)
+            if ( situation.opponentState == ActionState.Attacking )
             {
                 // 相手が攻撃中 - ブロッキングまたはガード
-                if (enablePerfectBlocking && personality.preferCounterAttacks)
+                if ( enablePerfectBlocking && personality.preferCounterAttacks )
                 {
                     return AIAction.Create(AIActionType.Defend, 0.8f);
                 }
@@ -248,7 +250,7 @@ namespace LearningAIGame.CombatSystem
                 }
             }
 
-            if (!situation.isInSafeRange)
+            if ( !situation.isInSafeRange )
             {
                 // 安全距離まで後退
                 return AIAction.Create(AIActionType.Retreat, personality.defensiveness);
@@ -265,13 +267,13 @@ namespace LearningAIGame.CombatSystem
         /// <returns>AIアクション</returns>
         private AIAction DecideRetreatAction(BattleSituation situation)
         {
-            if (situation.myEnergy < 0.3f)
+            if ( situation.myEnergy < 0.3f )
             {
                 // エネルギー不足 - 距離を取ってエネルギー回復
                 return AIAction.Create(AIActionType.Retreat, 0.9f);
             }
 
-            if (situation.isInSafeRange && situation.myHealth > 0.5f)
+            if ( situation.isInSafeRange && situation.myHealth > 0.5f )
             {
                 // 回復完了 - 中立状態に復帰
                 return AIAction.Create(AIActionType.Wait, 0.3f);
@@ -288,13 +290,13 @@ namespace LearningAIGame.CombatSystem
         /// <returns>AIアクション</returns>
         private AIAction DecideOpportunityAction(BattleSituation situation)
         {
-            if (situation.opponentVulnerable)
+            if ( situation.opponentVulnerable )
             {
                 // 機会到来 - カウンター攻撃
                 return AIAction.Create(AIActionType.Attack, 1.0f);
             }
 
-            if (situation.opponentEnergy < 0.2f)
+            if ( situation.opponentEnergy < 0.2f )
             {
                 // 相手のエネルギー不足を狙う
                 return AIAction.Create(AIActionType.Approach, 0.7f);
@@ -312,13 +314,13 @@ namespace LearningAIGame.CombatSystem
         private AIAction DecideNeutralAction(BattleSituation situation)
         {
             // 距離に応じた基本行動
-            if (situation.isInMeleeRange)
+            if ( situation.isInMeleeRange )
             {
                 // 近距離 - 攻撃か後退
                 float attackPriority = personality.CalculateActionPriority(ActionType.WeakAttack);
                 float retreatPriority = personality.CalculateActionPriority(ActionType.Dodge);
 
-                if (attackPriority > retreatPriority)
+                if ( attackPriority > retreatPriority )
                 {
                     return AIAction.Create(AIActionType.Attack, attackPriority);
                 }
@@ -327,7 +329,7 @@ namespace LearningAIGame.CombatSystem
                     return AIAction.Create(AIActionType.Retreat, retreatPriority);
                 }
             }
-            else if (situation.distanceToOpponent > personality.preferredCombatDistance)
+            else if ( situation.distanceToOpponent > personality.preferredCombatDistance )
             {
                 // 遠距離 - 接近
                 return AIAction.Create(AIActionType.Approach, 0.6f);
@@ -347,13 +349,13 @@ namespace LearningAIGame.CombatSystem
         private AIAction CheckEmergencyActions(BattleSituation situation)
         {
             // 体力危険域
-            if (situation.myHealth < 0.2f && situation.threatLevel == ThreatLevel.Critical)
+            if ( situation.myHealth < 0.2f && situation.threatLevel == ThreatLevel.Critical )
             {
                 return AIAction.Create(AIActionType.Retreat, 1.0f);
             }
 
             // エネルギー枯渇時の特殊対応
-            if (situation.myEnergy <= 0f && stateSystem.CurrentActionMode == ActionMode.EnergyBarrier)
+            if ( situation.myEnergy <= 0f && stateSystem.CurrentActionMode == ActionMode.EnergyBarrier )
             {
                 return AIAction.Create(AIActionType.Defend, 0.9f);
             }
@@ -370,19 +372,19 @@ namespace LearningAIGame.CombatSystem
             var newState = CurrentTacticalState;
 
             // 体力・エネルギー状況による判定
-            if (situation.myHealth < 0.3f || situation.myEnergy < 0.2f)
+            if ( situation.myHealth < 0.3f || situation.myEnergy < 0.2f )
             {
                 newState = AITacticalState.Retreat;
             }
-            else if (situation.advantageState == AdvantageState.Advantage && personality.aggressiveness > 0.6f)
+            else if ( situation.advantageState == AdvantageState.Advantage && personality.aggressiveness > 0.6f )
             {
                 newState = AITacticalState.Aggressive;
             }
-            else if (situation.advantageState == AdvantageState.Disadvantage || situation.threatLevel == ThreatLevel.High)
+            else if ( situation.advantageState == AdvantageState.Disadvantage || situation.threatLevel == ThreatLevel.High )
             {
                 newState = AITacticalState.Defensive;
             }
-            else if (personality.preferCounterAttacks && situation.opponentState == ActionState.Attacking)
+            else if ( personality.preferCounterAttacks && situation.opponentState == ActionState.Attacking )
             {
                 newState = AITacticalState.Opportunity;
             }
@@ -402,12 +404,12 @@ namespace LearningAIGame.CombatSystem
         {
             float myScore = CurrentHealthPercentage + CurrentEnergyPercentage;
             float opponentScore = OpponentData.HealthPercentage + OpponentData.EnergyPercentage;
-            
+
             float difference = myScore - opponentScore;
-            
-            if (difference > 0.3f)
+
+            if ( difference > 0.3f )
                 return AdvantageState.Advantage;
-            else if (difference < -0.3f)
+            else if ( difference < -0.3f )
                 return AdvantageState.Disadvantage;
             else
                 return AdvantageState.Even;
@@ -420,27 +422,27 @@ namespace LearningAIGame.CombatSystem
         private ThreatLevel CalculateThreatLevel()
         {
             float threatScore = 0f;
-            
+
             // 距離による脅威
-            if (GetDistanceToOpponent() < personality.dangerDistance)
-                threatScore += 0.3f;
-            
-            // 相手の状態による脅威
-            if (OpponentData.CurrentState == ActionState.Attacking)
-                threatScore += 0.4f;
-            
-            if (OpponentData.EnergyPercentage > 0.7f)
-                threatScore += 0.2f;
-            
-            // 自分の状態による脅威増加
-            if (CurrentHealthPercentage < 0.3f)
+            if ( GetDistanceToOpponent() < personality.dangerDistance )
                 threatScore += 0.3f;
 
-            if (threatScore > 0.8f)
+            // 相手の状態による脅威
+            if ( OpponentData.CurrentState == ActionState.Attacking )
+                threatScore += 0.4f;
+
+            if ( OpponentData.EnergyPercentage > 0.7f )
+                threatScore += 0.2f;
+
+            // 自分の状態による脅威増加
+            if ( CurrentHealthPercentage < 0.3f )
+                threatScore += 0.3f;
+
+            if ( threatScore > 0.8f )
                 return ThreatLevel.Critical;
-            else if (threatScore > 0.6f)
+            else if ( threatScore > 0.6f )
                 return ThreatLevel.High;
-            else if (threatScore > 0.3f)
+            else if ( threatScore > 0.3f )
                 return ThreatLevel.Medium;
             else
                 return ThreatLevel.Low;
@@ -452,7 +454,7 @@ namespace LearningAIGame.CombatSystem
         /// <param name="action">実行するアクション</param>
         private void HandleActionExecution(AIAction action)
         {
-            if (reactionTime > 0f && ShouldDelayAction(action))
+            if ( reactionTime > 0f && ShouldDelayAction(action) )
             {
                 StartCoroutine(DelayedActionExecution(action, reactionTime));
             }
@@ -482,9 +484,9 @@ namespace LearningAIGame.CombatSystem
         private bool ShouldDelayAction(AIAction action)
         {
             // 防御アクションは遅延なし
-            if (action.type == AIActionType.Defend)
+            if ( action.type == AIActionType.Defend )
                 return false;
-                
+
             // 反応速度の個性による
             return UnityEngine.Random.value > personality.reactionSpeed;
         }
@@ -494,7 +496,7 @@ namespace LearningAIGame.CombatSystem
         /// </summary>
         private void ExecutePlannedAction()
         {
-            if (PlannedAction != null)
+            if ( PlannedAction != null )
             {
                 ExecuteAIAction(PlannedAction);
             }
@@ -506,28 +508,28 @@ namespace LearningAIGame.CombatSystem
         /// <param name="action">実行するアクション</param>
         private void ExecuteAIAction(AIAction action)
         {
-            switch (action.type)
+            switch ( action.type )
             {
                 case AIActionType.Approach:
                     ExecuteMovementToward(OpponentData.Position);
                     break;
-                    
+
                 case AIActionType.Retreat:
                     ExecuteEvasiveAction();
                     break;
-                    
+
                 case AIActionType.Attack:
                     ExecuteAttackAction(action);
                     break;
-                    
+
                 case AIActionType.Defend:
                     ExecuteDefenseAction(action);
                     break;
-                    
+
                 case AIActionType.Wait:
                     // 待機（何もしない）
                     break;
-                    
+
                 case AIActionType.Special:
                     ExecuteSpecialAction(action);
                     break;
@@ -541,9 +543,9 @@ namespace LearningAIGame.CombatSystem
         private void ExecuteAttackAction(AIAction action)
         {
             var attackDirection = GetOptimalAttackDirection();
-            
+
             // デフォルトは弱攻撃
-            switch (action.attackType)
+            switch ( action.attackType )
             {
                 case AttackType.WeakMelee:
                     ExecuteWeakAttack(attackDirection);
@@ -556,11 +558,11 @@ namespace LearningAIGame.CombatSystem
                     break;
                 case AttackType.WeakRanged:
                     // 射撃系はswitchCombatModeで射撃モードに変更後実行
-                    if (stateSystem.CurrentActionMode != ActionMode.Ranged)
+                    if ( stateSystem.CurrentActionMode != ActionMode.Ranged )
                         SwitchCombatMode();
                     break;
                 case AttackType.StrongRanged:
-                    if (stateSystem.CurrentActionMode != ActionMode.Ranged)
+                    if ( stateSystem.CurrentActionMode != ActionMode.Ranged )
                         SwitchCombatMode();
                     break;
                 default:
@@ -576,8 +578,8 @@ namespace LearningAIGame.CombatSystem
         private void ExecuteDefenseAction(AIAction action)
         {
             var defenseDirection = OpponentData.CurrentDirection;
-            
-            switch (action.defenseType)
+
+            switch ( action.defenseType )
             {
                 case DefenseType.Guard:
                     ExecuteGuard(defenseDirection);
@@ -600,7 +602,7 @@ namespace LearningAIGame.CombatSystem
         /// <param name="action">特殊アクション</param>
         private void ExecuteSpecialAction(AIAction action)
         {
-            switch (action.specialType)
+            switch ( action.specialType )
             {
                 case 0: // マニューバ
                     ExecuteManeuver(0);
@@ -621,7 +623,7 @@ namespace LearningAIGame.CombatSystem
         private void UpdateLearning(BattleSituation situation)
         {
             // 相手の行動変化を記録
-            if (situation.opponentState != lastOpponentState)
+            if ( situation.opponentState != lastOpponentState )
             {
                 lastOpponentActionTime = Time.time;
                 lastOpponentState = situation.opponentState;
@@ -654,7 +656,7 @@ namespace LearningAIGame.CombatSystem
         /// <param name="newState">新しい状態</param>
         protected override void OnOpponentStateChanged(ActionState newState)
         {
-            if (newState == ActionState.Attacking && enablePerfectBlocking)
+            if ( newState == ActionState.Attacking && enablePerfectBlocking )
             {
                 // 完璧なブロッキングを試行
                 var blockDirection = OpponentData.CurrentDirection;
@@ -711,7 +713,7 @@ namespace LearningAIGame.CombatSystem
         public float DebugAggressiveness
         {
             get => personality?.aggressiveness ?? 0f;
-            set { if (personality != null) personality.aggressiveness = value; }
+            set { if ( personality != null ) personality.aggressiveness = value; }
         }
 
         [System.ComponentModel.Category("SRDebugger - AI")]

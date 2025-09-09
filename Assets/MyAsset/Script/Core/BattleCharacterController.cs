@@ -322,14 +322,63 @@ namespace LearningAIGame.CombatSystem
             }
         }
 
+
         /// <summary>
-        /// ブロッキングを実行
+        /// エネルギー切れシールドを開始（L1ボタン用）修正版
+        /// StateSystemのエネルギー切れ状態を確認
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void ExecuteEnergyShield()
+        {
+            // エネルギー切れ状態時のみ有効
+            if ( stateSystem.IsEnergyDepleted )
+            {
+                defenseSystem.StartEnergyShield();
+            }
+            else
+            {
+                Debug.LogWarning("エネルギーが切れていないため、エネルギーシールドは使用できません");
+            }
+        }
+
+        /// <summary>
+        /// エネルギー切れシールドを停止（L1ボタン離し用）
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void StopEnergyShield()
+        {
+            defenseSystem.StopEnergyShield();
+        }
+
+        /// <summary>
+        /// エネルギーバリアモードに手動で移行（修正版）
+        /// StateSystemのエネルギー切れ状態を確認
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void EnterEnergyBarrierMode()
+        {
+            if ( stateSystem.IsEnergyDepleted )
+            {
+                stateSystem.ForceEnergyBarrierMode();
+            }
+            else
+            {
+                Debug.LogWarning("エネルギーが切れていないため、エネルギーバリアモードに移行できません");
+            }
+        }
+
+        /// <summary>
+        /// ブロッキングを実行（修正版）
+        /// ブースト中は無効、近接モード時の○ボタンでのみ発動
         /// </summary>
         /// <param name="direction">ブロッキング方向</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ExecuteBlock(AttackDirection direction)
         {
-            if ( CanExecuteAction(ActionType.Block) )
+            // 近接モードかつブースト中でない場合のみ実行可能
+            if ( stateSystem.CurrentActionMode == ActionMode.Melee &&
+                 stateSystem.CurrentActionState != ActionState.Boosting &&
+                 CanExecuteAction(ActionType.Block) )
             {
                 directionSystem.ForceDirection(direction, 0.1f);
                 defenseSystem.AttemptBlock(direction);
@@ -377,24 +426,34 @@ namespace LearningAIGame.CombatSystem
         #region Public Resource Management
 
         /// <summary>
-        /// エネルギーが使用可能かどうか
+        /// エネルギーが使用可能かどうか（修正版）
+        /// StateSystemのエネルギー切れ状態も考慮
         /// </summary>
         /// <param name="amount">使用予定のエネルギー量</param>
         /// <returns>使用可能かどうか</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool CanUseEnergy(float amount)
         {
+            // エネルギー切れ状態では一切使用不可
+            if ( stateSystem.IsEnergyDepleted )
+                return false;
+
             return energySystem.CanUseEnergy(amount);
         }
 
         /// <summary>
-        /// エネルギーを使用
+        /// エネルギーを使用（修正版）
+        /// StateSystemのエネルギー切れ状態も考慮
         /// </summary>
         /// <param name="amount">使用量</param>
         /// <returns>使用に成功したかどうか</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool UseEnergy(float amount)
         {
+            // エネルギー切れ状態では一切使用不可
+            if ( stateSystem.IsEnergyDepleted )
+                return false;
+
             return energySystem.UseEnergy(amount);
         }
 

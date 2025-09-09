@@ -64,6 +64,10 @@ namespace LearningAIGame.CombatSystem
         /// <summary>
         /// 空中でのチャージ中 - 空中でジャンプを溜めている状態
         /// </summary>
-        AirCharge
+        AirCharge,
+        /// <summary>
+        /// エネルギー切れの際のシールド展開中
+        /// </summary>
+        EnergyShielding
     }
 }

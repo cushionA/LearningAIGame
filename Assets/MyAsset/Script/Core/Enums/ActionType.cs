@@ -25,6 +25,7 @@ namespace LearningAIGame.CombatSystem
         /// <summary>
         /// 回避行動
         /// </summary>
+
         Dodge,
 
         /// <summary>
@@ -117,7 +118,7 @@ namespace LearningAIGame.CombatSystem
         /// 攻撃なし
         /// </summary>
         None,
-        
+
         /// <summary>
         /// 弱近接攻撃
         /// </summary>

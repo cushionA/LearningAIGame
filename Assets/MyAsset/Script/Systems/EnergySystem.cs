@@ -20,7 +20,7 @@ namespace LearningAIGame.CombatSystem
         public float recoveryRate;
         public float recoveryMultiplier;
     }
-    
+
     /// <summary>
     /// エネルギーシステム - エネルギーの管理と回復を行う
     /// </summary>
@@ -28,7 +28,7 @@ namespace LearningAIGame.CombatSystem
     {
         // コンポーネント
         private StateSystem stateSystem;
-        
+
         // エネルギー状態
         private EnergyData currentEnergyData;
 
@@ -67,22 +67,22 @@ namespace LearningAIGame.CombatSystem
         {
             // 他のシステムの参照取得は OnInitialized で行う
         }
-        
+
         protected override void OnInitialized()
         {
             // 他のシステムの参照取得
             stateSystem = GetComponent<StateSystem>();
-            
-            if (Settings?.energy == null)
+
+            if ( Settings?.energy == null )
             {
                 DebugLogError("EnergySettingsが見つかりません");
                 return;
             }
-            
+
             InitializeEnergy();
             UpdateEnergyData();
         }
-        
+
         protected override void SetupObservables()
         {
             // エネルギー状態の更新をObservableで通知
@@ -90,13 +90,13 @@ namespace LearningAIGame.CombatSystem
                 .Subscribe(_ => UpdateAndNotifyEnergyData())
                 .AddTo(disposables);
         }
-        
+
         private void UpdateAndNotifyEnergyData()
         {
             UpdateEnergyData();
             NotifyObservers(currentEnergyData);
         }
-        
+
         private void UpdateEnergyData()
         {
             currentEnergyData = new EnergyData
@@ -124,30 +124,36 @@ namespace LearningAIGame.CombatSystem
         #region Public Methods
 
         /// <summary>
-        /// エネルギーが使用可能かどうか
+        /// エネルギーが使用可能かどうか（修正版）
+        /// エネルギー切れ中は一切使用不可
         /// </summary>
         /// <param name="amount">使用予定量</param>
         /// <returns>使用可能かどうか</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool CanUseEnergy(float amount)
         {
-            return CurrentEnergy >= amount && !IsEnergyDepleted;
+            // エネルギー切れ中は一切使用不可
+            if ( IsEnergyDepleted )
+                return false;
+
+            return CurrentEnergy >= amount;
         }
 
         /// <summary>
-        /// エネルギーを使用
+        /// エネルギーを使用（修正版）
+        /// エネルギー切れ中は使用不可
         /// </summary>
         /// <param name="amount">使用量</param>
         /// <returns>使用に成功したかどうか</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool UseEnergy(float amount)
         {
-            if (!CanUseEnergy(amount))
+            if ( !CanUseEnergy(amount) )
                 return false;
 
             CurrentEnergy = Mathf.Max(0f, CurrentEnergy - amount);
             UpdateEnergyPercentage();
-            
+
             return true;
         }
 
@@ -191,15 +197,15 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UpdateEnergyRecovery()
         {
-            if (stateSystem.IsEnergyRecoveryPaused)
+            if ( stateSystem.IsEnergyRecoveryPaused )
                 return;
 
             // 回復速度の決定
-            float baseRecoveryRate = IsEnergyDepleted ? 
+            float baseRecoveryRate = IsEnergyDepleted ?
                 Settings.energy.fastRecoveryRate : Settings.energy.normalRecoveryRate;
 
             // ボーナス倍率の適用
-            if (Time.time < energyRecoveryBonusEndTime)
+            if ( Time.time < energyRecoveryBonusEndTime )
             {
                 CurrentRecoveryRate = baseRecoveryRate * energyRecoveryMultiplier;
             }
@@ -210,7 +216,7 @@ namespace LearningAIGame.CombatSystem
             }
 
             // エネルギー回復実行
-            if (CurrentEnergy < MaxEnergy)
+            if ( CurrentEnergy < MaxEnergy )
             {
                 RecoverEnergy(CurrentRecoveryRate * Time.deltaTime);
             }
@@ -252,48 +258,54 @@ namespace LearningAIGame.CombatSystem
         }
 
         /// <summary>
-        /// エネルギー状態の更新
+        /// エネルギー状態の更新（修正版）
+        /// エネルギー切れ状態をStateSystemに正しく報告
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateEnergyState()
         {
             // エネルギー切れ状態の判定
-            bool isCurrentlyDepleted = CurrentEnergyPercentage <= 0f;
-            
-            if (isCurrentlyDepleted && !IsEnergyDepleted)
+            bool isCurrentlyAtZero = CurrentEnergyPercentage <= 0f;
+            bool hasFullyRecovered = CurrentEnergyPercentage >= 1f;
+
+            if ( isCurrentlyAtZero && !IsEnergyDepleted )
             {
-                // エネルギー切れになった
+                // エネルギーが0%になった瞬間
                 IsEnergyDepleted = true;
                 OnEnergyDepleted();
+
+                // StateSystemにエネルギー切れ状態を報告
+                stateSystem.ReportEnergyDepletedState(true);
             }
-            else if (!isCurrentlyDepleted && IsEnergyDepleted && CurrentEnergyPercentage > 0.1f)
+            else if ( hasFullyRecovered && IsEnergyDepleted )
             {
-                // エネルギーが回復した
+                // エネルギーが100%回復した瞬間
                 IsEnergyDepleted = false;
                 OnEnergyRecovered();
+
+                // StateSystemにエネルギー切れ解除を報告
+                stateSystem.ReportEnergyDepletedState(false);
             }
 
             wasEnergyDepleted = IsEnergyDepleted;
         }
 
         /// <summary>
-        /// エネルギー切れ時の処理
+        /// エネルギー切れ時の処理（修正版）
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void OnEnergyDepleted()
         {
-            Debug.Log($"{gameObject.name}: エネルギー切れ - バリアモードに移行");
-            // StateSystemがエネルギー変化を検知してモード変更を行う
+            Debug.Log($"{gameObject.name}: エネルギー切れ - 全回復まで制限モードが継続");
         }
 
         /// <summary>
-        /// エネルギー回復時の処理
+        /// エネルギー回復時の処理（修正版）
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void OnEnergyRecovered()
         {
-            Debug.Log($"{gameObject.name}: エネルギー回復 - 通常モードに復帰");
-            // StateSystemがエネルギー変化を検知してモード変更を行う
+            Debug.Log($"{gameObject.name}: エネルギー全回復 - 制限モード解除");
         }
 
         #endregion
