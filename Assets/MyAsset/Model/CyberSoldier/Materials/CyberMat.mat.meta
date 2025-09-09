@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 98ec97c496fac904a811768eda3cc3f2
+timeCreated: 1450834506
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 52064
+  packageName: Cyber Soldier
+  packageVersion: 1.0
+  assetPath: Assets/MyAssets/CyberSoldier/Materials/CyberMat.mat
+  uploadId: 96803
