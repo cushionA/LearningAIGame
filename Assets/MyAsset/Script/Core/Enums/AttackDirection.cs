@@ -20,6 +20,11 @@ namespace LearningAIGame.CombatSystem
         /// <summary>
         /// 右方向への攻撃
         /// </summary>
-        Right
+        Right,
+        /// <summary>
+        /// 何も返さない。
+        /// メソッドの返り値でのみ使う
+        /// </summary>
+        None
     }
 }

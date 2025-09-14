@@ -48,24 +48,24 @@ namespace LearningAIGame.CombatSystem
     [Serializable]
     public class AIAction
     {
-    [PropertyTooltip("行動の種類")]
-    public AIActionType type;
+        [PropertyTooltip("行動の種類")]
+        public AIActionType type;
 
-    [PropertyTooltip("攻撃の種類（攻撃行動時のみ）")]
-    public AttackType attackType;
+        [PropertyTooltip("攻撃の種類（攻撃行動時のみ）")]
+        public AttackType attackType;
 
-    [PropertyTooltip("防御の種類（防御行動時のみ）")] 
-    public DefenseType defenseType;
+        [PropertyTooltip("防御の種類（防御行動時のみ）")]
+        public DefenseType defenseType;
 
-    [PropertyTooltip("行動方向")]
-    public AttackDirection direction;
+        [PropertyTooltip("行動方向")]
+        public AttackDirection direction;
 
-    [PropertyTooltip("特殊行動の種類")]
-    public int specialType;
+        [PropertyTooltip("特殊行動の種類")]
+        public int specialType;
 
-    [PropertyTooltip("行動の優先度")]
-    [Range(0f, 1f)]
-    public float priority;
+        [PropertyTooltip("行動の優先度")]
+        [Range(0f, 1f)]
+        public float priority;
 
         /// <summary>
         /// AIActionを作成
@@ -174,15 +174,15 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void InitializeBehaviorWeights()
         {
-            if (this.behaviorWeights == null)
+            if ( this.behaviorWeights == null )
             {
                 this.behaviorWeights = new Dictionary<ActionType, float>();
             }
 
             // 初期重み設定
-            foreach (ActionType actionType in Enum.GetValues(typeof(ActionType)))
+            foreach ( ActionType actionType in Enum.GetValues(typeof(ActionType)) )
             {
-                if (!this.behaviorWeights.ContainsKey(actionType))
+                if ( !this.behaviorWeights.ContainsKey(actionType) )
                 {
                     this.behaviorWeights[actionType] = 1.0f;
                 }
@@ -199,7 +199,7 @@ namespace LearningAIGame.CombatSystem
         {
             InitializeBehaviorWeights();
 
-            if (!this.behaviorWeights.ContainsKey(actionType))
+            if ( !this.behaviorWeights.ContainsKey(actionType) )
             {
                 this.behaviorWeights[actionType] = 1.0f;
             }
@@ -254,15 +254,15 @@ namespace LearningAIGame.CombatSystem
         {
             return actionType switch
             {
-                ActionType.WeakAttack or ActionType.StrongAttack or ActionType.SkillAttack => 
+                ActionType.WeakAttack or ActionType.StrongAttack or ActionType.SkillAttack =>
                     0.5f + this.aggressiveness,
-                ActionType.Guard or ActionType.Block => 
+                ActionType.Guard or ActionType.Block =>
                     0.5f + this.defensiveness,
-                ActionType.Dodge or ActionType.Boost => 
+                ActionType.Dodge or ActionType.Boost =>
                     0.5f + this.mobility,
-                ActionType.Maneuver => 
+                ActionType.Maneuver =>
                     this.useAdvancedManeuvers ? (0.8f + this.riskTaking * 0.4f) : 0.2f,
-                ActionType.WeakShoot or ActionType.StrongShoot or ActionType.ShootSkill => 
+                ActionType.WeakShoot or ActionType.StrongShoot =>
                     this.preferRangedCombat ? (0.8f + this.aggressiveness * 0.4f) : 0.4f,
                 _ => 1f
             };

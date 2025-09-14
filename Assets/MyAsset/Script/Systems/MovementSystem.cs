@@ -25,7 +25,7 @@ namespace LearningAIGame.CombatSystem
 
     /// <summary>
     /// 移動システム - 歩行、ジャンプ、ブースト、回避、空中制御、踏み込みなどの移動を管理
-    /// For Honorライクな方向システムとの連携を含む
+    /// For Honorライクな防御システムとの連携も含む
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
     public class MovementSystem : BaseSystem<MovementData>
@@ -47,7 +47,7 @@ namespace LearningAIGame.CombatSystem
         public bool IsGrounded { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = true;
 
         [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在ブースト中かどうか")]
+        [PropertyTooltip("現在ブーストしているかどうか")]
         public bool IsBoosting { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = false;
 
         [ShowInInspector, ReadOnly]
@@ -96,12 +96,12 @@ namespace LearningAIGame.CombatSystem
         private float lungeDistance;
         private float lungeTravelDistance;
 
-        // 地面判定
-        [Title("地面判定設定")]
-        [PropertyTooltip("地面判定のレイヤーマスク")]
+        // 地面検知
+        [Title("地面検知設定")]
+        [PropertyTooltip("地面検知のレイヤーマスク")]
         [SerializeField] private LayerMask groundLayerMask = 1;
 
-        [PropertyTooltip("地面判定の距離")]
+        [PropertyTooltip("地面検知の距離")]
         [Range(0.1f, 2f)]
         [SerializeField] private float groundCheckDistance = 1.1f;
 
@@ -125,7 +125,7 @@ namespace LearningAIGame.CombatSystem
 
             if ( Settings?.movement == null )
             {
-                DebugLogError("MovementSettingsが設定されていません");
+                DebugLogError("MovementSettings が設定されていません");
                 return;
             }
 
@@ -218,7 +218,7 @@ namespace LearningAIGame.CombatSystem
         #region Public Movement Methods
 
         /// <summary>
-        /// 移動を実行
+        /// 移動処理を実行
         /// </summary>
         /// <param name="direction">移動方向</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -281,7 +281,7 @@ namespace LearningAIGame.CombatSystem
         }
 
         /// <summary>
-        /// ジャンプチャージを終了してジャンプ実行
+        /// ジャンプチャージを終了してジャンプを実行
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReleaseJumpCharge()
@@ -319,7 +319,7 @@ namespace LearningAIGame.CombatSystem
         }
 
         /// <summary>
-        /// ブースト停止
+        /// ブーストを停止
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void StopBoost()
@@ -328,10 +328,9 @@ namespace LearningAIGame.CombatSystem
             stateSystem.ReportActionStateChange(ActionState.Idle);
         }
 
-
         /// <summary>
         /// 回避を実行（修正版）
-        /// StateSystemのエネルギー切れ状態を参照
+        /// StateSystemの回避インターバル管理と連携
         /// </summary>
         /// <param name="direction">回避方向（空白時はバックステップ）</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -346,18 +345,18 @@ namespace LearningAIGame.CombatSystem
             float energyCost = isDoubleDodge ? Settings.movement.doubleDodgeEnergyCost : Settings.movement.dodgeEnergyCost;
             float dodgeDistance = isDoubleDodge ? Settings.movement.dodgeDistance * 1.5f : Settings.movement.dodgeDistance;
 
-            // エネルギー切れ状態の正しい判定（StateSystem経由）
+            // エネルギー切れ状態の性能低下処理（StateSystem経由）
             bool isEnergyDepleted = stateSystem.IsEnergyDepleted;
 
             if ( isEnergyDepleted )
             {
-                // エネルギー切れ中は回避距離と無敵時間が減少
-                dodgeDistance *= 0.6f; // 回避距離60%に減少
+                // エネルギー切れ中は回避性能が低下
+                dodgeDistance *= 0.6f; // 距離を60%に減少
                 Debug.Log("エネルギー切れ中：回避性能が低下しています");
             }
             else
             {
-                // 通常時はエネルギーを消費
+                // 通常時はエネルギー消費
                 if ( !energySystem.UseEnergy(energyCost) )
                     return;
             }
@@ -387,15 +386,15 @@ namespace LearningAIGame.CombatSystem
                 attackSystem.OnDodgeExecuted(dodgeDirection);
             }
 
-            // エネルギー切れ時のシールド中断処理
+            // エネルギー切れ時のシールド無効化
             var defenseSystem = GetComponent<DefenseSystem>();
             if ( defenseSystem != null && defenseSystem.IsEnergyShieldActive() )
             {
                 defenseSystem.StopEnergyShield();
-                Debug.Log("回避によりエネルギーシールドが中断されました");
+                Debug.Log("回避によりエネルギーシールドを無効化しました");
             }
 
-            // 回避終了の処理
+            // 回避完了の処理
             UniRx.Observable.Timer(TimeSpan.FromSeconds(0.3f))
                 .Subscribe(_ => OnDodgeComplete())
                 .AddTo(disposables);
@@ -405,16 +404,42 @@ namespace LearningAIGame.CombatSystem
         }
 
         /// <summary>
+        /// 回避が可能かどうかを判定（新規追加）
+        /// StateSystemの回避インターバル管理と連携
+        /// </summary>
+        /// <returns>回避可能かどうか</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool CanDodge()
+        {
+            // 基本的な状態チェック
+            if ( isLunging ||
+                 stateSystem.CurrentActionState == ActionState.Dodging ||
+                 stateSystem.CurrentActionState == ActionState.Stunned )
+                return false;
+
+            // StateSystemの回避インターバル管理を参照
+            if ( !stateSystem.CanDodge )
+                return false;
+
+            // エネルギー切れ中は常に回避可能（性能低下）
+            if ( stateSystem.IsEnergyDepleted )
+                return true;
+
+            // 通常時はエネルギーが必要
+            return energySystem.CanUseEnergy(Settings.movement.dodgeEnergyCost);
+        }
+
+        /// <summary>
         /// クイックターンを実行
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void QuickTurn()
         {
-            if ( energySystem.UseEnergy(5f) ) // 軽微なエネルギー消費
+            if ( energySystem.UseEnergy(5f) ) // 軽いエネルギー消費
             {
                 transform.Rotate(0, 180f, 0);
 
-                // クイックターン時にDirectionSystemの方向ロックを一時的に解除
+                // クイックターン後のDirectionSystemの方向ロックを一時的に解除
                 if ( directionSystem != null )
                 {
                     // ターン後の新しい方向を設定
@@ -441,7 +466,7 @@ namespace LearningAIGame.CombatSystem
             lungeTravelDistance = 0f;
             isLunging = true;
 
-            // 踏み込み中は他の移動を一時停止
+            // 踏み込み中は通常の移動を一時停止
             currentMoveDirection = Vector3.zero;
 
             // DirectionSystemに踏み込み方向を設定
@@ -493,10 +518,128 @@ namespace LearningAIGame.CombatSystem
 
         #endregion
 
+        #region 移動速度修正システム（修正版）
+
+        /// <summary>
+        /// 移動速度修正を適用（修正版）
+        /// </summary>
+        /// <param name="modifier">修正倍率（1.0f = 通常速度、0.5f = 半分の速度）</param>
+        /// <param name="source">修正の識別子</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void ApplyMovementSpeedModifier(float modifier, string source)
+        {
+            if ( string.IsNullOrEmpty(source) )
+            {
+                Debug.LogWarning("MovementSystem: 移動速度修正のソースIDが空です");
+                return;
+            }
+
+            speedModifiers[source] = Mathf.Clamp(modifier, 0.1f, 10f); // 最低10%、最大1000%に制限
+            RecalculateSpeedMultiplier();
+
+            Debug.Log($"移動速度修正適用: {modifier:F2}x (ソース: {source})");
+        }
+
+        /// <summary>
+        /// 移動速度修正を削除（修正版）
+        /// </summary>
+        /// <param name="source">修正の識別子</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void RemoveMovementSpeedModifier(string source)
+        {
+            if ( string.IsNullOrEmpty(source) )
+            {
+                Debug.LogWarning("MovementSystem: 移動速度修正のソースIDが空です");
+                return;
+            }
+
+            if ( speedModifiers.Remove(source) )
+            {
+                RecalculateSpeedMultiplier();
+                Debug.Log($"移動速度修正削除: (ソース: {source})");
+            }
+            else
+            {
+                Debug.LogWarning($"MovementSystem: 削除しようとした修正が存在しません: {source}");
+            }
+        }
+
+        /// <summary>
+        /// 全ての移動速度修正をクリア
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void ClearAllSpeedModifiers()
+        {
+            speedModifiers.Clear();
+            RecalculateSpeedMultiplier();
+            Debug.Log("MovementSystem: 全ての移動速度修正をクリアしました");
+        }
+
+        /// <summary>
+        /// 指定のソースの修正が適用されているかチェック
+        /// </summary>
+        /// <param name="source">確認するソースID</param>
+        /// <returns>適用されているかどうか</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool HasSpeedModifier(string source)
+        {
+            return speedModifiers.ContainsKey(source);
+        }
+
+        /// <summary>
+        /// 指定のソースの修正値を取得
+        /// </summary>
+        /// <param name="source">確認するソースID</param>
+        /// <returns>修正値（適用されていない場合は1.0f）</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public float GetSpeedModifier(string source)
+        {
+            return speedModifiers.GetValueOrDefault(source, 1f);
+        }
+
+        /// <summary>
+        /// 全ての速度修正を取得（新規追加）
+        /// </summary>
+        /// <returns>速度修正の辞書のコピー</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Dictionary<string, float> GetAllSpeedModifiers()
+        {
+            return new Dictionary<string, float>(speedModifiers);
+        }
+
+        /// <summary>
+        /// 最終移動速度倍率を再計算（修正版）
+        /// 最も低い修正値を使用（複数の制限効果は最も厳しいものが適用）
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void RecalculateSpeedMultiplier()
+        {
+            if ( speedModifiers.Count == 0 )
+            {
+                FinalSpeedMultiplier = 1f;
+                return;
+            }
+
+            // 最も低い修正値を使用（最も制限的な効果を採用）
+            FinalSpeedMultiplier = 1f;
+            foreach ( var modifier in speedModifiers.Values )
+            {
+                if ( modifier < FinalSpeedMultiplier )
+                {
+                    FinalSpeedMultiplier = modifier;
+                }
+            }
+
+            // 安全範囲制限
+            FinalSpeedMultiplier = Mathf.Clamp(FinalSpeedMultiplier, 0.1f, 10f);
+        }
+
+        #endregion
+
         #region Private Methods
 
         /// <summary>
-        /// 地面判定の更新
+        /// 地面検知の更新
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateGroundCheck()
@@ -543,16 +686,6 @@ namespace LearningAIGame.CombatSystem
             if ( IsAirborne )
             {
                 TotalAirTime += Time.deltaTime;
-
-                // 最大空中時間チェック
-                if ( TotalAirTime > Settings.movement.maxAirTime )
-                {
-                    // 強制的に降下開始
-                    if ( IsInAerialFloat )
-                    {
-                        EndAerialFloat();
-                    }
-                }
             }
             else
             {
@@ -597,29 +730,12 @@ namespace LearningAIGame.CombatSystem
         }
 
         /// <summary>
-        /// 最終移動速度倍率を再計算（最小値方式）
+        /// 現在速度の更新
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void RecalculateSpeedMultiplier()
+        private void UpdateCurrentSpeed()
         {
-            if ( speedModifiers.Count == 0 )
-            {
-                FinalSpeedMultiplier = 1f;
-                return;
-            }
-
-            // 最も低い修正値を採用（最も制限の厳しい効果を優先）
-            FinalSpeedMultiplier = 1f;
-            foreach ( var modifier in speedModifiers.Values )
-            {
-                if ( modifier < FinalSpeedMultiplier )
-                {
-                    FinalSpeedMultiplier = modifier;
-                }
-            }
-
-            // 念のため範囲制限
-            FinalSpeedMultiplier = Mathf.Clamp(FinalSpeedMultiplier, 0.1f, 10f);
+            CurrentSpeed = new Vector3(rigidBody.linearVelocity.x, 0, rigidBody.linearVelocity.z).magnitude;
         }
 
         /// <summary>
@@ -633,9 +749,9 @@ namespace LearningAIGame.CombatSystem
                 return;
 
             // 基本移動速度の決定
-            float baseSpeed = IsBoosting ? Settings.movement.boostSpeed : Settings.movement.walkSpeed;
+            float baseSpeed = IsBoosting ? Settings.movement.boostSpeed : Settings.movement.moveSpeed;
 
-            // 空中での移動速度減少
+            // 空中での移動速度補正
             if ( IsAirborne && !IsInAerialFloat )
             {
                 baseSpeed *= Settings.movement.airMobilityMultiplier;
@@ -646,99 +762,13 @@ namespace LearningAIGame.CombatSystem
 
             Vector3 targetVelocity = currentMoveDirection * finalSpeed;
 
-            // Y軸の速度は維持（重力の影響を維持）
+            // Y軸の速度は維持（重力の影響を保持）
             if ( !IsInAerialFloat )
             {
                 targetVelocity.y = rigidBody.linearVelocity.y;
             }
 
             rigidBody.linearVelocity = targetVelocity;
-        }
-
-        /// <summary>
-        /// 移動速度修正を適用（最適化版）
-        /// </summary>
-        /// <param name="modifier">修正倍率（1.0f = 通常速度、0.5f = 半分の速度）</param>
-        /// <param name="source">修正元の識別子</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ApplyMovementSpeedModifier(float modifier, string source)
-        {
-            if ( string.IsNullOrEmpty(source) )
-            {
-                Debug.LogWarning("MovementSystem: 移動速度修正のソースIDが空です");
-                return;
-            }
-
-            speedModifiers[source] = Mathf.Clamp(modifier, 0.1f, 10f); // 最小10%、最大1000%に制限
-            RecalculateSpeedMultiplier();
-
-            Debug.Log($"移動速度修正適用: {modifier:F2}x (ソース: {source})");
-        }
-
-        /// <summary>
-        /// 移動速度修正を削除（最適化版）
-        /// </summary>
-        /// <param name="source">修正元の識別子</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RemoveMovementSpeedModifier(string source)
-        {
-            if ( string.IsNullOrEmpty(source) )
-            {
-                Debug.LogWarning("MovementSystem: 移動速度修正のソースIDが空です");
-                return;
-            }
-
-            if ( speedModifiers.Remove(source) )
-            {
-                RecalculateSpeedMultiplier();
-                Debug.Log($"移動速度修正削除: (ソース: {source})");
-            }
-            else
-            {
-                Debug.LogWarning($"MovementSystem: 削除しようとした修正が見つかりません: {source}");
-            }
-        }
-
-        /// <summary>
-        /// 全ての移動速度修正をクリア
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ClearAllSpeedModifiers()
-        {
-            speedModifiers.Clear();
-            RecalculateSpeedMultiplier();
-            Debug.Log("MovementSystem: 全ての移動速度修正をクリアしました");
-        }
-
-        /// <summary>
-        /// 特定のソースの修正が適用されているかチェック
-        /// </summary>
-        /// <param name="source">確認するソースID</param>
-        /// <returns>適用されているかどうか</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool HasSpeedModifier(string source)
-        {
-            return speedModifiers.ContainsKey(source);
-        }
-
-        /// <summary>
-        /// 特定のソースの修正値を取得
-        /// </summary>
-        /// <param name="source">確認するソースID</param>
-        /// <returns>修正値（適用されていない場合は1.0f）</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public float GetSpeedModifier(string source)
-        {
-            return speedModifiers.GetValueOrDefault(source, 1f);
-        }
-
-        /// <summary>
-        /// 現在速度の更新
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UpdateCurrentSpeed()
-        {
-            CurrentSpeed = new Vector3(rigidBody.linearVelocity.x, 0, rigidBody.linearVelocity.z).magnitude;
         }
 
         /// <summary>
@@ -829,7 +859,7 @@ namespace LearningAIGame.CombatSystem
                 stateSystem.CurrentActionState == ActionState.Stunned )
                 return false;
 
-            // 地上または二段ジャンプ可
+            // 地上または二段ジャンプ可能
             return IsGrounded || (!hasUsedDoubleJump && energySystem.CanUseEnergy(Settings.movement.airJumpEnergyCost));
         }
 
@@ -845,28 +875,6 @@ namespace LearningAIGame.CombatSystem
                    stateSystem.CurrentActionState != ActionState.Dodging &&
                    stateSystem.CurrentActionState != ActionState.Stunned &&
                    energySystem.CanUseEnergy(Settings.movement.boostEnergyConsumption * 0.1f);
-        }
-
-        /// <summary>
-        /// 回避可能かどうか（修正版）
-        /// StateSystemのエネルギー切れ状態を参照
-        /// </summary>
-        /// <returns>回避可能かどうか</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool CanDodge()
-        {
-            // 基本的な状態チェック
-            if ( isLunging ||
-                 stateSystem.CurrentActionState == ActionState.Dodging ||
-                 stateSystem.CurrentActionState == ActionState.Stunned )
-                return false;
-
-            // エネルギー切れ中は常に回避可能（性能は低下）
-            if ( stateSystem.IsEnergyDepleted )
-                return true;
-
-            // 通常時はエネルギーが必要
-            return energySystem.CanUseEnergy(Settings.movement.dodgeEnergyCost);
         }
 
         #endregion
@@ -906,13 +914,31 @@ namespace LearningAIGame.CombatSystem
             ExecuteLunge(transform.forward, 3f, 10f);
         }
 
+        [Button("速度修正テスト", ButtonSizes.Medium)]
+        [GUIColor(0.8f, 0.8f, 1f)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void DebugSpeedModifier()
+        {
+            ApplyMovementSpeedModifier(0.5f, "DebugTest");
+            Debug.Log("50%速度制限を適用しました");
+        }
+
+        [Button("速度修正リセット", ButtonSizes.Medium)]
+        [GUIColor(1f, 0.8f, 1f)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void DebugResetSpeedModifier()
+        {
+            ClearAllSpeedModifiers();
+            Debug.Log("全ての速度修正をリセットしました");
+        }
+
         /// <summary>
         /// Gizmo描画
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void OnDrawGizmos()
         {
-            // 地面判定の可視化
+            // 地面検知の可視化
             Gizmos.color = IsGrounded ? Color.green : Color.red;
             Vector3 position = positionCache != null ? positionCache.Position : transform.position;
             Gizmos.DrawRay(position, Vector3.down * groundCheckDistance);

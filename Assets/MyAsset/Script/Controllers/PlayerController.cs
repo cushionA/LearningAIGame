@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using UnityEngine;
 using Sirenix.OdinInspector;
+using BattleGame.Input;
 
 namespace LearningAIGame.CombatSystem
 {
@@ -42,37 +43,16 @@ namespace LearningAIGame.CombatSystem
         private bool wasBoostPressed = false;
 
         /// <summary>
-        /// 入力データ構造
-        /// </summary>
-        public struct InputData
-        {
-            public Vector2 movementVector;
-            public Vector2 attackDirection;
-            public bool jumpPressed;
-            public bool jumpCharged;
-            public bool weakAttackPressed;
-            public bool strongAttackPressed;
-            public bool skillPressed;
-            public bool guardHeld;
-            public bool blockPressed;
-            public bool dodgePressed;
-            public bool boostHeld;
-            public bool modeSwitchPressed;
-            public bool maneuverPressed;
-            public bool quickTurnPressed;
-        }
-
-        /// <summary>
         /// 次の行動を決定（入力ベース）
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected override void DecideNextAction()
         {
             var input = GetCurrentInput();
-            
+
             // 右スティック入力による方向制御
             directionSystem.UpdateDirectionFromStick(input.attackDirection);
-            
+
             ProcessMovementInput(input);
             ProcessAttackInput(input);
             ProcessDefenseInput(input);
@@ -115,47 +95,47 @@ namespace LearningAIGame.CombatSystem
             CurrentMoveInput = input.movementVector;
 
             // 移動処理
-            if (input.movementVector.magnitude > 0.1f)
+            if ( input.movementVector.magnitude > 0.1f )
             {
                 Vector3 moveDirection = new Vector3(input.movementVector.x, 0, input.movementVector.y);
-                
-                if (input.boostHeld && !wasBoostPressed)
+
+                if ( input.boostHeld && !wasBoostPressed )
                 {
                     ExecuteBoost(moveDirection);
                     wasBoostPressed = true;
                 }
-                else if (!input.boostHeld && wasBoostPressed)
+                else if ( !input.boostHeld && wasBoostPressed )
                 {
                     movementSystem.StopBoost();
                     wasBoostPressed = false;
                 }
-                else if (!input.boostHeld)
+                else if ( !input.boostHeld )
                 {
                     ExecuteMovement(moveDirection);
                 }
             }
-            else if (wasBoostPressed)
+            else if ( wasBoostPressed )
             {
                 movementSystem.StopBoost();
                 wasBoostPressed = false;
             }
 
             // ジャンプ処理
-            if (input.jumpPressed && !isJumpCharging)
+            if ( input.jumpPressed && !isJumpCharging )
             {
                 movementSystem.StartJumpCharge();
                 isJumpCharging = true;
             }
-            else if (!Input.GetButton("Jump") && isJumpCharging)
+            else if ( !Input.GetButton("Jump") && isJumpCharging )
             {
                 movementSystem.ReleaseJumpCharge();
                 isJumpCharging = false;
             }
 
             // 回避処理
-            if (input.dodgePressed)
+            if ( input.dodgePressed )
             {
-                Vector3 dodgeDirection = input.movementVector.magnitude > 0.1f ? 
+                Vector3 dodgeDirection = input.movementVector.magnitude > 0.1f ?
                     new Vector3(input.movementVector.x, 0, input.movementVector.y) : Vector3.zero;
                 ExecuteDodge(dodgeDirection);
             }
@@ -171,44 +151,44 @@ namespace LearningAIGame.CombatSystem
             CurrentAttackInput = input.attackDirection;
 
             // DirectionSystemから現在の方向を取得
-            AttackDirection direction = enableAutoAim ? 
-                GetOptimalAttackDirection() : 
+            AttackDirection direction = enableAutoAim ?
+                GetOptimalAttackDirection() :
                 directionSystem.CurrentDirection;
 
-            if (stateSystem.CurrentActionMode == ActionMode.Melee)
+            if ( stateSystem.CurrentActionMode == ActionMode.Melee )
             {
                 // 近接攻撃
-                if (input.weakAttackPressed)
+                if ( input.weakAttackPressed )
                 {
                     ExecuteWeakAttack(direction);
                 }
-                else if (input.strongAttackPressed)
+                else if ( input.strongAttackPressed )
                 {
                     ExecuteStrongAttack(direction);
                 }
-                else if (input.skillPressed)
+                else if ( input.skillPressed )
                 {
                     ExecuteSkill(SelectedSkillIndex);
                 }
             }
-            else if (stateSystem.CurrentActionMode == ActionMode.Ranged)
+            else if ( stateSystem.CurrentActionMode == ActionMode.Ranged )
             {
                 // 射撃攻撃
-                if (input.weakAttackPressed)
+                if ( input.weakAttackPressed )
                 {
                     attackSystem.ExecuteWeakShoot(direction);
                 }
-                else if (input.strongAttackPressed)
+                else if ( input.strongAttackPressed )
                 {
                     attackSystem.ExecuteStrongShoot(direction);
                 }
-                else if (input.skillPressed)
+                else if ( input.skillPressed )
                 {
                     attackSystem.ExecuteShootSkill(SelectedSkillIndex);
                 }
 
                 // 狙い処理（方向はDirectionSystemが管理）
-                if (input.attackDirection.magnitude > 0.1f)
+                if ( input.attackDirection.magnitude > 0.1f )
                 {
                     Vector3 aimDirection = new Vector3(input.attackDirection.x, 0, input.attackDirection.y);
                     attackSystem.StartAiming(aimDirection);
@@ -227,14 +207,14 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessDefenseInput(InputData input)
         {
-            if (stateSystem.CurrentActionMode != ActionMode.Melee)
+            if ( stateSystem.CurrentActionMode != ActionMode.Melee )
                 return;
 
             AttackDirection guardDirection = enableAutoAim ?
                 OpponentData.CurrentDirection :
                 directionSystem.CurrentDirection;
 
-            if (input.guardHeld)
+            if ( input.guardHeld )
             {
                 ExecuteGuard(guardDirection);
             }
@@ -243,7 +223,7 @@ namespace LearningAIGame.CombatSystem
                 defenseSystem.StopGuard();
             }
 
-            if (input.blockPressed)
+            if ( input.blockPressed )
             {
                 // ブロッキングは自動エイムなし（タイミングが重要）
                 AttackDirection blockDirection = directionSystem.CurrentDirection;
@@ -258,27 +238,27 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ProcessSpecialInput(InputData input)
         {
-            if (input.modeSwitchPressed)
+            if ( input.modeSwitchPressed )
             {
                 SwitchCombatMode();
             }
 
-            if (input.maneuverPressed)
+            if ( input.maneuverPressed )
             {
                 ExecuteManeuver(SelectedManeuverIndex);
             }
 
-            if (input.quickTurnPressed)
+            if ( input.quickTurnPressed )
             {
                 ExecuteQuickTurn();
             }
 
             // スキル・マニューバ選択
-            if (Input.GetKeyDown(KeyCode.Q))
+            if ( Input.GetKeyDown(KeyCode.Q) )
             {
                 SelectedSkillIndex = (SelectedSkillIndex + 1) % 5;
             }
-            if (Input.GetKeyDown(KeyCode.E))
+            if ( Input.GetKeyDown(KeyCode.E) )
             {
                 SelectedManeuverIndex = (SelectedManeuverIndex + 1) % 3;
             }
@@ -291,7 +271,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected override void OnOpponentStateChanged(ActionState newState)
         {
-            if (enableAutoAim && newState == ActionState.Attacking)
+            if ( enableAutoAim && newState == ActionState.Attacking )
             {
                 // 攻撃検知時の自動防御提案（UI表示など）
                 Debug.Log("敵が攻撃中 - 防御推奨");
@@ -305,7 +285,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected override void OnHealthChanged(float newHealthPercentage)
         {
-            if (newHealthPercentage < 0.3f)
+            if ( newHealthPercentage < 0.3f )
             {
                 Debug.Log("体力低下 - 注意が必要");
             }
@@ -318,7 +298,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected override void OnEnergyChanged(float newEnergyPercentage)
         {
-            if (newEnergyPercentage < 0.2f)
+            if ( newEnergyPercentage < 0.2f )
             {
                 Debug.Log("エネルギー低下 - エネルギー管理に注意");
             }

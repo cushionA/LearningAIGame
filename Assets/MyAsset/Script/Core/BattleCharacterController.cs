@@ -3,6 +3,7 @@ using UnityEngine;
 using Sirenix.OdinInspector;
 using UniRx;
 using System;
+using System.Collections.Generic;
 
 namespace LearningAIGame.CombatSystem
 {
@@ -57,6 +58,11 @@ namespace LearningAIGame.CombatSystem
         // 対戦相手情報へのアクセス
         public IOpponentData OpponentData { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; }
         public CharacterSettings Settings { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; }
+
+        /// <summary>
+        /// エネルギー切れ状態復帰時の復元システム
+        /// </summary>
+        private Dictionary<string, object> energyDepletedStateBackup = new Dictionary<string, object>();
 
         /// <summary>
         /// キャラクターの総合状態
@@ -211,6 +217,24 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected virtual void OnEnergyChanged(float newEnergyPercentage) { }
 
+        /// <summary>
+        /// エネルギー切れ状態に入る時のコールバック（新規追加）
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected virtual void OnEnergyDepleted()
+        {
+            BackupStateForEnergyDepletion();
+        }
+
+        /// <summary>
+        /// エネルギー切れ状態から回復する時のコールバック（新規追加）
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected virtual void OnEnergyRecovered()
+        {
+            RestoreStateFromEnergyDepletion();
+        }
+
         #endregion
 
         #region Public Execution Interface
@@ -255,15 +279,18 @@ namespace LearningAIGame.CombatSystem
         }
 
         /// <summary>
-        /// 回避を実行
+        /// 回避を実行（修正版）
+        /// 回避インターバル機能を追加
         /// </summary>
         /// <param name="direction">回避方向</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ExecuteDodge(Vector3 direction)
         {
-            if ( CanExecuteAction(ActionType.Dodge) )
+            if ( CanExecuteAction(ActionType.Dodge) && movementSystem.CanDodge() )
             {
                 movementSystem.Dodge(direction);
+                // StateSystemに報告
+                stateSystem.ReportDodgeExecuted();
             }
         }
 
@@ -321,7 +348,6 @@ namespace LearningAIGame.CombatSystem
                 defenseSystem.StartGuard(direction);
             }
         }
-
 
         /// <summary>
         /// エネルギー切れシールドを開始（L1ボタン用）修正版
@@ -492,6 +518,70 @@ namespace LearningAIGame.CombatSystem
             {
                 OnActionFailed(ActionType.WeakAttack);
             }
+        }
+
+        #endregion
+
+        #region Energy Depletion State Management（新規追加）
+
+        /// <summary>
+        /// エネルギー切れ状態に入る時に現在の状態をバックアップ
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void BackupStateForEnergyDepletion()
+        {
+            energyDepletedStateBackup.Clear();
+
+            // MovementSystemの移動速度関連状態をバックアップ
+            if ( movementSystem != null )
+            {
+                energyDepletedStateBackup["MovementSpeedModifiers"] = movementSystem.GetAllSpeedModifiers();
+                energyDepletedStateBackup["FinalSpeedMultiplier"] = movementSystem.FinalSpeedMultiplier;
+            }
+
+            // DefenseSystemのシールド状態をバックアップ
+            if ( defenseSystem != null )
+            {
+                energyDepletedStateBackup["IsEnergyShieldActive"] = defenseSystem.IsEnergyShieldActive();
+            }
+
+            Debug.Log($"{gameObject.name}: エネルギー切れ状態のバックアップを作成しました");
+        }
+
+        /// <summary>
+        /// エネルギー切れ状態から回復する時に状態を復元
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void RestoreStateFromEnergyDepletion()
+        {
+            // DefenseSystemのエネルギーシールドを確実に停止
+            if ( defenseSystem != null && defenseSystem.IsEnergyShieldActive() )
+            {
+                defenseSystem.StopEnergyShield();
+                Debug.Log($"{gameObject.name}: エネルギー回復により、エネルギーシールドを自動停止しました");
+            }
+
+            // MovementSystemの移動速度制限を全解除
+            if ( movementSystem != null )
+            {
+                // エネルギー切れ関連の速度制限をすべて削除
+                movementSystem.RemoveMovementSpeedModifier("EnergyShield");
+                movementSystem.RemoveMovementSpeedModifier("EnergyDepletion");
+
+                Debug.Log($"{gameObject.name}: エネルギー回復により、移動速度制限を解除しました");
+            }
+
+            energyDepletedStateBackup.Clear();
+            Debug.Log($"{gameObject.name}: エネルギー切れ状態からの復元が完了しました");
+        }
+
+        /// <summary>
+        /// エネルギー切れ状態から回復時にコントローラー経由で各システムを復元
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void RestoreAllSystemsFromEnergyDepletion()
+        {
+            RestoreStateFromEnergyDepletion();
         }
 
         #endregion
@@ -701,11 +791,16 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetupEventSubscriptions()
         {
+            fv
+
             if ( stateSystem != null )
             {
                 stateSystem.OnHealthChanged.Subscribe(OnHealthChangedInternal).AddTo(this);
                 stateSystem.OnEnergyChanged.Subscribe(OnEnergyChangedInternal).AddTo(this);
                 stateSystem.OnActionStateChanged.Subscribe(OnOpponentStateChanged).AddTo(this);
+
+                // エネルギー切れ状態の変化を監視（新規追加）
+                stateSystem.OnEnergyDepletedStateChanged.Subscribe(OnEnergyDepletedStateChangedInternal).AddTo(this);
             }
 
             if ( directionSystem != null )
@@ -779,6 +874,23 @@ namespace LearningAIGame.CombatSystem
         }
 
         /// <summary>
+        /// エネルギー切れ状態変化の内部処理（新規追加）
+        /// </summary>
+        /// <param name="isDepleted">エネルギー切れ状態かどうか</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void OnEnergyDepletedStateChangedInternal(bool isDepleted)
+        {
+            if ( isDepleted )
+            {
+                OnEnergyDepleted();
+            }
+            else
+            {
+                OnEnergyRecovered();
+            }
+        }
+
+        /// <summary>
         /// 方向変化の内部処理
         /// </summary>
         /// <param name="newDirection">新しい方向</param>
@@ -836,6 +948,24 @@ namespace LearningAIGame.CombatSystem
             stateSystem.ReportEnergyChange(1f);
             stateSystem.HealthData.Reset();
             Debug.Log($"{gameObject.name}: 体力・エネルギーを全回復しました");
+        }
+
+        [Button("エネルギー切れ状態テスト", ButtonSizes.Medium)]
+        [GUIColor(1f, 0.8f, 0.8f)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void TestEnergyDepletion()
+        {
+            energySystem.SetEnergy(0f);
+            Debug.Log($"{gameObject.name}: エネルギー切れ状態をテストしました");
+        }
+
+        [Button("エネルギー状態復元テスト", ButtonSizes.Medium)]
+        [GUIColor(0.8f, 1f, 1f)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void TestEnergyRecovery()
+        {
+            energySystem.SetEnergy(energySystem.MaxEnergy);
+            Debug.Log($"{gameObject.name}: エネルギー回復をテストしました");
         }
 
         #endregion

@@ -54,11 +54,6 @@ namespace LearningAIGame.CombatSystem
         StrongShoot,
 
         /// <summary>
-        /// 射撃スキル
-        /// </summary>
-        ShootSkill,
-
-        /// <summary>
         /// ガード
         /// </summary>
         Guard,
@@ -67,11 +62,6 @@ namespace LearningAIGame.CombatSystem
         /// ブロッキング
         /// </summary>
         Block,
-
-        /// <summary>
-        /// マニューバ実行
-        /// </summary>
-        Maneuver,
 
         /// <summary>
         /// エクステンション兵器使用
@@ -106,7 +96,8 @@ namespace LearningAIGame.CombatSystem
         /// <summary>
         /// 二段ジャンプ
         /// </summary>
-        DoubleJump
+        DoubleJump,
+        Maneuver
     }
 
     /// <summary>
