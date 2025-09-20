@@ -107,6 +107,12 @@ namespace LearningAIGame.CombatSystem
             // 状態更新
             stateSystem.UpdateStates();
 
+            // ActionDataのクールダウン更新（新規追加）
+            if ( Settings != null )
+            {
+                Settings.UpdateAllCooldowns(Time.fixedDeltaTime);
+            }
+
             // 行動モード別処理
             switch ( stateSystem.CurrentActionMode )
             {
@@ -279,7 +285,7 @@ namespace LearningAIGame.CombatSystem
         }
 
         /// <summary>
-        /// 回避を実行（修正版）
+        /// 回避を実行（ActionDataシステム対応版）
         /// 回避インターバル機能を追加
         /// </summary>
         /// <param name="direction">回避方向</param>
@@ -288,38 +294,36 @@ namespace LearningAIGame.CombatSystem
         {
             if ( CanExecuteAction(ActionType.Dodge) && movementSystem.CanDodge() )
             {
-                movementSystem.Dodge(direction);
-                // StateSystemに報告
-                stateSystem.ReportDodgeExecuted();
+                // エネルギー消費とActionData更新
+                var actionData = Settings.GetActionData(ActionType.Dodge);
+                if ( actionData != null && UseEnergy(actionData.energyCost) )
+                {
+                    Settings.ExecuteAction(ActionType.Dodge);
+                    movementSystem.Dodge(direction);
+                    // StateSystemに報告
+                    stateSystem.ReportDodgeExecuted();
+                }
             }
         }
 
         /// <summary>
-        /// 弱攻撃を実行
+        /// 弱攻撃を実行（ActionDataシステム対応版）
         /// </summary>
         /// <param name="direction">攻撃方向</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ExecuteWeakAttack(AttackDirection direction)
         {
-            if ( CanExecuteAction(ActionType.WeakAttack) )
-            {
-                directionSystem.ForceDirection(direction, 0.1f);
-                attackSystem.ExecuteWeakAttack(direction);
-            }
+            attackSystem.ExecuteWeakAttack(direction);
         }
 
         /// <summary>
-        /// 強攻撃を実行
+        /// 強攻撃を実行（ActionDataシステム対応版）
         /// </summary>
         /// <param name="direction">攻撃方向</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ExecuteStrongAttack(AttackDirection direction)
         {
-            if ( CanExecuteAction(ActionType.StrongAttack) )
-            {
-                directionSystem.ForceDirection(direction, 0.1f);
-                attackSystem.ExecuteStrongAttack(direction);
-            }
+            attackSystem.ExecuteStrongAttack(direction);
         }
 
         /// <summary>
@@ -412,7 +416,7 @@ namespace LearningAIGame.CombatSystem
         }
 
         /// <summary>
-        /// マニューバを実行
+        /// マニューバを実行（ActionDataシステム対応版）
         /// </summary>
         /// <param name="maneuverIndex">マニューバインデックス</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -420,7 +424,13 @@ namespace LearningAIGame.CombatSystem
         {
             if ( CanExecuteAction(ActionType.Maneuver) )
             {
-                maneuverSystem.ExecuteManeuver(maneuverIndex);
+                // エネルギー消費とActionData更新
+                var actionData = Settings.GetActionData(ActionType.Maneuver);
+                if ( actionData != null && UseEnergy(actionData.energyCost) )
+                {
+                    Settings.ExecuteAction(ActionType.Maneuver);
+                    maneuverSystem.ExecuteManeuver(maneuverIndex);
+                }
             }
         }
 
@@ -589,14 +599,20 @@ namespace LearningAIGame.CombatSystem
         #region Protected Helper Methods
 
         /// <summary>
-        /// アクションが実行可能かどうか
+        /// アクションが実行可能かどうか（ActionDataシステム対応版）
         /// </summary>
         /// <param name="actionType">アクションタイプ</param>
         /// <returns>実行可能かどうか</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected bool CanExecuteAction(ActionType actionType)
         {
-            return stateSystem.CanExecuteAction(actionType) && CanAct();
+            // 基本的な状態チェック
+            if ( !CanAct() || stateSystem == null || Settings == null )
+                return false;
+
+            // CharacterSettingsのActionDataシステムでチェック
+            return Settings.CanExecuteAction(actionType, CurrentEnergy) &&
+                   stateSystem.CanExecuteAction(actionType);
         }
 
         /// <summary>
@@ -760,12 +776,6 @@ namespace LearningAIGame.CombatSystem
                 return;
             }
 
-            // BaseSystemを継承しているシステムを初期化
-            var baseSystemComponents = GetComponents<BaseSystem>();
-            foreach ( var system in baseSystemComponents )
-            {
-                system.Initialize(this, characterSettings);
-            }
         }
 
         /// <summary>
@@ -791,8 +801,6 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetupEventSubscriptions()
         {
-            fv
-
             if ( stateSystem != null )
             {
                 stateSystem.OnHealthChanged.Subscribe(OnHealthChangedInternal).AddTo(this);
@@ -927,6 +935,13 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ClearAllCooldowns()
         {
+            // ActionDataシステムのクールダウンリセット（新規追加）
+            if ( Settings != null )
+            {
+                Settings.ResetAllCooldowns();
+            }
+
+            // 既存のStateSystemクールダウンリセット
             for ( int i = 0; i < stateSystem.AnalysisData.skillCooldowns.Length; i++ )
             {
                 stateSystem.ReportSkillCooldown(i, 0f);

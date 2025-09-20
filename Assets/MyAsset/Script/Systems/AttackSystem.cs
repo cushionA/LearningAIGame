@@ -9,6 +9,15 @@ namespace LearningAIGame.CombatSystem
 {
     /// <summary>
     /// 攻撃データの構造体
+    /// 
+    /// 回避攻撃は回避中の攻撃方向変えられないタイミングで
+    /// このゲーム後ろ回避が強すぎない？　近接択全拒否できるじゃん
+    /// やっぱ銃器ごとに強射撃実装するか。弾倉全弾撃ち尽くすけど超強力な奴
+    /// というよりフルバーストって名前で全弾撃つか
+    /// ガトリングの場合、三発ずつ撃てるようになる（威力は二倍くらい）
+    /// 弾持ちが悪くなるけどDPSが跳ね上がる
+    /// 銃はブロッキング不可で
+    /// 後ろ回避は他ムーブで硬直キャンセル不可
     /// </summary>
     [System.Serializable]
     public struct AttackData
@@ -16,114 +25,55 @@ namespace LearningAIGame.CombatSystem
         public AttackType attackType;
         public float damage;
         public AttackDirection direction;
-        public bool isExecuting;
-        public bool isAiming;
-        public float aimingAccuracy;
         public int comboCount;
-        public bool isAerialAttack;
-        public bool isDodgeAttack;
     }
 
     /// <summary>
+    /// 実行した攻撃の結果を記録するためのデータ
+    /// モーション終了、中断時にStateSystemに報告する
+    /// </summary>
+    public enum AttackResult : Byte
+    {
+        キャンセル,
+        ヒット,
+        ガード,
+        ブロッキング,
+        回避
+    }
+
+
+    /// <summary>
     /// 攻撃システム - 近接攻撃、射撃攻撃、スキル攻撃、コンボシステムを管理
+    /// 
+    /// 武器の仕様
+    /// 基本武器を一つ選ぶ。近接武器。弱強を出せる
+    /// 射撃武器を一つ選ぶ。Lで射撃。
+    /// スキルを一つ選ぶ。遠距離や近距離がある。ミサイルとか水平に薙ぎ払う防禦できないレーザーとか、特殊モーション突進とか、出が早い斬撃とか（キャンセル後に使う）
+    /// エクステンションを選ぶ。パリィや罠設置
+    /// ShootSystemを導入しないとね
+    /// 
+    /// マニューバオミットすればパリィとエクステンション分けれる
+    /// エクステンションオミットしてマニューバもあり
+    /// マニューバはいったん削る
+    /// 
+    /// ここで攻撃データは持たない。
+    /// StateSystemで管理している攻撃状態に基づき、コントローターのステータス～攻撃データを取って使う
+    /// 攻撃アニメが終了・中断した瞬間にStateSystemに報告して、コンボ状態とかを調整しよう
+    /// このクラスの責任範囲は以下
+    /// ・アニメを再生
+    /// ・攻撃判定の発生
+    /// ・StateSystemへの報告
+    /// ・攻撃結果の確認
+    /// ・フェイントの受付
     /// </summary>
     public class AttackSystem : BaseSystem<AttackData>
     {
-        // コンポーネント
-        private StateSystem stateSystem;
-        private EnergySystem energySystem;
-        private MovementSystem movementSystem;
-
         // 攻撃状態
         private AttackData currentAttackData;
-
-        // コンボ管理
-        private ComboStateData comboState = new ComboStateData();
-
-        // 回避攻撃管理
-        private bool canDodgeAttack = false;
-        private float dodgeAttackTimer = 0f;
-        private Vector3 lastDodgeDirection;
 
         [Title("攻撃判定")]
         [PropertyTooltip("近接攻撃の判定コライダー")]
         [SerializeField] private AttackCollider meleeAttackCollider;
-
-        [PropertyTooltip("射撃攻撃のプレハブ")]
-        [SerializeField] private GameObject bulletPrefab;
-
-        [PropertyTooltip("弾丸発射位置")]
-        [SerializeField] private Transform bulletSpawnPoint;
-
-        [Title("現在の状態")]
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在攻撃中かどうか")]
-        public bool IsAttacking { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = false;
-
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在リロード中かどうか")]
-        public bool IsReloading { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = false;
-
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在の射撃精度")]
-        public float CurrentAimingAccuracy { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = 0f;
-
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在の狙い方向")]
-        public Vector3 CurrentAimDirection { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = Vector3.forward;
-
-        [Title("コンボ状態")]
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在のコンボ段数")]
-        public int CurrentComboCount => comboState.currentCount;
-
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("コンボ実行中かどうか")]
-        public bool IsInCombo => comboState.isActive;
-
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("空中コンボかどうか")]
-        public bool IsAerialCombo => comboState.isAerialCombo;
-
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("回避攻撃が可能かどうか")]
-        public bool CanDodgeAttack => canDodgeAttack;
-
-        // 内部状態
-        private float lastAttackTime = 0f;
-        private float aimingStartTime = 0f;
-        private bool isAiming = false;
-        private AttackDirection currentAttackDirection = AttackDirection.Up;
-
-        // スキル管理
-        [Title("スキル設定")]
-        [PropertyTooltip("利用可能なスキル一覧")]
-        [SerializeField] private List<SkillData> availableSkills = new List<SkillData>();
-
-        /// <summary>
-        /// スキルデータ
-        /// </summary>
-        [Serializable]
-        public class SkillData
-        {
-            [PropertyTooltip("スキル名")]
-            public string skillName;
-
-            [PropertyTooltip("エネルギー消費量")]
-            public float energyCost;
-
-            [PropertyTooltip("クールタイム")]
-            public float cooldownTime;
-
-            [PropertyTooltip("ダメージ")]
-            public float damage;
-
-            [PropertyTooltip("攻撃タイプ")]
-            public AttackType attackType;
-
-            [PropertyTooltip("ガード可能かどうか")]
-            public bool canBeGuarded = false;
-        }
 
         /// <summary>
         /// 初期化処理
@@ -136,10 +86,6 @@ namespace LearningAIGame.CombatSystem
 
         protected override void OnInitialized()
         {
-            // 他のシステムの参照取得
-            stateSystem = GetComponent<StateSystem>();
-            energySystem = GetComponent<EnergySystem>();
-            movementSystem = GetComponent<MovementSystem>();
 
             if ( Settings?.attack == null )
             {
@@ -153,24 +99,6 @@ namespace LearningAIGame.CombatSystem
 
             // 初期データの設定
             UpdateAttackData();
-        }
-
-        protected override void SetupObservables()
-        {
-            // 攻撃状態の更新をObservableで通知
-            UniRx.Observable.EveryUpdate()
-                .Subscribe(_ => UpdateAndNotifyAttackData())
-                .AddTo(disposables);
-
-            // コンボタイマーの更新
-            UniRx.Observable.EveryUpdate()
-                .Subscribe(_ => UpdateComboTimer())
-                .AddTo(disposables);
-
-            // 回避攻撃タイマーの更新
-            UniRx.Observable.EveryUpdate()
-                .Subscribe(_ => UpdateDodgeAttackTimer())
-                .AddTo(disposables);
         }
 
         private void UpdateAndNotifyAttackData()
@@ -216,9 +144,6 @@ namespace LearningAIGame.CombatSystem
         {
             if ( !CanExecuteWeakAttack() )
                 return;
-
-            bool isAerial = stateSystem.AnalysisData.isAirborne;
-            AttackType attackType = isAerial ? AttackType.AerialWeakMelee : AttackType.WeakMelee;
 
             // コンボ状態の更新
             UpdateComboState(attackType, isAerial);
@@ -377,7 +302,7 @@ namespace LearningAIGame.CombatSystem
             if ( !CanShoot() )
                 return;
 
-            var attackInfo = CreateAttackInfo(AttackType.WeakRanged, direction, Settings.attack.weakShootDamage);
+            var attackInfo = CreateAttackInfo(AttackType.WeakShoot, direction, Settings.attack.weakShootDamage);
             attackInfo.canBeGuarded = true; // 弱射撃はガード可能
 
             FireBullet(attackInfo);
@@ -393,7 +318,7 @@ namespace LearningAIGame.CombatSystem
             if ( !CanShoot() )
                 return;
 
-            var attackInfo = CreateAttackInfo(AttackType.StrongRanged, direction, Settings.attack.strongShootDamage);
+            var attackInfo = CreateAttackInfo(AttackType.StrongShoot, direction, Settings.attack.strongShootDamage);
             attackInfo.canBeGuarded = false; // 強射撃はガード不可
 
             FireBullet(attackInfo);
@@ -815,7 +740,7 @@ namespace LearningAIGame.CombatSystem
             }
 
             // リロード開始
-            if ( attackInfo.attackType == AttackType.StrongRanged )
+            if ( attackInfo.attackType == AttackType.StrongShoot )
             {
                 StartReload();
             }

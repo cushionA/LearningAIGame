@@ -27,10 +27,6 @@ namespace LearningAIGame.CombatSystem
     /// </summary>
     public class DefenseSystem : BaseSystem<DefenseData>
     {
-        // コンポーネント
-        private StateSystem stateSystem;
-        private EnergySystem energySystem;
-        private MovementSystem movementSystem;
 
         // 防御状態
         private DefenseData currentDefenseData;
@@ -310,7 +306,7 @@ namespace LearningAIGame.CombatSystem
             if ( stateSystem.CurrentDirection == attackInfo.direction )
             {
                 // 強攻撃はシールドを貫通
-                if ( attackInfo.attackType == AttackType.StrongMelee || attackInfo.attackType == AttackType.StrongRanged )
+                if ( attackInfo.attackType == AttackType.StrongMelee || attackInfo.attackType == AttackType.StrongShoot )
                 {
                     Debug.Log("強攻撃：エネルギーシールドを貫通");
                     return ProcessDefenseFailure(attackInfo);
@@ -421,7 +417,7 @@ namespace LearningAIGame.CombatSystem
             float stunAccumulation = 0f;
 
             // 強攻撃はガードしても怯み発生
-            if ( attackInfo.attackType == AttackType.StrongMelee || attackInfo.attackType == AttackType.StrongRanged )
+            if ( attackInfo.attackType == AttackType.StrongMelee || attackInfo.attackType == AttackType.StrongShoot )
             {
                 damage = attackInfo.baseDamage * 0.3f; // 軽減ダメージ
                 stunAccumulation = attackInfo.stunAccumulation * 0.5f;
@@ -550,8 +546,8 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool IsRangedAttack(AttackType attackType)
         {
-            return attackType == AttackType.WeakRanged ||
-                   attackType == AttackType.StrongRanged ||
+            return attackType == AttackType.WeakShoot ||
+                   attackType == AttackType.StrongShoot ||
                    attackType == AttackType.RangedSkill;
         }
 

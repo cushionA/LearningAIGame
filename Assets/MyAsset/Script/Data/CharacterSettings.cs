@@ -1,1129 +1,896 @@
-using System;
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using UnityEngine;
 using Sirenix.OdinInspector;
-using Unity.Mathematics;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System;
 
 namespace LearningAIGame.CombatSystem
 {
-    #region === ActionType定義 ===
+    /// <summary>
+    /// アクションタイプの列挙
+    /// </summary>
+    public enum ActionType : byte
+    {
+        Walk,
+        Jump,
+        Boost,
+        Dodge,
+        WeakAttack,
+        StrongAttack,
+        SkillAttack,
+        Guard,
+        Block,
+        Extension,
+        ModeSwitch,
+        Maneuver
+    }
 
     /// <summary>
-    /// 共通の行動データ（汎用化）
-    /// すべての行動（移動・攻撃・スキルなど）に適用可能。
+    /// アクションモードの列挙
     /// </summary>
-    [Serializable]
-    public class ActionDataBase
+    public enum ActionMode : byte
     {
-        [Title("消費設定")]
-        [PropertyTooltip("行動に必要なエネルギー量")]
-        [Range(0f, 100f)]
-        public float energyCost = 10f;
-        /// <summary>
-        /// 銃撃系のアクションであれば弾数にも応用できる
-        /// </summary>
-        [Title("実行回数設定")]
-        [PropertyTooltip("連続して実行できる最大回数")]
-        [Range(1, 10)]
+        Melee,
+        Ranged,
+        EnergyBarrier
+    }
+
+    /// <summary>
+    /// アクション状態の列挙
+    /// </summary>
+    public enum ActionState : byte
+    {
+        Idle,
+        Moving,
+        Boosting,
+        Falling,
+        Jumping,
+        Dodging,
+        DoubleDodging,
+        Attacking,
+        Guarding,
+        UsingManeuver,
+        Stunned,
+        Flinching,
+        EnergyShielding,
+        AirCharge,
+        QuickTurn
+    }
+
+    /// <summary>
+    /// 攻撃方向の列挙
+    /// </summary>
+    public enum AttackDirection : byte
+    {
+        Up,
+        Left,
+        Right
+    }
+
+    /// <summary>
+    /// 攻撃タイプの列挙
+    /// </summary>
+    public enum AttackType : byte
+    {
+        None,
+        WeakMelee,
+        StrongMelee,
+        WeakShoot,
+        StrongShoot,
+    }
+
+    /// <summary>
+    /// 基本アクションデータ - 全アクションの共通データ構造
+    /// 
+    /// 実装メモ:
+    /// - ジェネリック型Tにより、各アクション固有のデータを型安全に管理
+    /// - クールダウン、エネルギー消費、連続使用制限を統一的に処理
+    /// - リフレクションを避け、パフォーマンスを重視した設計
+    /// 
+    /// 使用例:
+    /// - ActionData<MovementActionData> walkAction
+    /// - ActionData<AttackActionData> attackAction
+    /// </summary>
+    [System.Serializable]
+    public class ActionData<T> where T : class, new()
+    {
+        [Title("基本設定")]
+        [PropertyTooltip("エネルギー消費量")]
+        public float energyCost = 0f;
+
+        [PropertyTooltip("最大連続使用回数")]
+        [Range(1, 999)]
         public int maxConsecutiveUses = 1;
-        /// <summary>
-        /// 連続実行回数とは異なり、一度の実行で追加入力できる回数
-        /// この範囲内なら何度入力しても一回の実行としてまとめられる
-        /// </summary>
-        [Title("連続入力数")]
-        [PropertyTooltip("一度の実行で追加入力できる回数")]
-        [Range(1, 10)]
-        public int additionalCount = 1;
-        [PropertyTooltip("現在の残り実行可能回数")]
-        public int currentUses;
-        [Title("クールタイム設定")]
-        [PropertyTooltip("連続実行回数を使い果たした際のクールタイム（秒）")]
-        [Range(0f, 150f)]
-        public float cooldownTime = 5f;
-        [Title("アクションの継続実行可能時間")]
-        [PropertyTooltip("アクションの継続実行可能時間")]
-        [Range(0f, 30f)]
-        public float continueTime = 5f;
-        /// <summary>
-        /// この行動がキャンセルされなかった場合、自動でつながるアクション
-        /// これいらないかも
-        /// チャージ完了とかは別にイベント飛ばせるし
-        /// </summary>
-        [Title("この行動がキャンセルされなかった場合、自動でつながるアクション")]
-        [PropertyTooltip("この行動がキャンセルされなかった場合、自動でつながるアクション")]
-        public ActionType nextAction;
+
+        [PropertyTooltip("クールダウン時間")]
+        [Range(0f, 60f)]
+        public float cooldownTime = 0f;
+
+        [Title("専用データ")]
+        [PropertyTooltip("アクション固有のデータ")]
+        public T data = new T();
+
+        // 内部管理用
         [HideInInspector]
-        [PropertyTooltip("現在のクールタイム残り時間（秒）")]
-        public float currentCooldown;
+        public float lastUsedTime = 0f;
+        [HideInInspector]
+        public int consecutiveUseCount = 0;
+
         /// <summary>
-        /// 行動を実行し、回数とクールタイムを更新
+        /// アクションが使用可能かどうかを判定
+        /// 
+        /// 判定条件:
+        /// 1. クールダウンが終了している
+        /// 2. 連続使用回数が上限に達していない
+        /// 3. 必要なエネルギーが足りている
+        /// 
+        /// 注意: この判定はStateSystemの状態チェックとは独立して動作する
         /// </summary>
-        public virtual void Execute()
+        /// <param name="currentEnergy">現在のエネルギー量</param>
+        /// <returns>使用可能な場合true</returns>
+        public bool CanUse(float currentEnergy)
         {
-            currentUses--;
-            if ( currentUses <= 0 )
-            {
-                // 使用回数を使い果たしたらクールタイム開始
-                StartCooldown();
-            }
+            return Time.time - lastUsedTime >= cooldownTime &&
+                   consecutiveUseCount < maxConsecutiveUses &&
+                   currentEnergy >= energyCost;
         }
+
         /// <summary>
-        /// クールタイムを開始する
+        /// アクションを実行し、内部状態を更新
+        /// 
+        /// 実行内容:
+        /// - 最終使用時刻を現在時刻に更新
+        /// - 連続使用回数をインクリメント
+        /// 
+        /// 注意: エネルギー消費は別途EnergySystemで処理される
         /// </summary>
-        public void StartCooldown()
+        public void Execute()
         {
-            currentCooldown = cooldownTime;
+            lastUsedTime = Time.time;
+            consecutiveUseCount++;
         }
+
         /// <summary>
-        /// 毎フレーム呼び出してクールタイムを進行させる
+        /// クールダウン状態を更新し、必要に応じて連続使用回数をリセット
+        /// 
+        /// 更新ロジック:
+        /// - クールダウン時間が経過していれば連続使用回数を0にリセット
+        /// - BattleCharacterController.FixedUpdate()から毎フレーム呼び出される
+        /// 
+        /// パフォーマンス: 軽量な処理なので毎フレーム実行しても問題なし
         /// </summary>
+        /// <param name="deltaTime">前フレームからの経過時間</param>
         public void UpdateCooldown(float deltaTime)
         {
-            if ( currentCooldown > 0f )
+            if ( Time.time - lastUsedTime >= cooldownTime )
             {
-                currentCooldown -= deltaTime;
-                if ( currentCooldown <= 0f )
-                {
-                    // クールタイム終了で使用回数をリセット
-                    currentUses = maxConsecutiveUses;
-                    currentCooldown = 0f;
-                }
+                consecutiveUseCount = 0;
             }
         }
-    }
-    /// <summary>
-    /// ジェネリック対応の行動データ
-    /// Tの型で追加データを持たせることができる。
-    /// ActionTypeをキーにして管理を行う
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    public class ActionData<T> : ActionDataBase
-    {
+
         /// <summary>
-        /// 行動に関連するデータ
-        /// 攻撃系の行動なら攻撃力y踏み込み距離など
-        /// アクションに必要なデータを持つ
+        /// アクションの使用状態を完全にリセット
+        /// 
+        /// リセット内容:
+        /// - 最終使用時刻を0に戻す
+        /// - 連続使用回数を0に戻す
+        /// 
+        /// 使用場面:
+        /// - デバッグ時の状態リセット
+        /// - キャラクター復活時の初期化
+        /// - 戦闘開始時の状態クリア
         /// </summary>
-        public T data;
+        public void Reset()
+        {
+            lastUsedTime = 0f;
+            consecutiveUseCount = 0;
+        }
     }
 
-    #endregion
-
-    #region === 専用ActionDataクラス群 ===
-
     /// <summary>
-    /// 移動系行動のデータ
+    /// 移動アクションデータ - 歩行、ジャンプ、ブースト、回避の設定を統合管理
+    /// 
+    /// 設計方針:
+    /// - 全ての移動アクションで共通のデータ構造を使用
+    /// - アクション種別による設定値の使い分けは各Systemで実装
+    /// - 回避インターバル機能により戦術性を向上
+    /// 
+    /// 注意:
+    /// - 従来のMovementSettingsとの互換性を保持
+    /// - エネルギー切れ時の特殊ルールに対応
     /// </summary>
-    [Serializable]
+    [System.Serializable]
     public class MovementActionData
     {
+        [Title("移動設定")]
         [PropertyTooltip("移動速度")]
-        [Range(1f, 30f)]
         public float speed = 5f;
 
-        [PropertyTooltip("移動距離（ジャンプの高さなど）")]
-        [Range(0f, 20f)]
-        public float distance = 0f;
+        [PropertyTooltip("加速時間")]
+        public float acceleration = 0.2f;
 
-        [PropertyTooltip("無敵時間（開始時間, 継続時間）")]
-        public float2 invincibilityFrame = new float2(0f, 0f);
+        [Title("ジャンプ設定")]
+        [PropertyTooltip("ジャンプ力")]
+        public float jumpForce = 10f;
 
-        [PropertyTooltip("継続消費エネルギー（秒あたり）")]
-        [Range(0f, 50f)]
-        public float continuousEnergyCost = 0f;
+        [PropertyTooltip("チャージ時間")]
+        public float chargeTime = 1f;
 
-        [PropertyTooltip("チャージ可能な行動か")]
-        public bool canCharge = false;
+        [PropertyTooltip("チャージジャンプ力")]
+        public float chargedJumpForce = 15f;
 
-        [PropertyTooltip("最大チャージ時間")]
-        [Range(0f, 5f)]
-        public float maxChargeTime = 1f;
+        [Title("回避設定")]
+        [PropertyTooltip("回避距離")]
+        public float dodgeDistance = 8f;
 
-        [PropertyTooltip("チャージ時の効果倍率")]
-        [Range(1f, 3f)]
-        public float chargeMultiplier = 1.5f;
+        [PropertyTooltip("通常時回避インターバル")]
+        public float normalDodgeInterval = 0.3f;
 
-        [PropertyTooltip("行動後の特殊状態継続時間")]
-        [Range(0f, 2f)]
-        public float postActionDuration = 0f;
+        [PropertyTooltip("エネルギー切れ時回避インターバル")]
+        public float energyDepletedDodgeInterval = 1f;
+
+        [PropertyTooltip("二段回避エネルギー消費")]
+        public float doubleDodgeEnergyCost = 20f;
     }
 
     /// <summary>
-    /// 攻撃系行動のデータ
+    /// 攻撃アクションデータ
     /// </summary>
-    [Serializable]
+    [System.Serializable]
     public class AttackActionData
     {
+        [Title("基本攻撃設定")]
         [PropertyTooltip("基本ダメージ")]
-        [Range(5f, 200f)]
-        public float damage = 25f;
-
-        [PropertyTooltip("発生フレーム（攻撃開始までの時間）")]
-        [Range(0.05f, 2f)]
-        public float startup = 0.2f;
-
-        [PropertyTooltip("持続フレーム（攻撃判定の継続時間）")]
-        [Range(0.05f, 1f)]
-        public float duration = 0.1f;
-
-        [PropertyTooltip("硬直フレーム（攻撃後の隙）")]
-        [Range(0.1f, 2f)]
-        public float recovery = 0.3f;
-
-        [PropertyTooltip("踏み込み距離")]
-        [Range(0f, 10f)]
-        public float lungeDistance = 2f;
+        public float baseDamage = 25f;
 
         [PropertyTooltip("攻撃範囲")]
-        [Range(0.5f, 10f)]
-        public float range = 3f;
+        public float range = 2f;
 
-        [PropertyTooltip("キャンセル可能か")]
+        [PropertyTooltip("攻撃速度")]
+        public float speed = 1f;
+
+        [PropertyTooltip("スタン蓄積値")]
+        public float stunAccumulation = 10f;
+
+        [Title("キャンセル設定")]
+        [PropertyTooltip("キャンセル可能かどうか")]
         public bool canCancel = false;
 
-        [PropertyTooltip("キャンセル時の追加エネルギー消費")]
-        [Range(0f, 30f)]
-        public float cancelEnergyCost = 10f;
+        [PropertyTooltip("キャンセル可能タイミング")]
+        public float cancelWindow = 0.3f;
 
-        [PropertyTooltip("ガード可能な攻撃か")]
-        public bool canBeGuarded = true;
+        [Title("コンボ設定")]
+        [PropertyTooltip("コンボ継続時間")]
+        public float comboContinueTime = 1f;
 
-        [PropertyTooltip("ガード時の相手への影響")]
-        [Range(0f, 2f)]
-        public float guardImpact = 0.5f;
-
-        [PropertyTooltip("コンボ受付時間")]
-        [Range(0f, 2f)]
-        public float comboWindow = 0.8f;
-
-        [PropertyTooltip("空中攻撃時の滞空時間")]
-        [Range(0f, 2f)]
-        public float floatTime = 0f;
+        [PropertyTooltip("最大コンボ数")]
+        public int maxComboCount = 3;
     }
 
     /// <summary>
-    /// 射撃系行動のデータ
+    /// 射撃アクションデータ
     /// </summary>
-    [Serializable]
-    public class ShootActionData
+    [System.Serializable]
+    public class RangedActionData
     {
-        [PropertyTooltip("基本ダメージ")]
-        [Range(5f, 150f)]
-        public float damage = 15f;
-
-        [PropertyTooltip("発射速度")]
-        [Range(10f, 100f)]
-        public float projectileSpeed = 50f;
-
-        [PropertyTooltip("射程距離")]
-        [Range(10f, 100f)]
-        public float range = 50f;
-
-        [PropertyTooltip("発射レート（秒間発射数）")]
-        [Range(1f, 20f)]
-        public float fireRate = 5f;
-
-        [PropertyTooltip("弾数（0で無限）")]
-        [Range(0, 100)]
-        public int ammoCount = 0;
+        [Title("弾薬設定")]
+        [PropertyTooltip("弾薬数")]
+        public int ammoCount = 10;
 
         [PropertyTooltip("リロード時間")]
-        [Range(0f, 5f)]
         public float reloadTime = 2f;
 
-        [PropertyTooltip("精度向上に必要な時間")]
-        [Range(0.1f, 3f)]
+        [Title("射撃精度")]
+        [PropertyTooltip("精度最大化時間")]
         public float accuracyTime = 1.5f;
 
-        [PropertyTooltip("最大精度時のガード貫通")]
+        [PropertyTooltip("最大精度時ガード貫通")]
         public bool pierceGuardAtMaxAccuracy = true;
 
+        [Title("射撃パターン")]
         [PropertyTooltip("同時発射数")]
-        [Range(1, 10)]
         public int simultaneousShots = 1;
 
         [PropertyTooltip("拡散角度")]
-        [Range(0f, 45f)]
-        public float spreadAngle = 0f;
+        public float spreadAngle = 5f;
     }
 
     /// <summary>
-    /// 防御系行動のデータ
+    /// 防御アクションデータ
     /// </summary>
-    [Serializable]
+    [System.Serializable]
     public class DefenseActionData
     {
-        [PropertyTooltip("防御可能な方向数")]
-        [Range(1, 3)]
+        [Title("防御設定")]
+        [PropertyTooltip("防御可能方向数")]
         public int defensiveDirections = 3;
 
-        [PropertyTooltip("成功時のエネルギー回復量")]
-        [Range(0f, 50f)]
-        public float energyRecovery = 20f;
+        [PropertyTooltip("エネルギー回復量")]
+        public float energyRecovery = 10f;
 
-        [PropertyTooltip("成功時のエネルギー回復ボーナス時間")]
-        [Range(0f, 5f)]
+        [PropertyTooltip("エネルギーボーナス時間")]
         public float energyBonusTime = 3f;
 
-        [PropertyTooltip("成功時のエネルギー回復倍率")]
-        [Range(1f, 3f)]
-        public float energyBonusMultiplier = 2f;
+        [PropertyTooltip("エネルギーボーナス倍率")]
+        public float energyBonusMultiplier = 1.5f;
 
-        [PropertyTooltip("成功判定ウィンドウ")]
-        [Range(0.05f, 0.5f)]
-        public float successWindow = 0.15f;
+        [Title("ブロッキング設定")]
+        [PropertyTooltip("成功判定時間")]
+        public float successWindow = 0.2f;
 
-        [PropertyTooltip("失敗時のダメージ増加率")]
-        [Range(1f, 2f)]
-        public float failureDamageMultiplier = 1.5f;
+        [PropertyTooltip("失敗時ダメージ倍率")]
+        public float failureDamageMultiplier = 1.2f;
 
-        [PropertyTooltip("成功時の移動距離（ブロッキング用）")]
-        [Range(0f, 10f)]
-        public float successMoveDistance = 6f;
+        [PropertyTooltip("成功時移動距離")]
+        public float successMoveDistance = 3f;
 
-        [PropertyTooltip("移動中のガード可能性")]
+        [PropertyTooltip("移動中ガード可能")]
         public bool canGuardWhileMoving = true;
     }
 
     /// <summary>
-    /// スキル効果タイプ
+    /// エクステンション効果タイプ
     /// </summary>
-    public enum SkillEffectType
+    public enum ExtensionEffectType
     {
-        Damage,         // ダメージ
-        Heal,           // 回復
-        EnergyRestore,  // エネルギー回復
-        Buff,           // バフ効果
-        Debuff,         // デバフ効果
-        Movement,       // 移動効果
-        Control,        // 制御効果
-        Shield,         // シールド効果
-        Special         // 特殊効果
+        Damage,
+        Support,
+        Defensive,
+        Environmental
     }
 
     /// <summary>
-    /// マニューバ行動のデータ
+    /// エクステンションアクションデータ
     /// </summary>
-    [Serializable]
+    [System.Serializable]
+    public class ExtensionActionData
+    {
+        [Title("エクステンション設定")]
+        [PropertyTooltip("効果タイプ")]
+        public ExtensionEffectType effectType = ExtensionEffectType.Support;
+
+        [PropertyTooltip("効果値")]
+        public float effectValue = 10f;
+
+        [PropertyTooltip("効果範囲")]
+        public float effectRange = 5f;
+
+        [PropertyTooltip("効果持続時間")]
+        public float effectDuration = 3f;
+
+        [PropertyTooltip("効果名")]
+        public string effectName = "";
+
+        [Title("配置設定")]
+        [PropertyTooltip("設置型かどうか")]
+        public bool isPlaceable = false;
+
+        [PropertyTooltip("自動発動するかどうか")]
+        public bool isAutoActivate = false;
+    }
+
+    /// <summary>
+    /// モード切り替え条件
+    /// </summary>
+    public enum ModeSwitchCondition
+    {
+        Always,
+        OnGround,
+        InAir,
+        HealthAbove50,
+        EnergyAbove30
+    }
+
+    /// <summary>
+    /// モード切り替えアクションデータ
+    /// </summary>
+    [System.Serializable]
+    public class ModeSwitchActionData
+    {
+        [Title("切り替え設定")]
+        [PropertyTooltip("切り替え先モード")]
+        public ActionMode targetMode = ActionMode.Ranged;
+
+        [PropertyTooltip("切り替え時間")]
+        public float switchTime = 0.3f;
+
+        [PropertyTooltip("切り替え中無敵時間")]
+        public float invincibilityDuration = 0.1f;
+
+        [PropertyTooltip("切り替え条件")]
+        public ModeSwitchCondition switchCondition = ModeSwitchCondition.Always;
+    }
+
+    /// <summary>
+    /// マニューバアクションデータ
+    /// </summary>
+    [System.Serializable]
     public class ManeuverActionData
     {
-        [PropertyTooltip("記録された移動パターン")]
+        [Title("マニューバ設定")]
+        [PropertyTooltip("記録済みパターン")]
+        [TextArea(3, 5)]
         public string recordedPattern = "";
 
         [PropertyTooltip("実行時間")]
-        [Range(0.5f, 10f)]
         public float executionTime = 2f;
 
-        [PropertyTooltip("実行速度倍率")]
-        [Range(0.5f, 3f)]
-        public float speedMultiplier = 1f;
+        [PropertyTooltip("速度倍率")]
+        public float speedMultiplier = 1.5f;
 
-        [PropertyTooltip("実行中の無敵時間")]
-        [Range(0f, 1f)]
-        public float invincibilityDuration = 0f;
+        [PropertyTooltip("実行中無敵時間")]
+        public float invincibilityDuration = 0.2f;
 
+        [Title("キャンセル設定")]
         [PropertyTooltip("途中キャンセル可能")]
         public bool canCancelMidway = false;
 
-        [PropertyTooltip("終了時に自動実行するスキル")]
-        public ActionType autoSkillAfterExecution = ActionType.None;
+        [PropertyTooltip("実行後自動スキル")]
+        public ActionType autoSkillAfterExecution = ActionType.Walk;
 
-        [PropertyTooltip("早期使用時の追加エネルギー消費倍率")]
-        [Range(1f, 3f)]
-        public float earlyUseEnergyMultiplier = 2f;
+        [PropertyTooltip("早期使用エネルギー倍率")]
+        public float earlyUseEnergyMultiplier = 1.5f;
     }
-    #endregion
 
-    #region === CharacterSettings本体 ===
     /// <summary>
-    /// 行動データベース統合型のキャラクター設定
-    /// 全ての行動をActionDataで統一管理
+    /// キャラクター設定のメインクラス
     /// </summary>
-    [CreateAssetMenu(fileName = "CharacterSettings", menuName = "LearningAIGame/Character Settings")]
+    [CreateAssetMenu(fileName = "CharacterSettings", menuName = "Battle/Character Settings")]
     public class CharacterSettings : ScriptableObject
     {
-        [Title("基本パラメータ")]
-        [ValidateInput("ValidateHealth", "体力は0より大きい必要があります")]
-        [Range(100f, 1000f)]
+        #region === 基本ステータス ===
+
+        [Title("基本ステータス")]
+        [ValidateInput("ValidateHealth", "体力は100以上である必要があります")]
         [PropertyTooltip("最大体力")]
         public float maxHealth = 500f;
 
+        [ValidateInput("ValidateEnergy", "エネルギーは50以上である必要があります")]
         [PropertyTooltip("最大エネルギー")]
-        [Range(50f, 200f)]
         public float maxEnergy = 100f;
 
-        [PropertyTooltip("通常時のエネルギー回復速度")]
-        [Range(10f, 40f)]
+        [PropertyTooltip("通常エネルギー回復速度")]
         public float normalEnergyRecoveryRate = 25f;
 
-        [PropertyTooltip("エネルギー切れ時の高速回復速度")]
-        [Range(30f, 80f)]
+        [PropertyTooltip("高速エネルギー回復速度")]
         public float fastEnergyRecoveryRate = 50f;
 
-        [PropertyTooltip("スタンゲージの最大値")]
-        [Range(50f, 150f)]
+        [PropertyTooltip("最大スタンゲージ")]
         public float maxStunGauge = 100f;
 
-        [PropertyTooltip("スタンゲージの回復速度")]
-        [Range(10f, 40f)]
-        public float stunGaugeRecoveryRate = 25f;
+        [PropertyTooltip("スタンゲージ回復速度")]
+        public float stunGaugeRecoveryRate = 20f;
 
-        [Title("武器設定")]
-        [PropertyTooltip("装備する武器の設定")]
-        [InlineEditor(InlineEditorModes.LargePreview)]
-        public WeaponSettings weaponSettings;
-
-        #region === 行動データベース ===
-
-        [Title("移動系行動")]
-        [PropertyTooltip("歩行")]
-        [InlineProperty, HideLabel]
-        public ActionData<MovementActionData> walkAction = new ActionData<MovementActionData>();
-
-        [PropertyTooltip("ブースト")]
-        [InlineProperty, HideLabel]
-        public ActionData<MovementActionData> boostAction = new ActionData<MovementActionData>();
-
-        [PropertyTooltip("ジャンプ")]
-        [InlineProperty, HideLabel]
-        public ActionData<MovementActionData> jumpAction = new ActionData<MovementActionData>();
-
-        [PropertyTooltip("空中ジャンプ")]
-        [InlineProperty, HideLabel]
-        public ActionData<MovementActionData> airJumpAction = new ActionData<MovementActionData>();
-
-        [PropertyTooltip("回避")]
-        [InlineProperty, HideLabel]
-        public ActionData<MovementActionData> dodgeAction = new ActionData<MovementActionData>();
-
-        [PropertyTooltip("二段回避")]
-        [InlineProperty, HideLabel]
-        public ActionData<MovementActionData> doubleDodgeAction = new ActionData<MovementActionData>();
-
-        [PropertyTooltip("クイックターン")]
-        [InlineProperty, HideLabel]
-        public ActionData<MovementActionData> quickTurnAction = new ActionData<MovementActionData>();
-
-        [Title("近接攻撃系行動")]
-        [PropertyTooltip("弱攻撃")]
-        [InlineProperty, HideLabel]
-        public ActionData<AttackActionData> weakMeleeAction = new ActionData<AttackActionData>();
-
-        [PropertyTooltip("強攻撃")]
-        [InlineProperty, HideLabel]
-        public ActionData<AttackActionData> strongMeleeAction = new ActionData<AttackActionData>();
-
-        [PropertyTooltip("空中攻撃")]
-        [InlineProperty, HideLabel]
-        public ActionData<AttackActionData> aerialAttackAction = new ActionData<AttackActionData>();
-
-        [PropertyTooltip("回避攻撃")]
-        [InlineProperty, HideLabel]
-        public ActionData<AttackActionData> dodgeAttackAction = new ActionData<AttackActionData>();
-
-        [Title("射撃系行動")]
-        [PropertyTooltip("弱射撃")]
-        [InlineProperty, HideLabel]
-        public ActionData<ShootActionData> weakShootAction = new ActionData<ShootActionData>();
-
-        [PropertyTooltip("強射撃")]
-        [InlineProperty, HideLabel]
-        public ActionData<ShootActionData> strongShootAction = new ActionData<ShootActionData>();
-
-        [PropertyTooltip("チャージ射撃")]
-        [InlineProperty, HideLabel]
-        public ActionData<ShootActionData> chargedShootAction = new ActionData<ShootActionData>();
-
-        [Title("防御系行動")]
-        [PropertyTooltip("ガード")]
-        [InlineProperty, HideLabel]
-        public ActionData<DefenseActionData> guardAction = new ActionData<DefenseActionData>();
-
-        [PropertyTooltip("ブロッキング")]
-        [InlineProperty, HideLabel]
-        public ActionData<DefenseActionData> blockAction = new ActionData<DefenseActionData>();
-
-        [Title("スキル系行動")]
-        [PropertyTooltip("スキル1")]
-        [InlineProperty, HideLabel]
-        public ActionData<SkillActionData> skill1Action = new ActionData<SkillActionData>();
-
-        [PropertyTooltip("スキル2")]
-        [InlineProperty, HideLabel]
-        public ActionData<SkillActionData> skill2Action = new ActionData<SkillActionData>();
-
-        [PropertyTooltip("スキル3")]
-        [InlineProperty, HideLabel]
-        public ActionData<SkillActionData> skill3Action = new ActionData<SkillActionData>();
-
-        [PropertyTooltip("スキル4")]
-        [InlineProperty, HideLabel]
-        public ActionData<SkillActionData> skill4Action = new ActionData<SkillActionData>();
-
-        [PropertyTooltip("スキル5")]
-        [InlineProperty, HideLabel]
-        public ActionData<SkillActionData> skill5Action = new ActionData<SkillActionData>();
-
-        [Title("マニューバ系行動")]
-        [PropertyTooltip("マニューバ1")]
-        [InlineProperty, HideLabel]
-        public ActionData<ManeuverActionData> maneuver1Action = new ActionData<ManeuverActionData>();
-
-        [PropertyTooltip("マニューバ2")]
-        [InlineProperty, HideLabel]
-        public ActionData<ManeuverActionData> maneuver2Action = new ActionData<ManeuverActionData>();
-
-        [PropertyTooltip("マニューバ3")]
-        [InlineProperty, HideLabel]
-        public ActionData<ManeuverActionData> maneuver3Action = new ActionData<ManeuverActionData>();
-
-        [PropertyTooltip("マニューバ4")]
-        [InlineProperty, HideLabel]
-        public ActionData<ManeuverActionData> maneuver4Action = new ActionData<ManeuverActionData>();
-
-        [PropertyTooltip("マニューバ5")]
-        [InlineProperty, HideLabel]
-        public ActionData<ManeuverActionData> maneuver5Action = new ActionData<ManeuverActionData>();
+        private bool ValidateHealth(float health) => health >= 100f;
+        private bool ValidateEnergy(float energy) => energy >= 50f;
 
         #endregion
 
-        #region === 行動データアクセス用Dictionary ===
+        #region === ActionDataシステム ===
 
-        [HideInInspector]
-        private Dictionary<ActionType, ActionDataBase> actionDatabase;
+        [Title("アクションデータベース")]
+        [PropertyTooltip("全アクションのデータベース")]
+        [ShowInInspector, ReadOnly]
+        private Dictionary<ActionType, object> actionDatabase = new Dictionary<ActionType, object>();
+
+        // 各アクションデータ
+        [FoldoutGroup("移動アクション")]
+        [SerializeField] private ActionData<MovementActionData> walkAction;
+        [FoldoutGroup("移動アクション")]
+        [SerializeField] private ActionData<MovementActionData> jumpAction;
+        [FoldoutGroup("移動アクション")]
+        [SerializeField] private ActionData<MovementActionData> boostAction;
+        [FoldoutGroup("移動アクション")]
+        [SerializeField] private ActionData<MovementActionData> dodgeAction;
+
+        [FoldoutGroup("攻撃アクション")]
+        [SerializeField] private ActionData<AttackActionData> weakAttackAction;
+        [FoldoutGroup("攻撃アクション")]
+        [SerializeField] private ActionData<AttackActionData> strongAttackAction;
+        [FoldoutGroup("攻撃アクション")]
+        [SerializeField] private ActionData<AttackActionData> skillAttackAction;
+
+        [FoldoutGroup("射撃アクション")]
+        [SerializeField] private ActionData<RangedActionData> weakRangedAction;
+        [FoldoutGroup("射撃アクション")]
+        [SerializeField] private ActionData<RangedActionData> strongRangedAction;
+
+        [FoldoutGroup("防御アクション")]
+        [SerializeField] private ActionData<DefenseActionData> guardAction;
+        [FoldoutGroup("防御アクション")]
+        [SerializeField] private ActionData<DefenseActionData> blockAction;
+
+        [FoldoutGroup("特殊アクション")]
+        [SerializeField] private ActionData<ExtensionActionData> extensionAction;
+        [FoldoutGroup("特殊アクション")]
+        [SerializeField] private ActionData<ModeSwitchActionData> modeSwitchAction;
+        [FoldoutGroup("特殊アクション")]
+        [SerializeField] private ActionData<ManeuverActionData> maneuverAction;
 
         /// <summary>
-        /// 行動データベースを初期化（起動時に一度だけ実行）
+        /// アクションデータを取得
         /// </summary>
-        public void InitializeActionDatabase()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ActionData<T> GetActionData<T>(ActionType actionType) where T : class, new()
         {
-            actionDatabase = new Dictionary<ActionType, ActionDataBase>
+            if ( actionDatabase.TryGetValue(actionType, out var data) )
             {
-                // 移動系
-                { ActionType.Walk, walkAction },
-                { ActionType.Boost, boostAction },
-                { ActionType.Jump, jumpAction },
-                { ActionType.AirJump, airJumpAction },
-                { ActionType.Dodge, dodgeAction },
-                { ActionType.DoubleDodge, doubleDodgeAction },
-                { ActionType.QuickTurn, quickTurnAction },
-                
-                // 近接攻撃系
-                { ActionType.WeakMelee, weakMeleeAction },
-                { ActionType.StrongMelee, strongMeleeAction },
-                { ActionType.AerialAttack, aerialAttackAction },
-                { ActionType.DodgeAttack, dodgeAttackAction },
-                
-                // 射撃系
-                { ActionType.WeakShoot, weakShootAction },
-                { ActionType.StrongShoot, strongShootAction },
-                { ActionType.ChargedShoot, chargedShootAction },
-                
-                // 防御系
-                { ActionType.Guard, guardAction },
-                { ActionType.Block, blockAction },
-                
-                // スキル系
-                { ActionType.Skill1, skill1Action },
-                { ActionType.Skill2, skill2Action },
-                { ActionType.Skill3, skill3Action },
-                { ActionType.Skill4, skill4Action },
-                { ActionType.Skill5, skill5Action },
-                
-                // マニューバ系
-                { ActionType.Maneuver1, maneuver1Action },
-                { ActionType.Maneuver2, maneuver2Action },
-                { ActionType.Maneuver3, maneuver3Action },
-                { ActionType.Maneuver4, maneuver4Action },
-                { ActionType.Maneuver5, maneuver5Action }
-            };
-
-            // 各行動データの初期化
-            foreach ( var kvp in actionDatabase )
-            {
-                if ( kvp.Value != null )
-                {
-                    kvp.Value.currentUses = kvp.Value.maxConsecutiveUses;
-                }
+                return data as ActionData<T>;
             }
+            return null;
         }
 
-        #endregion
-
-        #region === 行動データアクセスメソッド ===
-
         /// <summary>
-        /// 指定した行動タイプの基本データを取得
+        /// アクションデータを取得（型指定なし）
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ActionDataBase GetActionData(ActionType actionType)
+        public object GetActionData(ActionType actionType)
         {
-            if ( actionDatabase == null )
-                InitializeActionDatabase();
-
-            return actionDatabase.TryGetValue(actionType, out var data) ? data : null;
+            actionDatabase.TryGetValue(actionType, out var data);
+            return data;
         }
 
         /// <summary>
-        /// 指定した行動タイプの詳細データを取得（ジェネリック版）
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ActionData<T> GetActionData<T>(ActionType actionType)
-        {
-            return GetActionData(actionType) as ActionData<T>;
-        }
-
-        /// <summary>
-        /// 行動が実行可能かチェック
+        /// アクションが実行可能かどうか
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool CanExecuteAction(ActionType actionType, float currentEnergy)
         {
-            var actionData = GetActionData(actionType);
-            if ( actionData == null )
+            if ( !actionDatabase.TryGetValue(actionType, out var data) )
                 return false;
 
-            // クールタイム中でないかチェック
-            if ( actionData.currentCooldown > 0f )
-                return false;
-
-            // 使用回数が残っているかチェック
-            if ( actionData.currentUses <= 0 )
-                return false;
-
-            // エネルギーが足りているかチェック
-            if ( currentEnergy < actionData.energyCost )
-                return false;
-
-            return true;
+            // リフレクションを避けるためのswitch文
+            switch ( actionType )
+            {
+                case ActionType.Walk:
+                    return ((ActionData<MovementActionData>)data).CanUse(currentEnergy);
+                case ActionType.Jump:
+                    return ((ActionData<MovementActionData>)data).CanUse(currentEnergy);
+                case ActionType.Boost:
+                    return ((ActionData<MovementActionData>)data).CanUse(currentEnergy);
+                case ActionType.Dodge:
+                    return ((ActionData<MovementActionData>)data).CanUse(currentEnergy);
+                case ActionType.WeakAttack:
+                    return ((ActionData<AttackActionData>)data).CanUse(currentEnergy);
+                case ActionType.StrongAttack:
+                    return ((ActionData<AttackActionData>)data).CanUse(currentEnergy);
+                case ActionType.SkillAttack:
+                    return ((ActionData<AttackActionData>)data).CanUse(currentEnergy);
+                case ActionType.Guard:
+                    return ((ActionData<DefenseActionData>)data).CanUse(currentEnergy);
+                case ActionType.Block:
+                    return ((ActionData<DefenseActionData>)data).CanUse(currentEnergy);
+                case ActionType.Extension:
+                    return ((ActionData<ExtensionActionData>)data).CanUse(currentEnergy);
+                case ActionType.ModeSwitch:
+                    return ((ActionData<ModeSwitchActionData>)data).CanUse(currentEnergy);
+                case ActionType.Maneuver:
+                    return ((ActionData<ManeuverActionData>)data).CanUse(currentEnergy);
+                default:
+                    return false;
+            }
         }
 
         /// <summary>
-        /// 行動を実行し、データを更新
+        /// アクションを実行
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool ExecuteAction(ActionType actionType)
+        public void ExecuteAction(ActionType actionType)
         {
-            var actionData = GetActionData(actionType);
-            if ( actionData == null )
-                return false;
+            if ( !actionDatabase.TryGetValue(actionType, out var data) )
+                return;
 
-            actionData.Execute();
-            return true;
+            // リフレクションを避けるためのswitch文
+            switch ( actionType )
+            {
+                case ActionType.Walk:
+                    ((ActionData<MovementActionData>)data).Execute();
+                    break;
+                case ActionType.Jump:
+                    ((ActionData<MovementActionData>)data).Execute();
+                    break;
+                case ActionType.Boost:
+                    ((ActionData<MovementActionData>)data).Execute();
+                    break;
+                case ActionType.Dodge:
+                    ((ActionData<MovementActionData>)data).Execute();
+                    break;
+                case ActionType.WeakAttack:
+                    ((ActionData<AttackActionData>)data).Execute();
+                    break;
+                case ActionType.StrongAttack:
+                    ((ActionData<AttackActionData>)data).Execute();
+                    break;
+                case ActionType.SkillAttack:
+                    ((ActionData<AttackActionData>)data).Execute();
+                    break;
+                case ActionType.Guard:
+                    ((ActionData<DefenseActionData>)data).Execute();
+                    break;
+                case ActionType.Block:
+                    ((ActionData<DefenseActionData>)data).Execute();
+                    break;
+                case ActionType.Extension:
+                    ((ActionData<ExtensionActionData>)data).Execute();
+                    break;
+                case ActionType.ModeSwitch:
+                    ((ActionData<ModeSwitchActionData>)data).Execute();
+                    break;
+                case ActionType.Maneuver:
+                    ((ActionData<ManeuverActionData>)data).Execute();
+                    break;
+            }
         }
 
         /// <summary>
-        /// 全ての行動データのクールタイムを更新
+        /// 全アクションのクールダウンを更新
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UpdateAllCooldowns(float deltaTime)
         {
-            if ( actionDatabase == null )
-                return;
-
-            foreach ( var actionData in actionDatabase.Values )
+            foreach ( var kvp in actionDatabase )
             {
-                actionData?.UpdateCooldown(deltaTime);
+                var actionType = kvp.Key;
+                var data = kvp.Value;
+
+                // リフレクションを避けるためのswitch文
+                switch ( actionType )
+                {
+                    case ActionType.Walk:
+                        ((ActionData<MovementActionData>)data).UpdateCooldown(deltaTime);
+                        break;
+                    case ActionType.Jump:
+                        ((ActionData<MovementActionData>)data).UpdateCooldown(deltaTime);
+                        break;
+                    case ActionType.Boost:
+                        ((ActionData<MovementActionData>)data).UpdateCooldown(deltaTime);
+                        break;
+                    case ActionType.Dodge:
+                        ((ActionData<MovementActionData>)data).UpdateCooldown(deltaTime);
+                        break;
+                    case ActionType.WeakAttack:
+                        ((ActionData<AttackActionData>)data).UpdateCooldown(deltaTime);
+                        break;
+                    case ActionType.StrongAttack:
+                        ((ActionData<AttackActionData>)data).UpdateCooldown(deltaTime);
+                        break;
+                    case ActionType.SkillAttack:
+                        ((ActionData<AttackActionData>)data).UpdateCooldown(deltaTime);
+                        break;
+                    case ActionType.Guard:
+                        ((ActionData<DefenseActionData>)data).UpdateCooldown(deltaTime);
+                        break;
+                    case ActionType.Block:
+                        ((ActionData<DefenseActionData>)data).UpdateCooldown(deltaTime);
+                        break;
+                    case ActionType.Extension:
+                        ((ActionData<ExtensionActionData>)data).UpdateCooldown(deltaTime);
+                        break;
+                    case ActionType.ModeSwitch:
+                        ((ActionData<ModeSwitchActionData>)data).UpdateCooldown(deltaTime);
+                        break;
+                    case ActionType.Maneuver:
+                        ((ActionData<ManeuverActionData>)data).UpdateCooldown(deltaTime);
+                        break;
+                }
             }
         }
 
         /// <summary>
-        /// 指定した行動タイプのクールタイムをリセット
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ResetActionCooldown(ActionType actionType)
-        {
-            var actionData = GetActionData(actionType);
-            if ( actionData != null )
-            {
-                actionData.currentCooldown = 0f;
-                actionData.currentUses = actionData.maxConsecutiveUses;
-            }
-        }
-
-        /// <summary>
-        /// 全ての行動のクールタイムをリセット
+        /// 全アクションのクールダウンをリセット
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ResetAllCooldowns()
         {
-            if ( actionDatabase == null )
-                return;
-
-            foreach ( var actionData in actionDatabase.Values )
-            {
-                if ( actionData != null )
-                {
-                    actionData.currentCooldown = 0f;
-                    actionData.currentUses = actionData.maxConsecutiveUses;
-                }
-            }
-        }
-
-        #endregion
-
-        #region === 後方互換性用メソッド ===
-
-        /// <summary>
-        /// 攻撃力を計算（後方互換性）
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public float CalculateFinalDamage(ActionType attackType, int comboIndex = 0, bool isAerial = false)
-        {
-            var attackData = GetActionData<AttackActionData>(attackType);
-            if ( attackData?.data == null )
-                return 0f;
-
-            float baseDamage = attackData.data.damage;
-
-            // 武器設定からのダメージ補正
-            if ( weaponSettings?.comboSettings != null )
-            {
-                var weaponAttackData = weaponSettings.comboSettings.GetAttackData(comboIndex, isAerial);
-                if ( weaponAttackData != null )
-                {
-                    baseDamage = weaponAttackData.damage;
-                }
-            }
-
-            return baseDamage;
-        }
-
-        /// <summary>
-        /// 踏み込み距離を計算（後方互換性）
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public float CalculateLungeDistance(ActionType attackType, int comboIndex = 0, bool isAerial = false)
-        {
-            var attackData = GetActionData<AttackActionData>(attackType);
-            if ( attackData?.data == null )
-                return 0f;
-
-            return attackData.data.lungeDistance;
-        }
-
-        /// <summary>
-        /// 回避インターバルを取得（後方互換性）
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public float GetDodgeInterval(bool isEnergyDepleted)
-        {
-            var dodgeData = GetActionData(ActionType.Dodge);
-            if ( dodgeData == null )
-                return 0.3f;
-
-            // エネルギー切れ時はクールタイムを延長
-            return isEnergyDepleted ? dodgeData.cooldownTime * 2f : dodgeData.cooldownTime;
-        }
-
-        #endregion
-
-        #region === 検証・デバッグ機能 ===
-
-        /// <summary>
-        /// 最大体力の妥当性を検証
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool ValidateHealth(float health) => health > 0;
-
-        /// <summary>
-        /// 設定の妥当性を検証
-        /// </summary>
-        [Button("設定検証実行", ButtonSizes.Large)]
-        [GUIColor(0.7f, 1f, 0.7f)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool ValidateSettings()
-        {
-            var isValid = true;
-            var report = new System.Text.StringBuilder();
-
-            // 基本設定の検証
-            if ( this.maxHealth <= 0 )
-            {
-                report.AppendLine("❌ 最大体力が0以下です");
-                isValid = false;
-            }
-
-            if ( this.maxEnergy < 50f )
-            {
-                report.AppendLine("❌ 最大エネルギーが50未満です");
-                isValid = false;
-            }
-
-            if ( this.fastEnergyRecoveryRate <= this.normalEnergyRecoveryRate )
-            {
-                report.AppendLine("⚠️ 高速回復速度が通常回復速度以下です");
-            }
-
-            // 行動データの検証
-            if ( actionDatabase == null )
-                InitializeActionDatabase();
-
             foreach ( var kvp in actionDatabase )
             {
-                var actionData = kvp.Value;
-                if ( actionData == null )
-                    continue;
+                var actionType = kvp.Key;
+                var data = kvp.Value;
 
-                if ( actionData.energyCost < 0 )
+                // リフレクションを避けるためのswitch文
+                switch ( actionType )
                 {
-                    report.AppendLine($"❌ {kvp.Key}のエネルギー消費が負の値です");
-                    isValid = false;
-                }
-
-                if ( actionData.maxConsecutiveUses < 1 )
-                {
-                    report.AppendLine($"❌ {kvp.Key}の最大使用回数が1未満です");
-                    isValid = false;
-                }
-
-                if ( actionData.cooldownTime < 0 )
-                {
-                    report.AppendLine($"❌ {kvp.Key}のクールタイムが負の値です");
-                    isValid = false;
+                    case ActionType.Walk:
+                        ((ActionData<MovementActionData>)data).Reset();
+                        break;
+                    case ActionType.Jump:
+                        ((ActionData<MovementActionData>)data).Reset();
+                        break;
+                    case ActionType.Boost:
+                        ((ActionData<MovementActionData>)data).Reset();
+                        break;
+                    case ActionType.Dodge:
+                        ((ActionData<MovementActionData>)data).Reset();
+                        break;
+                    case ActionType.WeakAttack:
+                        ((ActionData<AttackActionData>)data).Reset();
+                        break;
+                    case ActionType.StrongAttack:
+                        ((ActionData<AttackActionData>)data).Reset();
+                        break;
+                    case ActionType.SkillAttack:
+                        ((ActionData<AttackActionData>)data).Reset();
+                        break;
+                    case ActionType.Guard:
+                        ((ActionData<DefenseActionData>)data).Reset();
+                        break;
+                    case ActionType.Block:
+                        ((ActionData<DefenseActionData>)data).Reset();
+                        break;
+                    case ActionType.Extension:
+                        ((ActionData<ExtensionActionData>)data).Reset();
+                        break;
+                    case ActionType.ModeSwitch:
+                        ((ActionData<ModeSwitchActionData>)data).Reset();
+                        break;
+                    case ActionType.Maneuver:
+                        ((ActionData<ManeuverActionData>)data).Reset();
+                        break;
                 }
             }
-
-            if ( isValid )
-            {
-                report.AppendLine("✅ 全ての設定が妥当です");
-            }
-
-            Debug.Log($"設定検証結果:\n{report}");
-            return isValid;
-        }
-
-        /// <summary>
-        /// 行動データベースの状態をログ出力（デバッグ用）
-        /// </summary>
-        [Button("行動データベース状態表示", ButtonSizes.Medium)]
-        [GUIColor(0.7f, 0.7f, 1f)]
-        public void LogActionDatabaseStatus()
-        {
-            if ( actionDatabase == null )
-                InitializeActionDatabase();
-
-            var report = new System.Text.StringBuilder();
-            report.AppendLine("=== 行動データベース状態 ===");
-
-            foreach ( var kvp in actionDatabase )
-            {
-                var actionData = kvp.Value;
-                if ( actionData == null )
-                    continue;
-
-                report.AppendLine($"【{kvp.Key}】");
-                report.AppendLine($"  エネルギー消費: {actionData.energyCost}");
-                report.AppendLine($"  残り使用回数: {actionData.currentUses}/{actionData.maxConsecutiveUses}");
-                report.AppendLine($"  クールタイム: {actionData.currentCooldown:F2}秒");
-                report.AppendLine($"  状態: {(actionData.currentCooldown > 0 ? "クールタイム中" : "使用可能")}");
-                report.AppendLine();
-            }
-
-            Debug.Log(report.ToString());
         }
 
         #endregion
 
-        #region === プリセット機能 ===
+        #region === 従来のシステム互換性 ===
 
-        [Title("プリセット機能")]
-        [HorizontalGroup("プリセット")]
-        [Button("攻撃特化")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SetAttackPreset()
+        [Title("従来システム互換性")]
+        [FoldoutGroup("エネルギー設定")]
+        [PropertyTooltip("エネルギー設定（従来システム用）")]
+        public EnergySettings energy = new EnergySettings();
+
+        [FoldoutGroup("移動設定")]
+        [PropertyTooltip("移動設定（従来システム用）")]
+        public MovementSettings movement = new MovementSettings();
+
+        [FoldoutGroup("攻撃設定")]
+        [PropertyTooltip("攻撃設定（従来システム用）")]
+        public AttackSettings attack = new AttackSettings();
+
+        [FoldoutGroup("防御設定")]
+        [PropertyTooltip("防御設定（従来システム用）")]
+        public DefenseSettings defense = new DefenseSettings();
+
+        [System.Serializable]
+        public class EnergySettings
         {
-            if ( actionDatabase == null )
-                InitializeActionDatabase();
-
-            // 攻撃系のダメージとエネルギー効率を向上
-            var weakMelee = GetActionData<AttackActionData>(ActionType.WeakMelee);
-            if ( weakMelee?.data != null )
-            {
-                weakMelee.data.damage *= 1.3f;
-                weakMelee.data.startup *= 0.8f;
-                weakMelee.energyCost *= 0.9f;
-            }
-
-            var strongMelee = GetActionData<AttackActionData>(ActionType.StrongMelee);
-            if ( strongMelee?.data != null )
-            {
-                strongMelee.data.damage *= 1.3f;
-                strongMelee.data.startup *= 0.8f;
-                strongMelee.energyCost *= 0.9f;
-            }
-
-            // 回避性能を向上（攻撃的スタイル）
-            var dodge = GetActionData<MovementActionData>(ActionType.Dodge);
-            if ( dodge?.data != null )
-            {
-                dodge.cooldownTime *= 0.8f;
-                dodge.energyCost *= 0.9f;
-            }
-
-            // エネルギー総量を少し減少
-            this.maxEnergy *= 0.9f;
-
-            Debug.Log("攻撃特化プリセットを適用しました");
+            public float maxEnergy = 100f;
+            public float normalRecoveryRate = 25f;
+            public float fastRecoveryRate = 50f;
+            public float boostConsumption = 30f;
+            public float dodgeEnergyCost = 15f;
+            public float airJumpEnergyCost = 10f;
         }
 
-        [HorizontalGroup("プリセット")]
-        [Button("防御特化")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SetDefensePreset()
+        [System.Serializable]
+        public class MovementSettings
         {
-            if ( actionDatabase == null )
-                InitializeActionDatabase();
+            [Header("基本移動")]
+            [Tooltip("通常の歩行速度")]
+            public float moveSpeed = 10f;
 
-            // 体力とエネルギー回復を向上
-            this.maxHealth *= 1.3f;
-            this.normalEnergyRecoveryRate *= 1.2f;
+            [Tooltip("空中での移動速度")]
+            public float airMoveSpeed = 5f;
 
-            // 防御系の性能向上
-            var guard = GetActionData<DefenseActionData>(ActionType.Guard);
-            if ( guard?.data != null )
+            [Tooltip("ブースト時の移動速度")]
+            public float boostSpeed = 12f;
+
+            [Header("ジャンプ")]
+            [Tooltip("通常ジャンプの力")]
+            public float jumpForce = 10f;
+
+            [Tooltip("ジャンプ時間")]
+            public float jumpTime = 1f;
+
+            [Header("回避")]
+            [Tooltip("回避速度")]
+            public float dodgeSpeed = 8f;
+
+            [Tooltip("回避継続時間")]
+            public float dodgeTime = 1f;
+
+            [Tooltip("回避のエネルギー消費量")]
+            public float dodgeEnergyCost = 15f;
+
+            [Tooltip("回避インターバル")]
+            public float normalDodgeInterval = 0.3f;
+
+            [Tooltip("エネルギー切れ時の回避インターバル")]
+            public float energyDepletedDodgeInterval = 1f;
+
+            [Header("空中制御")]
+            [Tooltip("空中での移動速度倍率")]
+            public float airMobilityMultiplier = 0.7f;
+
+            [Header("エネルギー")]
+            [Tooltip("ブーストの毎秒エネルギー消費量")]
+            public float boostEnergyConsumption = 30f;
+
+            [Header("AI用設定")]
+            [Tooltip("AIが安全と判断する距離")]
+            public float safeDistance = 10f;
+
+            /// <summary>
+            /// エネルギー状態に応じた回避インターバルを取得
+            /// </summary>
+            /// <param name="isEnergyDepleted">エネルギー切れ状態かどうか</param>
+            /// <returns>適用すべき回避インターバル時間</returns>
+            public float GetDodgeInterval(bool isEnergyDepleted)
             {
-                guard.data.energyRecovery *= 1.3f;
-                guard.data.energyBonusMultiplier *= 1.5f;
+                return isEnergyDepleted ? energyDepletedDodgeInterval : normalDodgeInterval;
             }
-
-            var block = GetActionData<DefenseActionData>(ActionType.Block);
-            if ( block?.data != null )
-            {
-                block.data.energyRecovery *= 1.3f;
-                block.data.successWindow *= 1.2f;
-            }
-
-            // 回避インターバルを延長（慎重なスタイル）
-            var dodge = GetActionData(ActionType.Dodge);
-            if ( dodge != null )
-            {
-                dodge.cooldownTime *= 1.2f;
-            }
-
-            Debug.Log("防御特化プリセットを適用しました");
         }
 
-        [HorizontalGroup("プリセット")]
-        [Button("機動特化")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SetMobilityPreset()
+        [System.Serializable]
+        public class AttackSettings
         {
-            if ( actionDatabase == null )
-                InitializeActionDatabase();
-
-            // 移動系の性能を大幅向上
-            var boost = GetActionData<MovementActionData>(ActionType.Boost);
-            if ( boost?.data != null )
-            {
-                boost.data.speed *= 1.3f;
-                boost.data.continuousEnergyCost *= 0.8f;
-            }
-
-            var dodge = GetActionData<MovementActionData>(ActionType.Dodge);
-            if ( dodge?.data != null )
-            {
-                dodge.data.distance *= 1.2f;
-                dodge.energyCost *= 0.8f;
-                dodge.cooldownTime *= 0.5f; // 大幅短縮
-            }
-
-            var doubleDodge = GetActionData<MovementActionData>(ActionType.DoubleDodge);
-            if ( doubleDodge?.data != null )
-            {
-                doubleDodge.energyCost *= 0.7f;
-            }
-
-            var airJump = GetActionData<MovementActionData>(ActionType.AirJump);
-            if ( airJump?.data != null )
-            {
-                airJump.energyCost *= 0.7f;
-            }
-
-            // エネルギー総量を増加
-            this.maxEnergy *= 1.2f;
-
-            Debug.Log("機動特化プリセットを適用しました");
+            public float meleeRange = 2;
+            public float weakAttackDamage = 25;
+            public float strongAttackDamage = 50;
+            public float attackSpeed = 1;
         }
 
-        [HorizontalGroup("プリセット")]
-        [Button("空中特化")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SetAerialPreset()
+        [System.Serializable]
+        public class DefenseSettings
         {
-            if ( actionDatabase == null )
-                InitializeActionDatabase();
-
-            // 空中攻撃の性能向上
-            var aerialAttack = GetActionData<AttackActionData>(ActionType.AerialAttack);
-            if ( aerialAttack?.data != null )
-            {
-                aerialAttack.data.damage *= 1.3f;
-                aerialAttack.data.lungeDistance *= 1.2f;
-                aerialAttack.data.floatTime *= 1.5f;
-            }
-
-            // 空中移動の性能向上
-            var airJump = GetActionData<MovementActionData>(ActionType.AirJump);
-            if ( airJump?.data != null )
-            {
-                airJump.energyCost *= 0.7f;
-                airJump.data.distance *= 1.2f;
-            }
-
-            var jump = GetActionData<MovementActionData>(ActionType.Jump);
-            if ( jump?.data != null )
-            {
-                jump.data.distance *= 1.2f;
-                jump.data.chargeMultiplier *= 1.2f;
-            }
-
-            // 地上での回避性能を微調整
-            var dodge = GetActionData(ActionType.Dodge);
-            if ( dodge != null )
-            {
-                dodge.cooldownTime *= 0.9f;
-            }
-
-            Debug.Log("空中特化プリセットを適用しました");
-        }
-
-        [HorizontalGroup("プリセット")]
-        [Button("スキル特化")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SetSkillPreset()
-        {
-            if ( actionDatabase == null )
-                InitializeActionDatabase();
-
-            // 全スキルのエネルギー効率向上
-            for ( int i = 1; i <= 5; i++ )
-            {
-                var skillType = (ActionType)System.Enum.Parse(typeof(ActionType), $"Skill{i}");
-                var skill = GetActionData<SkillActionData>(skillType);
-                if ( skill?.data != null )
-                {
-                    skill.energyCost *= 0.8f;
-                    skill.cooldownTime *= 0.8f;
-                    skill.data.effectValue *= 1.2f;
-                    skill.maxConsecutiveUses += 1;
-                }
-            }
-
-            // エネルギー回復速度向上
-            this.normalEnergyRecoveryRate *= 1.3f;
-            this.fastEnergyRecoveryRate *= 1.2f;
-
-            Debug.Log("スキル特化プリセットを適用しました");
-        }
-
-        [HorizontalGroup("プリセット")]
-        [Button("バランス")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SetBalancedPreset()
-        {
-            // 基本値にリセット
-            InitializeDefaultValues();
-            InitializeActionDatabase();
-            Debug.Log("バランスプリセットを適用しました");
-        }
-
-        [Title("回避インターバル調整ツール")]
-        [HorizontalGroup("回避調整")]
-        [Button("素早い回避")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SetFastDodge()
-        {
-            if ( actionDatabase == null )
-                InitializeActionDatabase();
-
-            var dodge = GetActionData(ActionType.Dodge);
-            if ( dodge != null )
-            {
-                dodge.cooldownTime = 0.2f;
-            }
-
-            var doubleDodge = GetActionData(ActionType.DoubleDodge);
-            if ( doubleDodge != null )
-            {
-                doubleDodge.cooldownTime = 0.6f;
-            }
-
-            Debug.Log("素早い回避設定を適用しました");
-        }
-
-        [HorizontalGroup("回避調整")]
-        [Button("標準的な回避")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SetNormalDodge()
-        {
-            if ( actionDatabase == null )
-                InitializeActionDatabase();
-
-            var dodge = GetActionData(ActionType.Dodge);
-            if ( dodge != null )
-            {
-                dodge.cooldownTime = 0.3f;
-            }
-
-            var doubleDodge = GetActionData(ActionType.DoubleDodge);
-            if ( doubleDodge != null )
-            {
-                doubleDodge.cooldownTime = 1f;
-            }
-
-            Debug.Log("標準的な回避設定を適用しました");
-        }
-
-        [HorizontalGroup("回避調整")]
-        [Button("慎重な回避")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SetCautiousDodge()
-        {
-            if ( actionDatabase == null )
-                InitializeActionDatabase();
-
-            var dodge = GetActionData(ActionType.Dodge);
-            if ( dodge != null )
-            {
-                dodge.cooldownTime = 0.5f;
-            }
-
-            var doubleDodge = GetActionData(ActionType.DoubleDodge);
-            if ( doubleDodge != null )
-            {
-                doubleDodge.cooldownTime = 1.5f;
-            }
-
-            Debug.Log("慎重な回避設定を適用しました");
+            public float blockEnergyRecovery = 20f;
+            public float blockFailDamageMultiplier = 1.5f;
+            public float blockFailEnergyCost = 10f;
+            public float guardEnergyBonusTime = 3f;
+            public float guardEnergyBonusMultiplier = 2f;
+            public float blockMoveDistance = 6f;
         }
 
         #endregion
 
-        #region === 初期化処理 ===
+        #region === 初期化 ===
 
         /// <summary>
-        /// デフォルト値で初期化
+        /// デフォルト値の初期化
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void InitializeDefaultValues()
         {
-            // 基本パラメータのリセット
+            // 基本ステータス
             maxHealth = 500f;
             maxEnergy = 100f;
             normalEnergyRecoveryRate = 25f;
             fastEnergyRecoveryRate = 50f;
             maxStunGauge = 100f;
-            stunGaugeRecoveryRate = 25f;
+            stunGaugeRecoveryRate = 20f;
 
-            // 行動データの初期化
+            // 従来システム設定
+            energy = new EnergySettings();
+            movement = new MovementSettings();
+            attack = new AttackSettings();
+            defense = new DefenseSettings();
+        }
+
+        /// <summary>
+        /// アクションデータベースの初期化
+        /// </summary>
+        private void InitializeActionDatabase()
+        {
+            actionDatabase = new Dictionary<ActionType, object>();
+
             InitializeMovementActions();
             InitializeAttackActions();
-            InitializeShootActions();
+            InitializeRangedActions();
             InitializeDefenseActions();
-            InitializeSkillActions();
-            InitializeManeuverActions();
+            InitializeSpecialActions();
+
+            // データベースに登録
+            actionDatabase[ActionType.Walk] = walkAction;
+            actionDatabase[ActionType.Jump] = jumpAction;
+            actionDatabase[ActionType.Boost] = boostAction;
+            actionDatabase[ActionType.Dodge] = dodgeAction;
+            actionDatabase[ActionType.WeakAttack] = weakAttackAction;
+            actionDatabase[ActionType.StrongAttack] = strongAttackAction;
+            actionDatabase[ActionType.SkillAttack] = skillAttackAction;
+            actionDatabase[ActionType.Guard] = guardAction;
+            actionDatabase[ActionType.Block] = blockAction;
+            actionDatabase[ActionType.Extension] = extensionAction;
+            actionDatabase[ActionType.ModeSwitch] = modeSwitchAction;
+            actionDatabase[ActionType.Maneuver] = maneuverAction;
         }
 
         private void InitializeMovementActions()
@@ -1137,20 +904,14 @@ namespace LearningAIGame.CombatSystem
                 data = new MovementActionData
                 {
                     speed = 5f,
-                    continuousEnergyCost = 0f
-                }
-            };
-
-            // ブースト
-            boostAction = new ActionData<MovementActionData>
-            {
-                energyCost = 0f,
-                maxConsecutiveUses = 999,
-                cooldownTime = 0f,
-                data = new MovementActionData
-                {
-                    speed = 20f,
-                    continuousEnergyCost = 25f
+                    acceleration = 0.2f,
+                    jumpForce = 10f,
+                    chargeTime = 1f,
+                    chargedJumpForce = 15f,
+                    dodgeDistance = 8f,
+                    normalDodgeInterval = 0.3f,
+                    energyDepletedDodgeInterval = 1f,
+                    doubleDodgeEnergyCost = 30f
                 }
             };
 
@@ -1162,25 +923,35 @@ namespace LearningAIGame.CombatSystem
                 cooldownTime = 0f,
                 data = new MovementActionData
                 {
-                    distance = 8f,
-                    canCharge = true,
-                    maxChargeTime = 1.5f,
-                    chargeMultiplier = 1.5f
+                    speed = 5f,
+                    acceleration = 0.2f,
+                    jumpForce = 10f,
+                    chargeTime = 1f,
+                    chargedJumpForce = 15f,
+                    dodgeDistance = 8f,
+                    normalDodgeInterval = 0.3f,
+                    energyDepletedDodgeInterval = 1f,
+                    doubleDodgeEnergyCost = 30f
                 }
             };
 
-            // 空中ジャンプ
-            airJumpAction = new ActionData<MovementActionData>
+            // ブースト
+            boostAction = new ActionData<MovementActionData>
             {
-                energyCost = 10f,
-                maxConsecutiveUses = 1,
+                energyCost = 30f, // 持続消費
+                maxConsecutiveUses = 999,
                 cooldownTime = 0f,
                 data = new MovementActionData
                 {
-                    distance = 6f,
-                    canCharge = true,
-                    maxChargeTime = 1f,
-                    chargeMultiplier = 1.3f
+                    speed = 12f,
+                    acceleration = 0.1f,
+                    jumpForce = 10f,
+                    chargeTime = 1f,
+                    chargedJumpForce = 15f,
+                    dodgeDistance = 8f,
+                    normalDodgeInterval = 0.3f,
+                    energyDepletedDodgeInterval = 1f,
+                    doubleDodgeEnergyCost = 30f
                 }
             };
 
@@ -1188,41 +959,19 @@ namespace LearningAIGame.CombatSystem
             dodgeAction = new ActionData<MovementActionData>
             {
                 energyCost = 15f,
-                maxConsecutiveUses = 1,
-                cooldownTime = 0.3f,
+                maxConsecutiveUses = 999,
+                cooldownTime = 0.3f, // 通常インターバル
                 data = new MovementActionData
                 {
-                    distance = 5f,
-                    speed = 15f,
-                    invincibilityFrame = new float2(0.05f, 0.2f),
-                    postActionDuration = 0.5f // ガード不可時間
-                }
-            };
-
-            // 二段回避
-            doubleDodgeAction = new ActionData<MovementActionData>
-            {
-                energyCost = 30f,
-                maxConsecutiveUses = 1,
-                cooldownTime = 1f,
-                data = new MovementActionData
-                {
-                    distance = 8f,
-                    speed = 20f,
-                    invincibilityFrame = new float2(0.05f, 0.3f),
-                    postActionDuration = 0.5f
-                }
-            };
-
-            // クイックターン
-            quickTurnAction = new ActionData<MovementActionData>
-            {
-                energyCost = 5f,
-                maxConsecutiveUses = 3,
-                cooldownTime = 2f,
-                data = new MovementActionData
-                {
-                    speed = 0f // 瞬間移動
+                    speed = 5f,
+                    acceleration = 0.2f,
+                    jumpForce = 10f,
+                    chargeTime = 1f,
+                    chargedJumpForce = 15f,
+                    dodgeDistance = 8f,
+                    normalDodgeInterval = 0.3f,
+                    energyDepletedDodgeInterval = 1f,
+                    doubleDodgeEnergyCost = 30f
                 }
             };
         }
@@ -1230,149 +979,93 @@ namespace LearningAIGame.CombatSystem
         private void InitializeAttackActions()
         {
             // 弱攻撃
-            weakMeleeAction = new ActionData<AttackActionData>
+            weakAttackAction = new ActionData<AttackActionData>
             {
                 energyCost = 5f,
-                maxConsecutiveUses = 5,
-                cooldownTime = 2f,
+                maxConsecutiveUses = 999,
+                cooldownTime = 0f,
                 data = new AttackActionData
                 {
-                    damage = 25f,
-                    startup = 0.2f,
-                    duration = 0.1f,
-                    recovery = 0.3f,
-                    lungeDistance = 2f,
-                    range = 3f,
+                    baseDamage = 25f,
+                    range = 2f,
+                    speed = 1.2f,
+                    stunAccumulation = 10f,
                     canCancel = false,
-                    canBeGuarded = true,
-                    guardImpact = 0.2f,
-                    comboWindow = 0.8f
+                    cancelWindow = 0f,
+                    comboContinueTime = 1f,
+                    maxComboCount = 5
                 }
             };
 
             // 強攻撃
-            strongMeleeAction = new ActionData<AttackActionData>
-            {
-                energyCost = 20f,
-                maxConsecutiveUses = 3,
-                cooldownTime = 5f,
-                data = new AttackActionData
-                {
-                    damage = 60f,
-                    startup = 0.5f,
-                    duration = 0.2f,
-                    recovery = 0.6f,
-                    lungeDistance = 3f,
-                    range = 4f,
-                    canCancel = true,
-                    cancelEnergyCost = 10f,
-                    canBeGuarded = true,
-                    guardImpact = 0.8f,
-                    comboWindow = 0.8f
-                }
-            };
-
-            // 空中攻撃
-            aerialAttackAction = new ActionData<AttackActionData>
+            strongAttackAction = new ActionData<AttackActionData>
             {
                 energyCost = 15f,
-                maxConsecutiveUses = 3,
-                cooldownTime = 3f,
+                maxConsecutiveUses = 999,
+                cooldownTime = 0f,
                 data = new AttackActionData
                 {
-                    damage = 50f,
-                    startup = 0.3f,
-                    duration = 0.15f,
-                    recovery = 0.4f,
-                    lungeDistance = 4f,
-                    range = 3.5f,
-                    canCancel = false,
-                    canBeGuarded = true,
-                    guardImpact = 0.6f,
-                    floatTime = 0.8f
+                    baseDamage = 50f,
+                    range = 2.5f,
+                    speed = 0.8f,
+                    stunAccumulation = 25f,
+                    canCancel = true,
+                    cancelWindow = 0.3f,
+                    comboContinueTime = 1.5f,
+                    maxComboCount = 3
                 }
             };
 
-            // 回避攻撃
-            dodgeAttackAction = new ActionData<AttackActionData>
+            // スキル攻撃
+            skillAttackAction = new ActionData<AttackActionData>
             {
-                energyCost = 20f,
-                maxConsecutiveUses = 2,
-                cooldownTime = 4f,
+                energyCost = 25f,
+                maxConsecutiveUses = 1,
+                cooldownTime = 10f,
                 data = new AttackActionData
                 {
-                    damage = 40f,
-                    startup = 0.15f,
-                    duration = 0.12f,
-                    recovery = 0.35f,
-                    lungeDistance = 5f,
+                    baseDamage = 75f,
                     range = 3f,
+                    speed = 1f,
+                    stunAccumulation = 40f,
                     canCancel = false,
-                    canBeGuarded = true,
-                    guardImpact = 0.5f
+                    cancelWindow = 0f,
+                    comboContinueTime = 0f,
+                    maxComboCount = 1
                 }
             };
         }
 
-        private void InitializeShootActions()
+        private void InitializeRangedActions()
         {
             // 弱射撃
-            weakShootAction = new ActionData<ShootActionData>
+            weakRangedAction = new ActionData<RangedActionData>
             {
                 energyCost = 0f,
-                maxConsecutiveUses = 999,
+                maxConsecutiveUses = 10,
                 cooldownTime = 0f,
-                data = new ShootActionData
+                data = new RangedActionData
                 {
-                    damage = 15f,
-                    projectileSpeed = 50f,
-                    range = 50f,
-                    fireRate = 5f,
-                    ammoCount = 30,
+                    ammoCount = 10,
                     reloadTime = 2f,
                     accuracyTime = 1.5f,
                     pierceGuardAtMaxAccuracy = true,
                     simultaneousShots = 1,
-                    spreadAngle = 0f
+                    spreadAngle = 2f
                 }
             };
 
             // 強射撃
-            strongShootAction = new ActionData<ShootActionData>
+            strongRangedAction = new ActionData<RangedActionData>
             {
                 energyCost = 0f,
-                maxConsecutiveUses = 999,
-                cooldownTime = 0f,
-                data = new ShootActionData
+                maxConsecutiveUses = 5,
+                cooldownTime = 1f,
+                data = new RangedActionData
                 {
-                    damage = 80f,
-                    projectileSpeed = 30f,
-                    range = 60f,
-                    fireRate = 1f,
                     ammoCount = 5,
                     reloadTime = 3f,
                     accuracyTime = 2f,
-                    pierceGuardAtMaxAccuracy = true,
-                    simultaneousShots = 1,
-                    spreadAngle = 0f
-                }
-            };
-
-            // チャージ射撃
-            chargedShootAction = new ActionData<ShootActionData>
-            {
-                energyCost = 25f,
-                maxConsecutiveUses = 3,
-                cooldownTime = 8f,
-                data = new ShootActionData
-                {
-                    damage = 120f,
-                    projectileSpeed = 70f,
-                    range = 80f,
-                    fireRate = 0.5f,
-                    ammoCount = 1,
-                    reloadTime = 0f,
-                    accuracyTime = 0.5f,
                     pierceGuardAtMaxAccuracy = true,
                     simultaneousShots = 1,
                     spreadAngle = 0f
@@ -1421,93 +1114,58 @@ namespace LearningAIGame.CombatSystem
             };
         }
 
-        private void InitializeSkillActions()
+        private void InitializeSpecialActions()
         {
-            // スキル1-5の初期化（デフォルト値）
-            for ( int i = 1; i <= 5; i++ )
+            // エクステンション
+            extensionAction = new ActionData<ExtensionActionData>
             {
-                var skill = new ActionData<SkillActionData>
+                energyCost = 0f,
+                maxConsecutiveUses = 3,
+                cooldownTime = 8f,
+                data = new ExtensionActionData
                 {
-                    energyCost = 25f,
-                    maxConsecutiveUses = 2,
-                    cooldownTime = 10f,
-                    data = new SkillActionData
-                    {
-                        effectType = SkillEffectType.Damage,
-                        effectValue = 50f,
-                        effectRange = 5f,
-                        effectDuration = 0f,
-                        homingStrength = 0f,
-                        unblockable = false,
-                        effectName = $"DefaultSkill{i}",
-                        activationDelay = 0.5f,
-                        hitCount = 1,
-                        hitInterval = 0.2f
-                    }
-                };
-
-                switch ( i )
-                {
-                    case 1:
-                        skill1Action = skill;
-                        break;
-                    case 2:
-                        skill2Action = skill;
-                        break;
-                    case 3:
-                        skill3Action = skill;
-                        break;
-                    case 4:
-                        skill4Action = skill;
-                        break;
-                    case 5:
-                        skill5Action = skill;
-                        break;
+                    effectType = ExtensionEffectType.Support,
+                    effectValue = 20f,
+                    effectRange = 10f,
+                    effectDuration = 5f,
+                    effectName = "DefaultExtension",
+                    isPlaceable = false,
+                    isAutoActivate = false
                 }
-            }
-        }
+            };
 
-        private void InitializeManeuverActions()
-        {
-            // マニューバ1-5の初期化（デフォルト値）
-            for ( int i = 1; i <= 5; i++ )
+            // モード切り替え
+            modeSwitchAction = new ActionData<ModeSwitchActionData>
             {
-                var maneuver = new ActionData<ManeuverActionData>
+                energyCost = 0f,
+                maxConsecutiveUses = 999,
+                cooldownTime = 0f,
+                data = new ModeSwitchActionData
                 {
-                    energyCost = 30f,
-                    maxConsecutiveUses = 1,
-                    cooldownTime = 15f,
-                    data = new ManeuverActionData
-                    {
-                        recordedPattern = "",
-                        executionTime = 2f,
-                        speedMultiplier = 1f,
-                        invincibilityDuration = 0f,
-                        canCancelMidway = false,
-                        autoSkillAfterExecution = ActionType.None,
-                        earlyUseEnergyMultiplier = 2f
-                    }
-                };
-
-                switch ( i )
-                {
-                    case 1:
-                        maneuver1Action = maneuver;
-                        break;
-                    case 2:
-                        maneuver2Action = maneuver;
-                        break;
-                    case 3:
-                        maneuver3Action = maneuver;
-                        break;
-                    case 4:
-                        maneuver4Action = maneuver;
-                        break;
-                    case 5:
-                        maneuver5Action = maneuver;
-                        break;
+                    targetMode = ActionMode.Ranged, // デフォルトで射撃モードに切り替え
+                    switchTime = 0.3f,
+                    invincibilityDuration = 0f,
+                    switchCondition = ModeSwitchCondition.Always
                 }
-            }
+            };
+
+            // マニューバ
+            maneuverAction = new ActionData<ManeuverActionData>
+            {
+                energyCost = 30f,
+                maxConsecutiveUses = 1,
+                cooldownTime = 15f,
+                data = new ManeuverActionData
+                {
+                    recordedPattern = "",
+                    executionTime = 2f,
+                    speedMultiplier = 1f,
+                    invincibilityDuration = 0f,
+                    canCancelMidway = false,
+                    autoSkillAfterExecution = ActionType.Walk, // 既存ActionTypeのデフォルト値
+                    earlyUseEnergyMultiplier = 2f
+                }
+            };
         }
 
         #endregion
@@ -1539,6 +1197,61 @@ namespace LearningAIGame.CombatSystem
             maxStunGauge = Mathf.Max(50f, maxStunGauge);
             stunGaugeRecoveryRate = Mathf.Max(10f, stunGaugeRecoveryRate);
         }
+
+        #endregion
+
+        #region === デバッグ・ツール ===
+
+        [Title("デバッグ機能")]
+        [Button("全アクションリセット", ButtonSizes.Large)]
+        [GUIColor(1f, 0.8f, 0.8f)]
+        private void DebugResetAllActions()
+        {
+            ResetAllCooldowns();
+            Debug.Log("全アクションのクールダウンをリセットしました");
+        }
+
+        [Button("ActionDataベース再構築", ButtonSizes.Large)]
+        [GUIColor(0.8f, 1f, 0.8f)]
+        private void DebugRebuildActionDatabase()
+        {
+            InitializeActionDatabase();
+            Debug.Log("ActionDataベースを再構築しました");
+        }
+
+        [Button("設定値検証", ButtonSizes.Large)]
+        [GUIColor(0.8f, 0.8f, 1f)]
+        private void DebugValidateSettings()
+        {
+            bool isValid = true;
+
+            if ( !ValidateHealth(maxHealth) )
+            {
+                Debug.LogError("体力設定が無効です");
+                isValid = false;
+            }
+
+            if ( !ValidateEnergy(maxEnergy) )
+            {
+                Debug.LogError("エネルギー設定が無効です");
+                isValid = false;
+            }
+
+            if ( actionDatabase == null || actionDatabase.Count == 0 )
+            {
+                Debug.LogError("ActionDataベースが初期化されていません");
+                isValid = false;
+            }
+
+            if ( isValid )
+            {
+                Debug.Log("全ての設定が有効です");
+            }
+        }
+
+        [ShowInInspector, ReadOnly]
+        [PropertyTooltip("現在のActionDataベースサイズ")]
+        private int ActionDatabaseSize => actionDatabase?.Count ?? 0;
 
         #endregion
     }

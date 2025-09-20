@@ -1,73 +1,83 @@
-using System.Runtime.CompilerServices;
+//using System.Runtime.CompilerServices;
 
-namespace LearningAIGame.CombatSystem
-{
-    /// <summary>
-    /// キャラクターの行動状態を定義する列挙型
-    /// </summary>
-    public enum ActionState : byte
-    {
-        /// <summary>
-        /// 待機状態 - 何もアクションを行っていない
-        /// </summary>
-        Idle,
+//namespace LearningAIGame.CombatSystem
+//{
+//    /// <summary>
+//    /// キャラクターの行動状態を定義する列挙型
+//    /// </summary>
+//    public enum ActionState : byte
+//    {
+//        /// <summary>
+//        /// 待機状態 - 何もアクションを行っていない
+//        /// </summary>
+//        Idle,
 
-        /// <summary>
-        /// 歩行中 - 通常の移動を行っている
-        /// </summary>
-        Walking,
+//        /// <summary>
+//        /// 歩行中 - 通常の移動を行っている
+//        /// </summary>
+//        Walking,
 
-        /// <summary>
-        /// ジャンプ中 - 上昇または落下中
-        /// </summary>
-        Jumping,
+//        /// <summary>
+//        /// ジャンプ中 - 上昇または落下中
+//        /// </summary>
+//        Jumping,
 
-        /// <summary>
-        /// 落下中 - 重力により下降している
-        /// </summary>
-        Falling,
+//        /// <summary>
+//        /// 落下中 - 重力により下降している
+//        /// </summary>
+//        Falling,
 
-        /// <summary>
-        /// ブースト中 - エネルギーを消費した高速移動
-        /// </summary>
-        Boosting,
+//        /// <summary>
+//        /// ブースト中 - エネルギーを消費した高速移動
+//        /// </summary>
+//        Boosting,
 
-        /// <summary>
-        /// 回避中 - 無敵フレーム付きの回避行動
-        /// </summary>
-        Dodging,
+//        /// <summary>
+//        /// ブースト中の回避 - ブーストを利用した回避行動
+//        /// </summary>
+//        BoostingAvoid,
 
-        /// <summary>
-        /// 攻撃中 - 近接攻撃または射撃攻撃を実行中
-        /// </summary>
-        Attacking,
+//        /// <summary>
+//        /// クイックターン
+//        /// </summary>
+//        QuickTurn,
 
-        /// <summary>
-        /// ガード中 - 防御態勢を取っている
-        /// </summary>
-        Guarding,
+//        /// <summary>
+//        /// 回避中 - 無敵フレーム付きの回避行動
+//        /// </summary>
+//        Dodging,
 
-        /// <summary>
-        /// マニューバ実行中 - 事前記録した移動パターンを実行中
-        /// </summary>
-        UsingManeuver,
+//        /// <summary>
+//        /// 攻撃中 - 近接攻撃または射撃攻撃を実行中
+//        /// </summary>
+//        Attacking,
 
-        /// <summary>
-        /// スタン中 - 行動不能状態
-        /// </summary>
-        Stunned,
+//        /// <summary>
+//        /// ガード中 - 防御態勢を取っている
+//        /// </summary>
+//        Guarding,
 
-        /// <summary>
-        /// 怯み中 - 短時間の行動制限状態
-        /// </summary>
-        Flinching,
-        /// <summary>
-        /// 空中でのチャージ中 - 空中でジャンプを溜めている状態
-        /// </summary>
-        AirCharge,
-        /// <summary>
-        /// エネルギー切れの際のシールド展開中
-        /// </summary>
-        EnergyShielding
-    }
-}
+//        /// <summary>
+//        /// マニューバ実行中 - 事前記録した移動パターンを実行中
+//        /// </summary>
+//        UsingManeuver,
+
+//        /// <summary>
+//        /// スタン中 - 行動不能状態
+//        /// </summary>
+//        Stunned,
+
+//        /// <summary>
+//        /// 怯み中 - 短時間の行動制限状態
+//        /// </summary>
+//        Flinching,
+//        /// <summary>
+//        /// 空中でのチャージ中 - 空中でジャンプを溜めている状態
+//        /// </summary>
+//        AirCharge,
+//        /// <summary>
+//        /// エネルギー切れの際のシールド展開中
+//        /// </summary>
+//        EnergyShielding
+//    }
+//}

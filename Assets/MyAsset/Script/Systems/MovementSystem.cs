@@ -1,109 +1,211 @@
+using Cysharp.Threading.Tasks;
+using LearningAIGame.CombatSystem.Core;
 using Sirenix.OdinInspector;
 using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using UniRx;
+using Unity.Burst;
+using Unity.Mathematics;
 using UnityEngine;
+using static LearningAIGame.CombatSystem.CharacterSettings;
 
 namespace LearningAIGame.CombatSystem
 {
     /// <summary>
     /// 移動データの構造体
+    /// 共通設定かなんかで各移動始動時のリセット設定をビットフラグにまとめるか
     /// </summary>
     [System.Serializable]
     public struct MovementData
     {
-        public Vector3 velocity;
-        public bool isGrounded;
-        public bool isBoosting;
-        public bool isAirborne;
-        public bool isInAerialFloat;
-        public float speed;
-        public float airTime;
+
+        /// <summary>
+        /// 現在の行動を開始した時間
+        /// </summary>
+        public float moveStartTime;
+
+        /// <summary>
+        /// 現在の移動状態
+        /// </summary>
         public ActionState movementState;
+
+        /// <summary>
+        /// コンストラクタ
+        /// </summary>
+        /// <param name="nowTime"></param>
+        public MovementData(float nowTime)
+        {
+            moveStartTime = nowTime;
+            movementState = ActionState.Idle;
+        }
+
+        /// <summary>
+        /// 移動の更新
+        /// </summary>
+        /// <param name="vel"></param>
+        /// <param name="grounded"></param>
+        /// <param name="spd"></param>
+        /// <param name="airT"></param>
+        /// <param name="state"></param>
+        public void UpdateMovementData(ActionState state)
+        {
+            movementState = state;
+        }
+
     }
 
     /// <summary>
-    /// 移動システム - 歩行、ジャンプ、ブースト、回避、空中制御、踏み込みなどの移動を管理
-    /// For Honorライクな防御システムとの連携も含む
+    /// 速度変化パターンの種類
+    /// </summary>
+    public enum SpeedBoostPattern : byte
+    {
+        /// <summary>山型：0→最大→0（滑らかな加速・減速）</summary>
+        Mountain,
+        /// <summary>減衰型：最大→0（最初が最速、徐々に減速）</summary>
+        Decay,
+        /// <summary>加速型：0→最大（徐々に加速）</summary>
+        Acceleration,
+        /// <summary>一定型：最大を維持</summary>
+        Constant,
+        /// <summary>急減衰型：最大→0（急激な減速）</summary>
+        SharpDecay,
+        /// <summary>弾性型：オーバーシュート後に安定</summary>
+        Elastic
+    }
+
+    /// <summary>
+    /// 改修版移動システム - アクション別ベクトル管理
+    /// シンプルなベクトルブレンドシステム
+    /// 
+    /// 改修版移動システム - 汎用移動タイプシステム
+    /// 様々な移動パターンを統一的に管理
+    /// 
+    /// 基礎的な移動コードを内包しつつ、ジャンプや吹っ飛ばしなどを行う窓口を持つ。
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
-    public class MovementSystem : BaseSystem<MovementData>
+    public class MovementSystem : BaseSystem<ActionState>
     {
         // コンポーネント
         private Rigidbody rigidBody;
-        private StateSystem stateSystem;
-        private EnergySystem energySystem;
-        private AttackSystem attackSystem;
-        private DirectionSystem directionSystem;
-        private PositionCache positionCache;
 
-        // 移動状態
-        private MovementData currentMovementData;
-
-        [Title("現在の状態")]
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("地面に接触しているかどうか")]
-        public bool IsGrounded { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = true;
+        ///// <summary>
+        ///// 移動状態管理
+        ///// </summary>
+        //private MovementData currentMovementData;
 
         [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在ブーストしているかどうか")]
-        public bool IsBoosting { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = false;
-
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("空中にいるかどうか")]
-        public bool IsAirborne { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = false;
-
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("空中滞空中かどうか")]
-        public bool IsInAerialFloat { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = false;
-
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在の移動速度")]
-        public float CurrentSpeed { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = 0f;
+        [PropertyTooltip("移動設定")]
+        public MovementSettings moveSetting;
 
         [ShowInInspector, ReadOnly]
         [PropertyTooltip("空中時間の累計")]
         public float TotalAirTime { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = 0f;
 
+        // 移動状態タイマー（減衰処理用）
+        private float jumpDecayRate = 0f;
+        private float dodgeTimer = 0f;
+        private float lungeTimer = 0f;
+        private float lungeDistance = 0f;
+        private float lungeTravelDistance = 0f;
+        private float knockbackDecayRate = 0f;
+        private bool hasUsedDoubleJump = false;
+
         // 移動速度修正システム
         [Title("移動速度修正システム")]
         [ShowInInspector, ReadOnly]
         [PropertyTooltip("現在適用中の移動速度修正")]
-        private Dictionary<string, float> speedModifiers = new Dictionary<string, float>();
+        private System.Collections.Generic.Dictionary<string, float> speedModifiers = new System.Collections.Generic.Dictionary<string, float>();
 
         [ShowInInspector, ReadOnly]
         [PropertyTooltip("最終的な移動速度倍率")]
         public float FinalSpeedMultiplier { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = 1f;
 
-        // 内部状態
-        private Vector3 currentMoveDirection = Vector3.zero;
-        private bool isChargingJump = false;
-        private float jumpChargeStartTime = 0f;
-        private float lastDodgeTime = 0f;
-        private bool canDoubleDodge = false;
-
-        // 空中制御
-        private bool isChargingInAir = false;
-        private float airChargeStartTime = 0f;
-        private float aerialFloatTimer = 0f;
-        private bool hasUsedDoubleJump = false;
-
-        // 踏み込み制御
-        private bool isLunging = false;
-        private Vector3 lungeDirection;
-        private float lungeSpeed;
-        private float lungeDistance;
-        private float lungeTravelDistance;
-
-        // 地面検知
-        [Title("地面検知設定")]
+        // 地面・壁検知
+        [Title("地面・壁検知設定")]
         [PropertyTooltip("地面検知のレイヤーマスク")]
         [SerializeField] private LayerMask groundLayerMask = 1;
+
+        [PropertyTooltip("壁検知のレイヤーマスク")]
+        [SerializeField] private LayerMask wallLayerMask = 1;
 
         [PropertyTooltip("地面検知の距離")]
         [Range(0.1f, 2f)]
         [SerializeField] private float groundCheckDistance = 1.1f;
+
+        [PropertyTooltip("壁検知の距離")]
+        [Range(0.1f, 2f)]
+        [SerializeField] private float wallCheckDistance = 0.6f;
+
+        // === 統合機能：重力・ジャンプシステム ===
+        [Title("重力・ジャンプ設定")]
+        [PropertyTooltip("重力値")]
+        [SerializeField] private float gravity = -20f;
+
+        [PropertyTooltip("最大落下速度")]
+        [SerializeField] private float maxFallSpeed = -25f;
+
+        [PropertyTooltip("ジャンプ力")]
+        [SerializeField] private float jumpForce = 10f;
+
+        [PropertyTooltip("ジャンプ早期終了時の速度倍率")]
+        [Range(0.1f, 1f)]
+        [SerializeField] private float jumpCutMultiplier = 0.5f;
+
+        // === 統合機能：コヨーテタイム・ジャンプバッファ ===
+        [Title("コヨーテタイム設定")]
+        [PropertyTooltip("地面を離れてもジャンプ可能な時間")]
+        [Range(0f, 0.5f)]
+        [SerializeField] private float coyoteTime = 0.2f;
+
+        [PropertyTooltip("ジャンプ入力を受け付ける猶予時間")]
+        [Range(0f, 0.3f)]
+        [SerializeField] private float jumpBufferTime = 0.1f;
+
+        // === 統合機能：オーディオ・エフェクト ===
+        [Title("オーディオ・エフェクト")]
+        [PropertyTooltip("AudioSourceコンポーネント")]
+        [SerializeField] private AudioSource audioSource;
+
+        [PropertyTooltip("足音配列")]
+        [SerializeField] private AudioClip[] footstepSounds;
+
+        [PropertyTooltip("ジャンプ音")]
+        [SerializeField] private AudioClip jumpSound;
+
+        [PropertyTooltip("着地音")]
+        [SerializeField] private AudioClip landSound;
+
+        [PropertyTooltip("着地エフェクト")]
+        [SerializeField] private ParticleSystem landingParticles;
+
+        [PropertyTooltip("ダッシュエフェクト")]
+        [SerializeField] private ParticleSystem dashParticles;
+
+        // === 統合機能：速度加算システム ===
+        [Title("速度加算システム")]
+        [PropertyTooltip("最大水平速度")]
+        [SerializeField] private float maxHorizontalSpeed = 15f;
+
+        [PropertyTooltip("最小速度閾値")]
+        [SerializeField] private float minHorizontalSpeed = 0.1f;
+
+        // === プライベート変数（統合機能用） ===
+        private bool wasGroundedLastFrame;
+        private bool jumpPressed;
+        private bool jumpHeld;
+        private float verticalVelocity;
+        private float coyoteTimeCounter;
+        private float jumpBufferCounter;
+        private float footstepTimer;
+        private float footstepInterval = 0.5f;
+
+        // 速度加算システム
+        private Vector3 boostVelocity;
+        private Vector3 baseVelocity;
+        private float boostStartTime;
+        private float boostDuration;
+        private SpeedBoostPattern boostPattern;
+        private bool isSpeedBoostActive = false;
 
         /// <summary>
         /// 初期化処理
@@ -116,81 +218,13 @@ namespace LearningAIGame.CombatSystem
 
         protected override void OnInitialized()
         {
-            // 他のシステムの参照取得
-            stateSystem = GetComponent<StateSystem>();
-            energySystem = GetComponent<EnergySystem>();
-            attackSystem = GetComponent<AttackSystem>();
-            directionSystem = GetComponent<DirectionSystem>();
-            positionCache = GetComponent<PositionCache>();
-
             if ( Settings?.movement == null )
             {
                 DebugLogError("MovementSettings が設定されていません");
                 return;
             }
 
-            // 移動データの設定
-            UpdateMovementData();
-        }
-
-        protected override void SetupObservables()
-        {
-            // フレーム毎の移動データ更新をObservableで通知
-            UniRx.Observable.EveryFixedUpdate()
-                .Subscribe(_ => UpdateAndNotifyMovementData())
-                .AddTo(disposables);
-
-            // 空中時間の更新
-            UniRx.Observable.EveryUpdate()
-                .Subscribe(_ => UpdateAirTime())
-                .AddTo(disposables);
-
-            // 空中滞空の更新
-            UniRx.Observable.EveryUpdate()
-                .Subscribe(_ => UpdateAerialFloat())
-                .AddTo(disposables);
-        }
-
-        private void UpdateAndNotifyMovementData()
-        {
-            UpdateMovementData();
-            NotifyObservers(currentMovementData);
-        }
-
-        private void UpdateMovementData()
-        {
-            currentMovementData = new MovementData
-            {
-                velocity = rigidBody != null ? rigidBody.linearVelocity : Vector3.zero,
-                isGrounded = IsGrounded,
-                isBoosting = IsBoosting,
-                isAirborne = IsAirborne,
-                isInAerialFloat = IsInAerialFloat,
-                speed = CurrentSpeed,
-                airTime = TotalAirTime,
-                movementState = DetermineMovementState()
-            };
-        }
-
-        private ActionState DetermineMovementState()
-        {
-            if ( isLunging )
-                return ActionState.Attacking; // 踏み込み中
-
-            if ( !IsGrounded )
-            {
-                if ( IsInAerialFloat )
-                    return ActionState.AirCharge;
-                return rigidBody.linearVelocity.y > 0 ? ActionState.Jumping : ActionState.Falling;
-            }
-
-            if ( IsBoosting )
-                return ActionState.Boosting;
-
-            if ( rigidBody.linearVelocity.magnitude > 0.1f )
-                return ActionState.Walking;
-
-            return ActionState.Idle;
+            //  currentMovementData = new MovementData(Time.time);
         }
 
         /// <summary>
@@ -199,10 +233,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void Update()
         {
-            UpdateGroundCheck();
-            UpdateMovementState();
-            UpdateCurrentSpeed();
-            UpdateAirborneState();
+
         }
 
         /// <summary>
@@ -211,245 +242,174 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void FixedUpdate()
         {
-            ProcessMovement();
-            ProcessLunge();
+            ApplyFinalMovement();
         }
 
-        #region Public Movement Methods
+        #region 基本移動アクション制御
 
         /// <summary>
-        /// 移動処理を実行
+        /// 停止する
+        /// </summary>
+        public void Stop()
+        {
+            baseVelocity.Set(0, baseVelocity.y, 0);
+            boostVelocity = Vector3.zero;
+            isSpeedBoostActive = false;
+
+            NotifyObservers(ActionState.Idle);
+        }
+
+        /// <summary>
+        /// 歩行移動を設定
+        /// プレイヤーの基本的な移動を制御します
+        /// 移動方向については有力を方向に変換する処理をプレイヤー側に入れる
+        /// 
+        /// 他の移動に関しても言えるが、水平移動の入力で軌道制御を行う
+        /// ブーストと移動だけが一瞬の加速ではない
         /// </summary>
         /// <param name="direction">移動方向</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Move(Vector3 direction)
+        public void MoveStart(Vector2 direction)
         {
-            currentMoveDirection = direction.normalized;
+            // 移動ベクトル設定
+            SetBaseVelocity(direction * moveSetting.moveSpeed);
 
-            if ( currentMoveDirection.magnitude > 0.1f )
+            // 移動開始
+            NotifyObservers(ActionState.Moving);
+        }
+
+        /// <summary>
+        /// 通常移動の方向を更新する
+        /// 具体的には落下か歩行中に移動入力があった場合の処理
+        /// キャラクターコントローラーが呼び出す
+        /// </summary>
+        /// <param name="direction">移動方向</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void MoveUpdate(Vector2 direction)
+        {
+            float useSpeed = characterController.CurrentState.state switch
             {
-                stateSystem.ReportActionStateChange(ActionState.Walking);
-            }
-            else
-            {
-                stateSystem.ReportActionStateChange(ActionState.Idle);
-            }
+                ActionState.Moving => moveSetting.moveSpeed,
+                ActionState.Boosting => moveSetting.boostSpeed,
+                ActionState.Falling => moveSetting.airMoveSpeed,
+                ActionState.Jumping => moveSetting.airMoveSpeed,
+                _ => 0f
+            };
+
+            // 移動ベクトル設定
+            SetBaseVelocity(direction * useSpeed);
         }
 
         /// <summary>
         /// ジャンプを実行
+        /// チャージジャンプ廃止
+        /// 入力がニュートラルなら真上に飛ぶ
+        /// directionとboostSpeed分の真上ベクトルをブレンドして飛ぶ
+        /// 
+        /// ジャンプボタン離した段階で終わろう
         /// </summary>
-        /// <param name="charged">チャージジャンプかどうか</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Jump(bool charged = false)
+        public void Jump(Vector3 direction)
         {
-            if ( !CanJump() )
-                return;
+            // 移動開始
+            AddSpeedBoost(direction * moveSetting.jumpForce, moveSetting.jumpTime, SpeedBoostPattern.Decay);
 
-            float jumpForce = charged ? Settings.movement.chargedJumpForce : Settings.movement.jumpForce;
-
-            if ( !IsGrounded && !hasUsedDoubleJump )
-            {
-                // 二段ジャンプ
-                if ( energySystem.UseEnergy(Settings.movement.airJumpEnergyCost) )
-                {
-                    rigidBody.linearVelocity = new Vector3(rigidBody.linearVelocity.x, jumpForce, rigidBody.linearVelocity.z);
-                    hasUsedDoubleJump = true;
-                }
-            }
-            else if ( IsGrounded )
-            {
-                // 通常ジャンプ
-                rigidBody.linearVelocity = new Vector3(rigidBody.linearVelocity.x, jumpForce, rigidBody.linearVelocity.z);
-                hasUsedDoubleJump = false; // 地上ジャンプ時にリセット
-            }
-
-            stateSystem.ReportActionStateChange(ActionState.Jumping);
+            NotifyObservers(ActionState.Jumping);
         }
 
         /// <summary>
-        /// ジャンプチャージを開始
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void StartJumpCharge()
-        {
-            if ( IsGrounded && !isChargingJump )
-            {
-                isChargingJump = true;
-                jumpChargeStartTime = Time.time;
-            }
-        }
-
-        /// <summary>
-        /// ジャンプチャージを終了してジャンプを実行
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ReleaseJumpCharge()
-        {
-            if ( isChargingJump )
-            {
-                float chargeTime = Time.time - jumpChargeStartTime;
-                bool isCharged = chargeTime >= Settings.movement.chargeTime;
-
-                isChargingJump = false;
-                Jump(isCharged);
-            }
-        }
-
-        /// <summary>
-        /// ブーストを実行
+        /// ブーストを設定
+        /// エネルギーを消費して高速移動を実行します
+        /// 
+        /// 入力がなければ向いてる方向に移動する
+        /// ブースト中ジャンプボタンを押すと真上に飛んでいく
+        /// しかし水平入力をするとその方向に角度がつく
+        /// 
+        /// やっぱやめた。
+        /// ジャンプみたいに力が加わるだけにしよう
+        /// 飛び回って撃つゲームじゃないので
         /// </summary>
         /// <param name="direction">ブースト方向</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Boost(Vector3 direction)
+        public void SetBoost(Vector2 direction)
         {
-            if ( !CanBoost() )
-                return;
+            // 移動ベクトル設定
+            SetBaseVelocity(direction * moveSetting.boostSpeed);
 
-            IsBoosting = true;
-            currentMoveDirection = direction.normalized;
-
-            // ブースト方向に基づく攻撃方向をDirectionSystemに設定
-            if ( directionSystem != null )
-            {
-                directionSystem.DeriveDirectionFromMovement(direction, 0.2f);
-            }
-
-            stateSystem.ReportActionStateChange(ActionState.Boosting);
+            // 移動開始
+            NotifyObservers(ActionState.Boosting);
         }
 
         /// <summary>
-        /// ブーストを停止
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void StopBoost()
-        {
-            IsBoosting = false;
-            stateSystem.ReportActionStateChange(ActionState.Idle);
-        }
-
-        /// <summary>
-        /// 回避を実行（修正版）
-        /// StateSystemの回避インターバル管理と連携
+        /// 回避を実行
+        /// 無敵フレーム付きの緊急回避を実行します
+        /// ブースト中に回避するとブーストがキャンセルされる
+        /// 
+        /// 時間終了したらステートを戻すためにUnitaskを使用
         /// </summary>
         /// <param name="direction">回避方向（空白時はバックステップ）</param>
+        /// <returns>アクション中に別のステートに変わっていないか。偽なら変わってる</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Dodge(Vector3 direction)
+        public async UniTaskVoid Dodge(Vector3 direction)
         {
-            if ( !CanDodge() )
-                return;
+            // 移動開始
+            AddSpeedBoost(direction * moveSetting.dodgeSpeed, moveSetting.dodgeTime, SpeedBoostPattern.Decay);
+            NotifyObservers(ActionState.Dodging);
 
-            // 二段回避の判定
-            bool isDoubleDodge = canDoubleDodge && (Time.time - lastDodgeTime) <= 0.2f;
+            await UniTask.Delay(TimeSpan.FromSeconds(moveSetting.dodgeTime));
 
-            float energyCost = isDoubleDodge ? Settings.movement.doubleDodgeEnergyCost : Settings.movement.dodgeEnergyCost;
-            float dodgeDistance = isDoubleDodge ? Settings.movement.dodgeDistance * 1.5f : Settings.movement.dodgeDistance;
-
-            // エネルギー切れ状態の性能低下処理（StateSystem経由）
-            bool isEnergyDepleted = stateSystem.IsEnergyDepleted;
-
-            if ( isEnergyDepleted )
+            if ( characterController.CurrentState.state == ActionState.Dodging )
             {
-                // エネルギー切れ中は回避性能が低下
-                dodgeDistance *= 0.6f; // 距離を60%に減少
-                Debug.Log("エネルギー切れ中：回避性能が低下しています");
+                NotifyObservers(ActionState.Idle);
             }
-            else
-            {
-                // 通常時はエネルギー消費
-                if ( !energySystem.UseEnergy(energyCost) )
-                    return;
-            }
-
-            // 回避方向の決定
-            Vector3 dodgeDirection = direction.magnitude > 0.1f ? direction.normalized : -transform.forward;
-
-            // DirectionSystemに回避方向に基づく攻撃方向を設定
-            if ( directionSystem != null )
-            {
-                directionSystem.DeriveDirectionFromMovement(dodgeDirection, 0.5f);
-            }
-
-            // 回避実行
-            rigidBody.linearVelocity = dodgeDirection * (dodgeDistance / 0.3f); // 0.3秒で移動完了
-
-            // 無敵フレーム設定（エネルギー切れ時は短縮）
-            float invincibilityTime = isEnergyDepleted ? 0.1f : 0.2f;
-            stateSystem.HealthData.isInvincible = true;
-            stateSystem.HealthData.invincibilityTimer = invincibilityTime;
-
-            stateSystem.ReportActionStateChange(ActionState.Dodging);
-
-            // AttackSystemに回避実行を通知（回避攻撃のため）
-            if ( attackSystem != null )
-            {
-                attackSystem.OnDodgeExecuted(dodgeDirection);
-            }
-
-            // エネルギー切れ時のシールド無効化
-            var defenseSystem = GetComponent<DefenseSystem>();
-            if ( defenseSystem != null && defenseSystem.IsEnergyShieldActive() )
-            {
-                defenseSystem.StopEnergyShield();
-                Debug.Log("回避によりエネルギーシールドを無効化しました");
-            }
-
-            // 回避完了の処理
-            UniRx.Observable.Timer(TimeSpan.FromSeconds(0.3f))
-                .Subscribe(_ => OnDodgeComplete())
-                .AddTo(disposables);
-
-            lastDodgeTime = Time.time;
-            canDoubleDodge = !isDoubleDodge; // 二段回避後はリセット
         }
 
+
         /// <summary>
-        /// 回避が可能かどうかを判定（新規追加）
-        /// StateSystemの回避インターバル管理と連携
+        /// 二段回避を実行
+        /// 無敵フレーム付きの緊急回避を実行します
+        /// 
+        /// 時間終了したらステートを戻すためにUnitaskを使用
         /// </summary>
-        /// <returns>回避可能かどうか</returns>
+        /// <param name="direction">回避方向（空白時はバックステップ）</param>
+        /// <returns>アクション中に別のステートに変わっていないか。偽なら変わってる</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool CanDodge()
+        public async UniTaskVoid DoubleDodge(Vector3 direction)
         {
-            // 基本的な状態チェック
-            if ( isLunging ||
-                 stateSystem.CurrentActionState == ActionState.Dodging ||
-                 stateSystem.CurrentActionState == ActionState.Stunned )
-                return false;
 
-            // StateSystemの回避インターバル管理を参照
-            if ( !stateSystem.CanDodge )
-                return false;
+            // 移動開始
+            AddSpeedBoost(direction * moveSetting.dodgeSpeed, moveSetting.dodgeTime * 1.8f, SpeedBoostPattern.Decay);
+            NotifyObservers(ActionState.DoubleDodging);
 
-            // エネルギー切れ中は常に回避可能（性能低下）
-            if ( stateSystem.IsEnergyDepleted )
-                return true;
+            await UniTask.Delay(TimeSpan.FromSeconds(moveSetting.dodgeTime * 1.8f));
 
-            // 通常時はエネルギーが必要
-            return energySystem.CanUseEnergy(Settings.movement.dodgeEnergyCost);
+            if ( characterController.CurrentState.state == ActionState.DoubleDodging )
+            {
+                NotifyObservers(ActionState.Idle);
+            }
         }
 
         /// <summary>
         /// クイックターンを実行
+        /// 即座に180度振り向きを実行します
+        /// 
+        /// アニメーションだけでやろう
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void QuickTurn()
         {
-            if ( energySystem.UseEnergy(5f) ) // 軽いエネルギー消費
-            {
-                transform.Rotate(0, 180f, 0);
-
-                // クイックターン後のDirectionSystemの方向ロックを一時的に解除
-                if ( directionSystem != null )
-                {
-                    // ターン後の新しい方向を設定
-                    directionSystem.ForceDirection(directionSystem.CurrentDirection, 0.1f);
-                }
-            }
+            Stop();
+            // 移動開始
+            NotifyObservers(ActionState.QuickTurn);
         }
 
+        #endregion
+
+        #region 戦闘関連移動アクション制御
+
         /// <summary>
-        /// 踏み込みを実行
+        /// 攻撃の踏み込みを実行
+        /// 攻撃時の前進動作を制御します
         /// </summary>
         /// <param name="direction">踏み込み方向</param>
         /// <param name="distance">踏み込み距離</param>
@@ -457,514 +417,304 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ExecuteLunge(Vector3 direction, float distance, float speed)
         {
-            if ( isLunging )
-                return; // 既に踏み込み中
-
-            lungeDirection = direction.normalized;
-            lungeDistance = distance;
-            lungeSpeed = speed;
-            lungeTravelDistance = 0f;
-            isLunging = true;
-
-            // 踏み込み中は通常の移動を一時停止
-            currentMoveDirection = Vector3.zero;
-
-            // DirectionSystemに踏み込み方向を設定
-            if ( directionSystem != null )
-            {
-                directionSystem.DeriveDirectionFromMovement(direction, 0.3f);
-            }
-
-            stateSystem.ReportActionStateChange(ActionState.Attacking);
+            // 移動開始
+            Stop();
+            AddSpeedBoost(direction * speed, distance / speed, SpeedBoostPattern.Mountain);
         }
 
         /// <summary>
-        /// 空中滞空を開始
+        /// ノックバック（被弾時の吹き飛ばし）を適用
+        /// 被弾時の強制的な押し戻し効果を実行します
+        /// 
+        /// これに関しては時間を設定しない
         /// </summary>
-        /// <param name="floatTime">滞空時間</param>
+        /// <param name="direction">吹き飛ばし方向</param>
+        /// <param name="force">吹き飛ばし力</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void StartAerialFloat(float floatTime)
+        public void ApplyKnockback(Vector3 direction, float force)
         {
-            if ( IsAirborne )
-            {
-                IsInAerialFloat = true;
-                aerialFloatTimer = floatTime;
-
-                // 重力を一時的に無効化
-                rigidBody.useGravity = false;
-                rigidBody.linearVelocity = new Vector3(rigidBody.linearVelocity.x, 0, rigidBody.linearVelocity.z);
-
-                stateSystem.AnalysisData.isInAerialCombo = true;
-                stateSystem.AnalysisData.aerialFloatTimeRemaining = floatTime;
-            }
-        }
-
-        /// <summary>
-        /// 空中滞空を終了
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void EndAerialFloat()
-        {
-            if ( IsInAerialFloat )
-            {
-                IsInAerialFloat = false;
-                aerialFloatTimer = 0f;
-                rigidBody.useGravity = true;
-
-                stateSystem.AnalysisData.isInAerialCombo = false;
-                stateSystem.AnalysisData.aerialFloatTimeRemaining = 0f;
-            }
+            Stop();
+            rigidBody.AddForce(direction.normalized * force, ForceMode.VelocityChange);
         }
 
         #endregion
 
-        #region 移動速度修正システム（修正版）
+        #region 統合機能：速度加算システム
 
         /// <summary>
-        /// 移動速度修正を適用（修正版）
+        /// 基礎速度にxz平面の移動速度を設定します
+        /// 常に一定の速度を加算したい場合に使用します
         /// </summary>
-        /// <param name="modifier">修正倍率（1.0f = 通常速度、0.5f = 半分の速度）</param>
-        /// <param name="source">修正の識別子</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ApplyMovementSpeedModifier(float modifier, string source)
+        /// <param name="velocity"></param>
+        private void SetBaseVelocity(Vector2 velocity)
         {
-            if ( string.IsNullOrEmpty(source) )
-            {
-                Debug.LogWarning("MovementSystem: 移動速度修正のソースIDが空です");
-                return;
-            }
-
-            speedModifiers[source] = Mathf.Clamp(modifier, 0.1f, 10f); // 最低10%、最大1000%に制限
-            RecalculateSpeedMultiplier();
-
-            Debug.Log($"移動速度修正適用: {modifier:F2}x (ソース: {source})");
+            baseVelocity.Set(velocity.x, baseVelocity.y, velocity.y);
         }
 
         /// <summary>
-        /// 移動速度修正を削除（修正版）
+        /// 速度加算効果を開始（ダッシュエフェクト付き）
+        /// 時間内で様々なパターンで速度変化をする
+        /// 
+        /// 一定時間の加速的挙動に使用
         /// </summary>
-        /// <param name="source">修正の識別子</param>
+        /// <param name="velocity">追加速度ベクトル</param>
+        /// <param name="duration">持続時間</param>
+        /// <param name="pattern">速度変化パターン</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RemoveMovementSpeedModifier(string source)
+        private void AddSpeedBoost(Vector3 velocity, float duration, SpeedBoostPattern pattern = SpeedBoostPattern.Mountain)
         {
-            if ( string.IsNullOrEmpty(source) )
-            {
-                Debug.LogWarning("MovementSystem: 移動速度修正のソースIDが空です");
-                return;
-            }
+            boostVelocity = velocity;
+            boostDuration = duration;
+            boostStartTime = Time.time;
+            boostPattern = pattern;
+            isSpeedBoostActive = true;
 
-            if ( speedModifiers.Remove(source) )
+            // ダッシュエフェクト再生
+            if ( dashParticles != null )
             {
-                RecalculateSpeedMultiplier();
-                Debug.Log($"移動速度修正削除: (ソース: {source})");
-            }
-            else
-            {
-                Debug.LogWarning($"MovementSystem: 削除しようとした修正が存在しません: {source}");
+                dashParticles.Play();
             }
         }
 
         /// <summary>
-        /// 全ての移動速度修正をクリア
+        /// 現在の追加速度を取得
         /// </summary>
+        [BurstCompile]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ClearAllSpeedModifiers()
+        private Vector3 GetCurrentAdditionalVelocity()
         {
-            speedModifiers.Clear();
-            RecalculateSpeedMultiplier();
-            Debug.Log("MovementSystem: 全ての移動速度修正をクリアしました");
-        }
+            if ( !isSpeedBoostActive )
+                return Vector3.zero;
 
-        /// <summary>
-        /// 指定のソースの修正が適用されているかチェック
-        /// </summary>
-        /// <param name="source">確認するソースID</param>
-        /// <returns>適用されているかどうか</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool HasSpeedModifier(string source)
-        {
-            return speedModifiers.ContainsKey(source);
-        }
-
-        /// <summary>
-        /// 指定のソースの修正値を取得
-        /// </summary>
-        /// <param name="source">確認するソースID</param>
-        /// <returns>修正値（適用されていない場合は1.0f）</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public float GetSpeedModifier(string source)
-        {
-            return speedModifiers.GetValueOrDefault(source, 1f);
-        }
-
-        /// <summary>
-        /// 全ての速度修正を取得（新規追加）
-        /// </summary>
-        /// <returns>速度修正の辞書のコピー</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Dictionary<string, float> GetAllSpeedModifiers()
-        {
-            return new Dictionary<string, float>(speedModifiers);
-        }
-
-        /// <summary>
-        /// 最終移動速度倍率を再計算（修正版）
-        /// 最も低い修正値を使用（複数の制限効果は最も厳しいものが適用）
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void RecalculateSpeedMultiplier()
-        {
-            if ( speedModifiers.Count == 0 )
+            float progress = (Time.time - boostStartTime) / boostDuration;
+            if ( progress >= 1f )
             {
-                FinalSpeedMultiplier = 1f;
-                return;
+                isSpeedBoostActive = false;
+                return Vector3.zero;
             }
 
-            // 最も低い修正値を使用（最も制限的な効果を採用）
-            FinalSpeedMultiplier = 1f;
-            foreach ( var modifier in speedModifiers.Values )
-            {
-                if ( modifier < FinalSpeedMultiplier )
-                {
-                    FinalSpeedMultiplier = modifier;
-                }
-            }
+            float curveValue = GetSpeedCurveValue(progress, boostPattern);
+            return boostVelocity * curveValue;
+        }
 
-            // 安全範囲制限
-            FinalSpeedMultiplier = Mathf.Clamp(FinalSpeedMultiplier, 0.1f, 10f);
+        /// <summary>
+        /// パターンに応じた速度カーブ値を取得
+        /// </summary>
+        /// <param name="progress">進行度（0-1）</param>
+        /// <param name="pattern">速度パターン</param>
+        /// <returns>速度倍率（0-1）</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [BurstCompile]
+        private float GetSpeedCurveValue(float progress, SpeedBoostPattern pattern)
+        {
+            switch ( pattern )
+            {
+                case SpeedBoostPattern.Mountain:
+                    // 0→1→0の山型（Sin波）
+                    return math.sin(progress * math.PI);
+
+                case SpeedBoostPattern.Decay:
+                    // 1→0の減衰（指数関数的）
+                    return math.exp(-progress * 3f);
+
+                case SpeedBoostPattern.Acceleration:
+                    // 0→1の加速（二次関数）
+                    return progress * progress;
+
+                case SpeedBoostPattern.Constant:
+                    // 一定速度
+                    return 1f;
+
+                case SpeedBoostPattern.SharpDecay:
+                    // 1→0の急激な減衰（三次関数）
+                    return math.pow(1f - progress, 3f);
+
+                case SpeedBoostPattern.Elastic:
+                    // 弾性効果（オーバーシュート後に安定）
+                    if ( progress < 0.5f )
+                    {
+                        // 前半：オーバーシュート
+                        return math.sin(progress * 2f * math.PI) * 0.2f + 1f;
+                    }
+                    else
+                    {
+                        // 後半：安定化
+                        float t = (progress - 0.5f) * 2f;
+                        return math.lerp(1f, 0f, t * t);
+                    }
+
+                default:
+                    return math.sin(progress * math.PI);
+            }
+        }
+
+        /// <summary>
+        /// 最終的な速度を反映
+        /// 毎フレーム呼び出し、rigidbodyに最終速度を適用します
+        /// </summary>
+        private void ApplyFinalMovement()
+        {
+            baseVelocity.y = SetVerticalVelocity();
+            rigidBody.linearVelocity = baseVelocity + GetCurrentAdditionalVelocity();
         }
 
         #endregion
 
-        #region Private Methods
+        #region 統合機能：重力・ジャンプシステム
 
         /// <summary>
-        /// 地面検知の更新
+        /// ジャンプ可能かチェック
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UpdateGroundCheck()
-        {
-            bool wasGrounded = IsGrounded;
-            Vector3 position = positionCache != null ? positionCache.Position : transform.position;
-            IsGrounded = Physics.Raycast(position, Vector3.down, groundCheckDistance, groundLayerMask);
-
-            // 着地時の処理
-            if ( !wasGrounded && IsGrounded )
-            {
-                OnLanded();
-            }
-
-            // 落下状態の判定
-            if ( !IsGrounded && rigidBody.linearVelocity.y < -0.1f &&
-                stateSystem.CurrentActionState != ActionState.Dodging &&
-                !IsInAerialFloat )
-            {
-                stateSystem.ReportActionStateChange(ActionState.Falling);
-            }
-            else if ( IsGrounded && stateSystem.CurrentActionState == ActionState.Falling )
-            {
-                stateSystem.ReportActionStateChange(ActionState.Idle);
-            }
-        }
-
-        /// <summary>
-        /// 空中状態の更新
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UpdateAirborneState()
-        {
-            IsAirborne = !IsGrounded;
-            stateSystem.AnalysisData.isAirborne = IsAirborne;
-        }
-
-        /// <summary>
-        /// 空中時間の更新
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UpdateAirTime()
-        {
-            if ( IsAirborne )
-            {
-                TotalAirTime += Time.deltaTime;
-            }
-            else
-            {
-                TotalAirTime = 0f;
-            }
-
-            stateSystem.AnalysisData.totalAirTime = TotalAirTime;
-        }
-
-        /// <summary>
-        /// 空中滞空の更新
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UpdateAerialFloat()
-        {
-            if ( IsInAerialFloat )
-            {
-                aerialFloatTimer -= Time.deltaTime;
-                stateSystem.AnalysisData.aerialFloatTimeRemaining = Mathf.Max(0f, aerialFloatTimer);
-
-                if ( aerialFloatTimer <= 0f )
-                {
-                    EndAerialFloat();
-                }
-            }
-        }
-
-        /// <summary>
-        /// 移動状態の更新
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UpdateMovementState()
-        {
-            // ブーストのエネルギー消費
-            if ( IsBoosting )
-            {
-                if ( !energySystem.UseEnergy(Settings.movement.boostEnergyConsumption * Time.deltaTime) )
-                {
-                    StopBoost();
-                }
-            }
-        }
-
-        /// <summary>
-        /// 現在速度の更新
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UpdateCurrentSpeed()
-        {
-            CurrentSpeed = new Vector3(rigidBody.linearVelocity.x, 0, rigidBody.linearVelocity.z).magnitude;
-        }
-
-        /// <summary>
-        /// 移動処理の実行（修正版）
-        /// 移動速度修正を適用
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void ProcessMovement()
-        {
-            if ( isLunging || currentMoveDirection.magnitude < 0.1f )
-                return;
-
-            // 基本移動速度の決定
-            float baseSpeed = IsBoosting ? Settings.movement.boostSpeed : Settings.movement.moveSpeed;
-
-            // 空中での移動速度補正
-            if ( IsAirborne && !IsInAerialFloat )
-            {
-                baseSpeed *= Settings.movement.airMobilityMultiplier;
-            }
-
-            // 移動速度修正の適用
-            float finalSpeed = baseSpeed * FinalSpeedMultiplier;
-
-            Vector3 targetVelocity = currentMoveDirection * finalSpeed;
-
-            // Y軸の速度は維持（重力の影響を保持）
-            if ( !IsInAerialFloat )
-            {
-                targetVelocity.y = rigidBody.linearVelocity.y;
-            }
-
-            rigidBody.linearVelocity = targetVelocity;
-        }
-
-        /// <summary>
-        /// 踏み込み処理の実行
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void ProcessLunge()
-        {
-            if ( !isLunging )
-                return;
-
-            float deltaDistance = lungeSpeed * Time.fixedDeltaTime;
-            lungeTravelDistance += deltaDistance;
-
-            // 踏み込み移動の実行
-            Vector3 lungeVelocity = lungeDirection * lungeSpeed;
-
-            // 空中踏み込みの場合、Y軸速度も制御
-            if ( IsAirborne )
-            {
-                rigidBody.linearVelocity = lungeVelocity;
-            }
-            else
-            {
-                lungeVelocity.y = rigidBody.linearVelocity.y;
-                rigidBody.linearVelocity = lungeVelocity;
-            }
-
-            // 踏み込み完了チェック
-            if ( lungeTravelDistance >= lungeDistance )
-            {
-                EndLunge();
-            }
-        }
-
-        /// <summary>
-        /// 踏み込み終了
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void EndLunge()
-        {
-            isLunging = false;
-            lungeTravelDistance = 0f;
-
-            // 通常の移動状態に戻る
-            stateSystem.ReportActionStateChange(ActionState.Idle);
-        }
-
-        /// <summary>
-        /// 着地時の処理
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void OnLanded()
-        {
-            // 空中関連の状態をリセット
-            hasUsedDoubleJump = false;
-
-            if ( IsInAerialFloat )
-            {
-                EndAerialFloat();
-            }
-
-            TotalAirTime = 0f;
-        }
-
-        /// <summary>
-        /// 回避完了時の処理
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void OnDodgeComplete()
-        {
-            stateSystem.ReportActionStateChange(ActionState.Idle);
-
-            // 回避の脆弱時間設定
-            UniRx.Observable.Timer(TimeSpan.FromSeconds(Settings.movement.postDodgeVulnerabilityTime))
-                .Subscribe(_ => canDoubleDodge = true)
-                .AddTo(disposables);
-        }
-
-        /// <summary>
-        /// ジャンプ可能かどうか
-        /// </summary>
-        /// <returns>ジャンプ可能かどうか</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool CanJump()
         {
-            if ( stateSystem.CurrentActionState == ActionState.Dodging ||
-                stateSystem.CurrentActionState == ActionState.Stunned )
-                return false;
-
-            // 地上または二段ジャンプ可能
-            return IsGrounded || (!hasUsedDoubleJump && energySystem.CanUseEnergy(Settings.movement.airJumpEnergyCost));
+            return coyoteTimeCounter > 0f && jumpBufferCounter > 0f;
         }
 
         /// <summary>
-        /// ブースト可能かどうか
+        /// 垂直速度の更新（重力適用）
+        /// 
+        /// 常にy速度が0.5なのでそれ以上の場合に落下にしないとね
         /// </summary>
-        /// <returns>ブースト可能かどうか</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool CanBoost()
+        private float SetVerticalVelocity()
         {
-            return !IsBoosting &&
-                   !isLunging &&
-                   stateSystem.CurrentActionState != ActionState.Dodging &&
-                   stateSystem.CurrentActionState != ActionState.Stunned &&
-                   energySystem.CanUseEnergy(Settings.movement.boostEnergyConsumption * 0.1f);
+            // 縦の追加速度がある場合は重力を切る
+            if ( boostVelocity.y != 0 )
+            {
+                verticalVelocity = 0;
+                return 0;
+            }
+
+            if ( currentMovementData.isGrounded && verticalVelocity <= 0 )
+            {
+                return -0.5f; // 地面に軽く押し付ける
+            }
+            else
+            {
+                // 重力適用
+                verticalVelocity += gravity * Time.fixedDeltaTime;
+                // 最大落下速度制限
+                return Mathf.Max(gravity * Time.fixedDeltaTime, maxFallSpeed);
+            }
+
+        }
+
+        /// <summary>
+        /// コヨーテタイム・ジャンプバッファの更新
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void UpdateCoyoteAndBuffer()
+        {
+            // ジャンプ入力の取得
+            jumpPressed = Input.GetKeyDown(KeyCode.Space); // 必要に応じて変更
+            jumpHeld = Input.GetKey(KeyCode.Space);
+
+            // コヨーテタイム更新
+            if ( currentMovementData.isGrounded )
+                coyoteTimeCounter = coyoteTime;
+            else
+                coyoteTimeCounter -= Time.deltaTime;
+
+            // ジャンプバッファ更新
+            if ( jumpPressed )
+                jumpBufferCounter = jumpBufferTime;
+            else
+                jumpBufferCounter -= Time.deltaTime;
+
+            // ジャンプ処理
+            if ( CanJump() )
+            {
+                Jump(Vector3.zero); // 基本的には真上ジャンプ
+            }
         }
 
         #endregion
 
-        #region Debug Methods
+        #region 統合機能：オーディオ・エフェクト
 
-        [Title("デバッグ機能")]
-        [Button("通常ジャンプ", ButtonSizes.Medium)]
-        [GUIColor(0.8f, 1f, 0.8f)]
+        /// <summary>
+        /// 足音処理
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void DebugJump()
+        private void HandleFootsteps()
         {
-            Jump(false);
-        }
+            // 地面にいて、移動している場合のみ足音再生
+            Vector3 horizontalVelocity = new Vector3(FinalMovementVector.x, 0, FinalMovementVector.z);
+            if ( !currentMovementData.isGrounded || horizontalVelocity.magnitude < 0.5f )
+                return;
 
-        [Button("チャージジャンプ", ButtonSizes.Medium)]
-        [GUIColor(0.8f, 1f, 0.8f)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void DebugChargedJump()
-        {
-            Jump(true);
-        }
+            footstepTimer -= Time.fixedDeltaTime;
+            if ( footstepTimer <= 0f )
+            {
+                // 移動速度に応じて足音間隔を調整
+                bool isFastMoving = horizontalVelocity.magnitude > moveSetting.moveSpeed;
+                footstepInterval = isFastMoving ? 0.3f : 0.5f;
+                footstepTimer = footstepInterval;
 
-        [Button("前回避", ButtonSizes.Medium)]
-        [GUIColor(1f, 1f, 0.8f)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void DebugDodgeForward()
-        {
-            Dodge(transform.forward);
-        }
-
-        [Button("踏み込みテスト", ButtonSizes.Medium)]
-        [GUIColor(1f, 0.8f, 0.8f)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void DebugLunge()
-        {
-            ExecuteLunge(transform.forward, 3f, 10f);
-        }
-
-        [Button("速度修正テスト", ButtonSizes.Medium)]
-        [GUIColor(0.8f, 0.8f, 1f)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void DebugSpeedModifier()
-        {
-            ApplyMovementSpeedModifier(0.5f, "DebugTest");
-            Debug.Log("50%速度制限を適用しました");
-        }
-
-        [Button("速度修正リセット", ButtonSizes.Medium)]
-        [GUIColor(1f, 0.8f, 1f)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void DebugResetSpeedModifier()
-        {
-            ClearAllSpeedModifiers();
-            Debug.Log("全ての速度修正をリセットしました");
+                // 足音再生
+                if ( footstepSounds != null && footstepSounds.Length > 0 )
+                {
+                    int randomIndex = UnityEngine.Random.Range(0, footstepSounds.Length);
+                    PlaySound(footstepSounds[randomIndex]);
+                }
+            }
         }
 
         /// <summary>
-        /// Gizmo描画
+        /// 着地処理
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void OnDrawGizmos()
+        private void OnLanding()
         {
-            // 地面検知の可視化
-            Gizmos.color = IsGrounded ? Color.green : Color.red;
-            Vector3 position = positionCache != null ? positionCache.Position : transform.position;
-            Gizmos.DrawRay(position, Vector3.down * groundCheckDistance);
+            // 着地音再生
+            PlaySound(landSound);
 
-            // 移動方向の可視化
-            if ( currentMoveDirection.magnitude > 0.1f )
+            // 着地エフェクト再生
+            if ( landingParticles != null )
             {
-                Gizmos.color = IsBoosting ? Color.blue : Color.yellow;
-                Gizmos.DrawRay(position, currentMoveDirection * 2f);
+                landingParticles.Play();
             }
+        }
 
-            // 踏み込み方向の可視化
-            if ( isLunging )
+        /// <summary>
+        /// 音声再生
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void PlaySound(AudioClip clip)
+        {
+            if ( audioSource != null && clip != null )
             {
-                Gizmos.color = Color.red;
-                Gizmos.DrawRay(position, lungeDirection * lungeDistance);
+                audioSource.PlayOneShot(clip);
             }
+        }
 
-            // 空中状態の可視化
-            if ( IsAirborne )
+        #endregion
+
+        #region 統合機能：速度制限
+
+        /// <summary>
+        /// 速度制限を適用
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void ApplySpeedLimits(ref Vector3 velocity)
+        {
+            float horizontalSpeed = velocity.magnitude;
+
+            if ( horizontalSpeed > maxHorizontalSpeed )
             {
-                Gizmos.color = IsInAerialFloat ? Color.cyan : Color.magenta;
-                Gizmos.DrawWireSphere(position, 0.5f);
+                // 最大速度制限
+                velocity = velocity.normalized * maxHorizontalSpeed;
+            }
+            else if ( horizontalSpeed > 0 && horizontalSpeed < minHorizontalSpeed )
+            {
+                // 最小速度制限（微小な動きを無効化）
+                velocity = Vector3.zero;
             }
         }
 
         #endregion
     }
+
+
 }

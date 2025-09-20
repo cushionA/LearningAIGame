@@ -556,12 +556,12 @@ namespace LearningAIGame.CombatSystem
                 case AttackType.MeleeSkill:
                     ExecuteSkill(0);
                     break;
-                case AttackType.WeakRanged:
+                case AttackType.WeakShoot:
                     // 射撃系はswitchCombatModeで射撃モードに変更後実行
                     if ( stateSystem.CurrentActionMode != ActionMode.Ranged )
                         SwitchCombatMode();
                     break;
-                case AttackType.StrongRanged:
+                case AttackType.StrongShoot:
                     if ( stateSystem.CurrentActionMode != ActionMode.Ranged )
                         SwitchCombatMode();
                     break;
