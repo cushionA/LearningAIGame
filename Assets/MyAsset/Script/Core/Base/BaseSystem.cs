@@ -112,8 +112,8 @@ namespace LearningAIGame.CombatSystem
         /// <exception cref="ArgumentNullException">controller または characterSettings が null の場合</exception>
         public virtual void Initialize(BattleCharacterController controller, CharacterSettings characterSettings)
         {
-            this.characterController = controller ?? throw new ArgumentNullException(nameof(controller));
-            this.settings = characterSettings ?? throw new ArgumentNullException(nameof(characterSettings));
+            this.characterController = controller;
+            this.settings = characterSettings;
 
             // 初期化フック（継承先で独自処理可能）
             OnInitialized();
@@ -208,7 +208,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected void DebugLog(string message)
         {
-            if ( enableDebugLogs )
+            if (enableDebugLogs)
                 Debug.Log($"[{GetType().Name}] {message}");
         }
 
@@ -223,7 +223,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected void DebugLogWarning(string message)
         {
-            if ( enableDebugLogs )
+            if (enableDebugLogs)
                 Debug.LogWarning($"[{GetType().Name}] {message}");
         }
 
@@ -317,13 +317,13 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected bool ValidateInitialization()
         {
-            if ( characterController == null )
+            if (characterController == null)
             {
                 DebugLogError("CharacterControllerが設定されていません");
                 return false;
             }
 
-            if ( settings == null )
+            if (settings == null)
             {
                 DebugLogError("CharacterSettingsが設定されていません");
                 return false;

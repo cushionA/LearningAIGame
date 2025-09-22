@@ -1,9 +1,11 @@
 using System.Runtime.CompilerServices;
 using UnityEngine;
-using Sirenix.OdinInspector;
 using UniRx;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
+using LearningAIGame.CombatSystem.Core;
+using NaughtyAttributes;
 
 namespace LearningAIGame.CombatSystem
 {
@@ -13,33 +15,23 @@ namespace LearningAIGame.CombatSystem
     /// </summary>
     public abstract class BattleCharacterController : MonoBehaviour
     {
-        [Title("システム参照")]
-        [Required, PropertyTooltip("キャラクターの設定データ")]
+        [Header("システム参照")]
+        [Tooltip("キャラクターの設定データ")]
         [SerializeField] protected CharacterSettings characterSettings;
-
-        [Required, PropertyTooltip("対戦相手のデータプロバイダー")]
-        [SerializeField] protected OpponentDataProvider opponentDataProvider;
 
         // システムコンポーネント（protected）
         protected MovementSystem movementSystem;
         protected AttackSystem attackSystem;
         protected DefenseSystem defenseSystem;
         protected EnergySystem energySystem;
-        protected HealthSystem healthSystem;
-        protected ManeuverSystem maneuverSystem;
-        protected StateSystem stateSystem;
-        protected DirectionSystem directionSystem;
         protected PositionCache positionCache;
+        protected StateSystem stateSystem;
 
-        [Title("現在のリソース")]
-        [ShowInInspector, ReadOnly]
-        [ProgressBar(0, 1)]
-        [PropertyTooltip("現在の体力割合")]
+        [Header("現在のリソース")]
+        [Tooltip("現在の体力割合")]
         public float CurrentHealthPercentage { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = 1f;
 
-        [ShowInInspector, ReadOnly]
-        [ProgressBar(0, 1)]
-        [PropertyTooltip("現在のエネルギー割合")]
+        [Tooltip("現在のエネルギー割合")]
         public float CurrentEnergyPercentage { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = 1f;
 
         // 公開プロパティ
@@ -49,20 +41,19 @@ namespace LearningAIGame.CombatSystem
         public float MaxEnergy { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; }
         public CharacterState CurrentState { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; }
 
+        public OpponentDataProvider OpponentData { get; private set; }
         public Vector3 Position
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => this.positionCache.Position;
         }
 
-        // 対戦相手情報へのアクセス
-        public IOpponentData OpponentData { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; }
         public CharacterSettings Settings { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; }
 
         /// <summary>
         /// エネルギー切れ状態復帰時の復元システム
         /// </summary>
-        private Dictionary<string, object> energyDepletedStateBackup = new Dictionary<string, object>();
+        private Dictionary<string, object> _energyDepletedStateBackup = new Dictionary<string, object>();
 
         /// <summary>
         /// キャラクターの総合状態
@@ -105,33 +96,30 @@ namespace LearningAIGame.CombatSystem
         protected virtual void FixedUpdate()
         {
             // 状態更新
-            stateSystem.UpdateStates();
+            //   stateSystem.UpdateStates();
 
             // ActionDataのクールダウン更新（新規追加）
-            if ( Settings != null )
+            if (Settings != null)
             {
-                Settings.UpdateAllCooldowns(Time.fixedDeltaTime);
+                //   Settings.UpdateAllCooldowns(Time.fixedDeltaTime);
             }
 
             // 行動モード別処理
-            switch ( stateSystem.CurrentActionMode )
-            {
-                case ActionMode.Melee:
-                    ProcessMeleeMode();
-                    break;
-                case ActionMode.Ranged:
-                    ProcessRangedMode();
-                    break;
-                case ActionMode.EnergyBarrier:
-                    ProcessEnergyBarrierMode();
-                    break;
-            }
+            //switch (stateSystem.CurrentActionMode)
+            //{
+            //    case ActionMode.Melee:
+            //        ProcessMeleeMode();
+            //        break;
+            //    case ActionMode.Ranged:
+            //        ProcessRangedMode();
+            //        break;
+            //    case ActionMode.EnergyBarrier:
+            //        ProcessEnergyBarrierMode();
+            //        break;
+            //}
 
             // 継承先の決定処理
             DecideNextAction();
-
-            // 状態の更新
-            UpdateCurrentState();
         }
 
         /// <summary>
@@ -140,7 +128,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected virtual void OnDestroy()
         {
-            CleanupEventSubscriptions();
+
         }
 
         #endregion
@@ -157,35 +145,13 @@ namespace LearningAIGame.CombatSystem
         #region Virtual Methods (オーバーライド可能)
 
         /// <summary>
-        /// 近接モード時の処理
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected virtual void ProcessMeleeMode()
-        {
-            // 基本的な近接モード処理
-            energySystem.UpdateEnergyRecovery();
-        }
-
-        /// <summary>
-        /// 射撃モード時の処理
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected virtual void ProcessRangedMode()
-        {
-            // 基本的な射撃モード処理
-            energySystem.UpdateEnergyRecovery();
-            attackSystem.UpdateReloading();
-        }
-
-        /// <summary>
         /// エネルギーバリアモード時の処理
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected virtual void ProcessEnergyBarrierMode()
         {
             // 基本的なエネルギーバリアモード処理
-            energySystem.ForceEnergyRecovery();
-            healthSystem.UpdateStunRecovery();
+            //       energySystem.ForceEnergyRecovery();
         }
 
         /// <summary>
@@ -229,7 +195,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected virtual void OnEnergyDepleted()
         {
-            BackupStateForEnergyDepletion();
+
         }
 
         /// <summary>
@@ -238,7 +204,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected virtual void OnEnergyRecovered()
         {
-            RestoreStateFromEnergyDepletion();
+
         }
 
         #endregion
@@ -252,9 +218,9 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ExecuteMovement(Vector3 direction)
         {
-            if ( CanExecuteAction(ActionType.Walk) )
+            if (CanExecuteAction(ActionType.Walk))
             {
-                movementSystem.Move(direction);
+                movementSystem.MoveStart(direction);
             }
         }
 
@@ -263,11 +229,11 @@ namespace LearningAIGame.CombatSystem
         /// </summary>
         /// <param name="charged">チャージジャンプかどうか</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ExecuteJump(bool charged = false)
+        public void ExecuteJump(Vector3 direction)
         {
-            if ( CanExecuteAction(ActionType.Jump) )
+            if (CanExecuteAction(ActionType.Jump))
             {
-                movementSystem.Jump(charged);
+                movementSystem.Jump(direction);
             }
         }
 
@@ -278,9 +244,9 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ExecuteBoost(Vector3 direction)
         {
-            if ( CanExecuteAction(ActionType.Boost) )
+            if (CanExecuteAction(ActionType.Boost))
             {
-                movementSystem.Boost(direction);
+                movementSystem.SetBoost(direction);
             }
         }
 
@@ -290,18 +256,14 @@ namespace LearningAIGame.CombatSystem
         /// </summary>
         /// <param name="direction">回避方向</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ExecuteDodge(Vector3 direction)
+        public async Task ExecuteDodge(Vector3 direction)
         {
-            if ( CanExecuteAction(ActionType.Dodge) && movementSystem.CanDodge() )
+            if (CanExecuteAction(ActionType.Dodge))
             {
                 // エネルギー消費とActionData更新
-                var actionData = Settings.GetActionData(ActionType.Dodge);
-                if ( actionData != null && UseEnergy(actionData.energyCost) )
+                if (UseEnergy(Settings.movement.dodgeEnergyCost))
                 {
-                    Settings.ExecuteAction(ActionType.Dodge);
-                    movementSystem.Dodge(direction);
-                    // StateSystemに報告
-                    stateSystem.ReportDodgeExecuted();
+                    await movementSystem.Dodge(direction);
                 }
             }
         }
@@ -333,7 +295,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ExecuteSkill(int skillIndex)
         {
-            if ( CanExecuteAction(ActionType.SkillAttack) )
+            if (CanExecuteAction(ActionType.SkillAttack))
             {
                 attackSystem.ExecuteSkill(skillIndex);
             }
@@ -346,9 +308,9 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ExecuteGuard(AttackDirection direction)
         {
-            if ( CanExecuteAction(ActionType.Guard) )
+            if (CanExecuteAction(ActionType.Guard))
             {
-                directionSystem.ForceDirection(direction, 0.1f);
+
                 defenseSystem.StartGuard(direction);
             }
         }
@@ -361,7 +323,7 @@ namespace LearningAIGame.CombatSystem
         public void ExecuteEnergyShield()
         {
             // エネルギー切れ状態時のみ有効
-            if ( stateSystem.IsEnergyDepleted )
+            if (stateSystem.isActiveAndEnabled)
             {
                 defenseSystem.StartEnergyShield();
             }
@@ -387,9 +349,9 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EnterEnergyBarrierMode()
         {
-            if ( stateSystem.IsEnergyDepleted )
+            if (stateSystem.isActiveAndEnabled)
             {
-                stateSystem.ForceEnergyBarrierMode();
+                //stateSystem.ForceEnergyBarrierMode();
             }
             else
             {
@@ -405,47 +367,14 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ExecuteBlock(AttackDirection direction)
         {
-            // 近接モードかつブースト中でない場合のみ実行可能
-            if ( stateSystem.CurrentActionMode == ActionMode.Melee &&
-                 stateSystem.CurrentActionState != ActionState.Boosting &&
-                 CanExecuteAction(ActionType.Block) )
-            {
-                directionSystem.ForceDirection(direction, 0.1f);
-                defenseSystem.AttemptBlock(direction);
-            }
-        }
-
-        /// <summary>
-        /// マニューバを実行（ActionDataシステム対応版）
-        /// </summary>
-        /// <param name="maneuverIndex">マニューバインデックス</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ExecuteManeuver(int maneuverIndex)
-        {
-            if ( CanExecuteAction(ActionType.Maneuver) )
-            {
-                // エネルギー消費とActionData更新
-                var actionData = Settings.GetActionData(ActionType.Maneuver);
-                if ( actionData != null && UseEnergy(actionData.energyCost) )
-                {
-                    Settings.ExecuteAction(ActionType.Maneuver);
-                    maneuverSystem.ExecuteManeuver(maneuverIndex);
-                }
-            }
-        }
-
-        /// <summary>
-        /// 戦闘モードを切り替え
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SwitchCombatMode()
-        {
-            if ( CanExecuteAction(ActionType.ModeSwitch) )
-            {
-                var newMode = stateSystem.CurrentActionMode == ActionMode.Melee ?
-                    ActionMode.Ranged : ActionMode.Melee;
-                stateSystem.ReportActionModeChange(newMode);
-            }
+            //// 近接モードかつブースト中でない場合のみ実行可能
+            //if (stateSystem.CurrentActionMode == ActionMode.Melee &&
+            //     stateSystem.CurrentActionState != ActionState.Boosting &&
+            //     CanExecuteAction(ActionType.Block))
+            //{
+            //    directionSystem.ForceDirection(direction, 0.1f);
+            //    defenseSystem.AttemptBlock(direction);
+            //}
         }
 
         /// <summary>
@@ -462,22 +391,6 @@ namespace LearningAIGame.CombatSystem
         #region Public Resource Management
 
         /// <summary>
-        /// エネルギーが使用可能かどうか（修正版）
-        /// StateSystemのエネルギー切れ状態も考慮
-        /// </summary>
-        /// <param name="amount">使用予定のエネルギー量</param>
-        /// <returns>使用可能かどうか</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool CanUseEnergy(float amount)
-        {
-            // エネルギー切れ状態では一切使用不可
-            if ( stateSystem.IsEnergyDepleted )
-                return false;
-
-            return energySystem.CanUseEnergy(amount);
-        }
-
-        /// <summary>
         /// エネルギーを使用（修正版）
         /// StateSystemのエネルギー切れ状態も考慮
         /// </summary>
@@ -486,10 +399,6 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool UseEnergy(float amount)
         {
-            // エネルギー切れ状態では一切使用不可
-            if ( stateSystem.IsEnergyDepleted )
-                return false;
-
             return energySystem.UseEnergy(amount);
         }
 
@@ -500,7 +409,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void TakeDamage(float damage)
         {
-            healthSystem.TakeDamage(damage);
+            //healthSystem.TakeDamage(damage);
         }
 
         /// <summary>
@@ -510,7 +419,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReceiveAttack(DamageResult result)
         {
-            healthSystem.ProcessDamageResult(result);
+            //healthSystem.ProcessDamageResult(result);
         }
 
         /// <summary>
@@ -520,7 +429,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void OnAttackResult(DamageResult result)
         {
-            if ( result.wasHit )
+            if (result.wasHit)
             {
                 OnActionSucceeded(ActionType.WeakAttack); // 基本的に成功扱い
             }
@@ -528,70 +437,6 @@ namespace LearningAIGame.CombatSystem
             {
                 OnActionFailed(ActionType.WeakAttack);
             }
-        }
-
-        #endregion
-
-        #region Energy Depletion State Management（新規追加）
-
-        /// <summary>
-        /// エネルギー切れ状態に入る時に現在の状態をバックアップ
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void BackupStateForEnergyDepletion()
-        {
-            energyDepletedStateBackup.Clear();
-
-            // MovementSystemの移動速度関連状態をバックアップ
-            if ( movementSystem != null )
-            {
-                energyDepletedStateBackup["MovementSpeedModifiers"] = movementSystem.GetAllSpeedModifiers();
-                energyDepletedStateBackup["FinalSpeedMultiplier"] = movementSystem.FinalSpeedMultiplier;
-            }
-
-            // DefenseSystemのシールド状態をバックアップ
-            if ( defenseSystem != null )
-            {
-                energyDepletedStateBackup["IsEnergyShieldActive"] = defenseSystem.IsEnergyShieldActive();
-            }
-
-            Debug.Log($"{gameObject.name}: エネルギー切れ状態のバックアップを作成しました");
-        }
-
-        /// <summary>
-        /// エネルギー切れ状態から回復する時に状態を復元
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void RestoreStateFromEnergyDepletion()
-        {
-            // DefenseSystemのエネルギーシールドを確実に停止
-            if ( defenseSystem != null && defenseSystem.IsEnergyShieldActive() )
-            {
-                defenseSystem.StopEnergyShield();
-                Debug.Log($"{gameObject.name}: エネルギー回復により、エネルギーシールドを自動停止しました");
-            }
-
-            // MovementSystemの移動速度制限を全解除
-            if ( movementSystem != null )
-            {
-                // エネルギー切れ関連の速度制限をすべて削除
-                movementSystem.RemoveMovementSpeedModifier("EnergyShield");
-                movementSystem.RemoveMovementSpeedModifier("EnergyDepletion");
-
-                Debug.Log($"{gameObject.name}: エネルギー回復により、移動速度制限を解除しました");
-            }
-
-            energyDepletedStateBackup.Clear();
-            Debug.Log($"{gameObject.name}: エネルギー切れ状態からの復元が完了しました");
-        }
-
-        /// <summary>
-        /// エネルギー切れ状態から回復時にコントローラー経由で各システムを復元
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RestoreAllSystemsFromEnergyDepletion()
-        {
-            RestoreStateFromEnergyDepletion();
         }
 
         #endregion
@@ -607,22 +452,13 @@ namespace LearningAIGame.CombatSystem
         protected bool CanExecuteAction(ActionType actionType)
         {
             // 基本的な状態チェック
-            if ( !CanAct() || stateSystem == null || Settings == null )
+            if (stateSystem == null || Settings == null)
                 return false;
 
-            // CharacterSettingsのActionDataシステムでチェック
-            return Settings.CanExecuteAction(actionType, CurrentEnergy) &&
-                   stateSystem.CanExecuteAction(actionType);
-        }
-
-        /// <summary>
-        /// 基本的な行動が可能かどうか
-        /// </summary>
-        /// <returns>行動可能かどうか</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected bool CanAct()
-        {
-            return !stateSystem.HealthData.isDead && !stateSystem.HealthData.isStunned;
+            return true;
+            //// CharacterSettingsのActionDataシステムでチェック
+            //return Settings.CanExecuteAction(actionType, CurrentEnergy) &&
+            //       stateSystem.CanExecuteAction(actionType);
         }
 
         /// <summary>
@@ -656,9 +492,9 @@ namespace LearningAIGame.CombatSystem
             var opponentDirection = OpponentData.CurrentDirection;
             var possibleDirections = new[] { AttackDirection.Up, AttackDirection.Left, AttackDirection.Right };
 
-            foreach ( var direction in possibleDirections )
+            foreach (var direction in possibleDirections)
             {
-                if ( direction != opponentDirection )
+                if (direction != opponentDirection)
                 {
                     return direction;
                 }
@@ -708,7 +544,7 @@ namespace LearningAIGame.CombatSystem
         protected void ExecuteOptimalAttack()
         {
             var direction = GetOptimalAttackDirection();
-            if ( IsInRange(Settings.attack.meleeRange) )
+            if (IsInRange(Settings.attack.meleeRange))
             {
                 ExecuteStrongAttack(direction);
             }
@@ -725,7 +561,7 @@ namespace LearningAIGame.CombatSystem
         protected void ExecuteEvasiveAction()
         {
             Vector3 escapeDirection = -GetDirectionToOpponent();
-            if ( CanExecuteAction(ActionType.Dodge) )
+            if (CanExecuteAction(ActionType.Dodge))
             {
                 ExecuteDodge(escapeDirection);
             }
@@ -746,19 +582,15 @@ namespace LearningAIGame.CombatSystem
         private void InitializeComponents()
         {
             // 必須コンポーネントの取得/追加
-            stateSystem = GetComponent<StateSystem>() ?? gameObject.AddComponent<StateSystem>();
-            movementSystem = GetComponent<MovementSystem>() ?? gameObject.AddComponent<MovementSystem>();
-            attackSystem = GetComponent<AttackSystem>() ?? gameObject.AddComponent<AttackSystem>();
-            defenseSystem = GetComponent<DefenseSystem>() ?? gameObject.AddComponent<DefenseSystem>();
-            energySystem = GetComponent<EnergySystem>() ?? gameObject.AddComponent<EnergySystem>();
-            healthSystem = GetComponent<HealthSystem>() ?? gameObject.AddComponent<HealthSystem>();
-            maneuverSystem = GetComponent<ManeuverSystem>() ?? gameObject.AddComponent<ManeuverSystem>();
-            directionSystem = GetComponent<DirectionSystem>() ?? gameObject.AddComponent<DirectionSystem>();
-            positionCache = GetComponent<PositionCache>() ?? gameObject.AddComponent<PositionCache>();
+            //stateSystem = this.GetComponent<StateSystem>() ? gameObject.AddComponent<StateSystem>();
+            //movementSystem = GetComponent<MovementSystem>() ? gameObject.AddComponent<MovementSystem>();
+            //attackSystem = GetComponent<AttackSystem>() ? gameObject.AddComponent<AttackSystem>();
+            //defenseSystem = GetComponent<DefenseSystem>() ? gameObject.AddComponent<DefenseSystem>();
+            //energySystem = GetComponent<EnergySystem>() ? gameObject.AddComponent<EnergySystem>();
+            //positionCache = GetComponent<PositionCache>() ? gameObject.AddComponent<PositionCache>();
 
             // 参照設定
             Settings = characterSettings;
-            OpponentData = opponentDataProvider;
 
             // 各システムの初期化
             InitializeSystemsWithSettings();
@@ -770,7 +602,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void InitializeSystemsWithSettings()
         {
-            if ( characterSettings == null )
+            if (characterSettings == null)
             {
                 Debug.LogError($"{name}: CharacterSettingsが設定されていません");
                 return;
@@ -784,7 +616,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void InitializeStats()
         {
-            if ( Settings != null )
+            if (Settings != null)
             {
                 MaxHealth = Settings.maxHealth;
                 MaxEnergy = Settings.energy.maxEnergy;
@@ -801,33 +633,14 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetupEventSubscriptions()
         {
-            if ( stateSystem != null )
+            if (stateSystem != null)
             {
-                stateSystem.OnHealthChanged.Subscribe(OnHealthChangedInternal).AddTo(this);
-                stateSystem.OnEnergyChanged.Subscribe(OnEnergyChangedInternal).AddTo(this);
-                stateSystem.OnActionStateChanged.Subscribe(OnOpponentStateChanged).AddTo(this);
+                //stateSystem.OnHealthChanged.Subscribe(OnHealthChangedInternal).AddTo(this);
+                //stateSystem.OnEnergyChanged.Subscribe(OnEnergyChangedInternal).AddTo(this);
+                //stateSystem.OnActionStateChanged.Subscribe(OnOpponentStateChanged).AddTo(this);
 
-                // エネルギー切れ状態の変化を監視（新規追加）
-                stateSystem.OnEnergyDepletedStateChanged.Subscribe(OnEnergyDepletedStateChangedInternal).AddTo(this);
-            }
-
-            if ( directionSystem != null )
-            {
-                directionSystem.OnDirectionChanged += OnDirectionChangedInternal;
-            }
-        }
-
-        /// <summary>
-        /// イベント購読のクリーンアップ
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void CleanupEventSubscriptions()
-        {
-            // UniRxのAddTo(this)により自動的にクリーンアップされる
-
-            if ( directionSystem != null )
-            {
-                directionSystem.OnDirectionChanged -= OnDirectionChangedInternal;
+                //// エネルギー切れ状態の変化を監視（新規追加）
+                //stateSystem.OnEnergyDepletedStateChanged.Subscribe(OnEnergyDepletedStateChangedInternal).AddTo(this);
             }
         }
 
@@ -837,12 +650,12 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ValidateConfiguration()
         {
-            if ( Settings == null )
+            if (Settings == null)
             {
                 Debug.LogError($"{gameObject.name}: CharacterSettingsが設定されていません");
             }
 
-            if ( OpponentData == null )
+            if (OpponentData == null)
             {
                 Debug.LogError($"{gameObject.name}: OpponentDataProviderが設定されていません");
             }
@@ -863,9 +676,9 @@ namespace LearningAIGame.CombatSystem
             CurrentHealthPercentage = CurrentHealth / MaxHealth;
             OnHealthChanged(CurrentHealthPercentage);
 
-            if ( CurrentHealth <= 0f )
+            if (CurrentHealth <= 0f)
             {
-                stateSystem.HealthData.isDead = true;
+
             }
         }
 
@@ -888,7 +701,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void OnEnergyDepletedStateChangedInternal(bool isDepleted)
         {
-            if ( isDepleted )
+            if (isDepleted)
             {
                 OnEnergyDepleted();
             }
@@ -898,90 +711,21 @@ namespace LearningAIGame.CombatSystem
             }
         }
 
-        /// <summary>
-        /// 方向変化の内部処理
-        /// </summary>
-        /// <param name="newDirection">新しい方向</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void OnDirectionChangedInternal(AttackDirection newDirection)
-        {
-            // StateSystemに通知（イベント発火用）
-            stateSystem?.ReportDirectionChange(newDirection);
-        }
-
-        /// <summary>
-        /// 現在の状態を更新
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UpdateCurrentState()
-        {
-            CurrentState = new CharacterState
-            {
-                mode = stateSystem.CurrentActionMode,
-                state = stateSystem.CurrentActionState,
-                direction = stateSystem.CurrentDirection,
-                canAct = CanAct(),
-                isAlive = !stateSystem.HealthData.isDead
-            };
-        }
-
-        #endregion
-
-        #region Debug & Tools
-
-        [Title("デバッグ機能")]
-        [Button("全クールダウンリセット", ButtonSizes.Medium)]
-        [GUIColor(0.8f, 1f, 0.8f)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ClearAllCooldowns()
-        {
-            // ActionDataシステムのクールダウンリセット（新規追加）
-            if ( Settings != null )
-            {
-                Settings.ResetAllCooldowns();
-            }
-
-            // 既存のStateSystemクールダウンリセット
-            for ( int i = 0; i < stateSystem.AnalysisData.skillCooldowns.Length; i++ )
-            {
-                stateSystem.ReportSkillCooldown(i, 0f);
-            }
-            for ( int i = 0; i < stateSystem.AnalysisData.maneuverCooldowns.Length; i++ )
-            {
-                stateSystem.ReportManeuverCooldown(i, 0f);
-            }
-            Debug.Log($"{gameObject.name}: 全クールダウンをリセットしました");
-        }
-
-        [Button("体力・エネルギー全回復", ButtonSizes.Medium)]
-        [GUIColor(0.8f, 1f, 0.8f)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void FullRestore()
-        {
-            CurrentHealth = MaxHealth;
-            CurrentEnergy = MaxEnergy;
-            stateSystem.ReportEnergyChange(1f);
-            stateSystem.HealthData.Reset();
-            Debug.Log($"{gameObject.name}: 体力・エネルギーを全回復しました");
-        }
-
-        [Button("エネルギー切れ状態テスト", ButtonSizes.Medium)]
-        [GUIColor(1f, 0.8f, 0.8f)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void TestEnergyDepletion()
-        {
-            energySystem.SetEnergy(0f);
-            Debug.Log($"{gameObject.name}: エネルギー切れ状態をテストしました");
-        }
-
-        [Button("エネルギー状態復元テスト", ButtonSizes.Medium)]
-        [GUIColor(0.8f, 1f, 1f)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void TestEnergyRecovery()
-        {
-            energySystem.SetEnergy(energySystem.MaxEnergy);
-            Debug.Log($"{gameObject.name}: エネルギー回復をテストしました");
-        }
+        ///// <summary>
+        ///// 現在の状態を更新
+        ///// </summary>
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //private void UpdateCurrentState()
+        //{
+        //    CurrentState = new CharacterState
+        //    {
+        //        mode = stateSystem.CurrentActionMode,
+        //        state = stateSystem.CurrentActionState,
+        //        direction = stateSystem.CurrentDirection,
+        //        canAct = CanAct(),
+        //        isAlive = !stateSystem.HealthData.isDead
+        //    };
+        //}
 
         #endregion
     }

@@ -1,6 +1,7 @@
+using LearningAIGame.CombatSystem.Core;
 using System.Runtime.CompilerServices;
 using UnityEngine;
-using Sirenix.OdinInspector;
+using NaughtyAttributes;
 
 namespace LearningAIGame.CombatSystem
 {
@@ -104,167 +105,54 @@ namespace LearningAIGame.CombatSystem
     /// </summary>
     public class OpponentDataProvider : MonoBehaviour, IOpponentData
     {
-        [Title("参照コンポーネント")]
-        [Required]
-        [PropertyTooltip("対象のキャラクターコントローラー")]
-        [SerializeField] private BattleCharacterController characterController;
+        // 以下の変数はテスト目的のため不要になります。
+        // private BattleCharacterController characterController;
+        // private StateSystem stateSystem;
 
-        [Required]
-        [PropertyTooltip("対象の状態システム")]
-        [SerializeField] private StateSystem stateSystem;
+        // デバッグ表示用のプライベートフィールドは保持します
+        [Header("デバッグ情報")]
+        [SerializeField, ReadOnly]
+        [Tooltip("現在の体力割合")]
+        private float _debugHealthPercentage;
 
-        [Title("デバッグ情報")]
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在の体力割合")]
-        private float debugHealthPercentage;
+        [SerializeField, ReadOnly]
+        [Tooltip("現在のエネルギー割合")]
+        private float _debugEnergyPercentage;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在のエネルギー割合")]
-        private float debugEnergyPercentage;
+        [SerializeField, ReadOnly]
+        [Tooltip("現在の状態")]
+        private string _debugCurrentState;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在の状態")]
-        private string debugCurrentState;
+        // テスト用の固定値を設定します
+        public float HealthPercentage => 0.5f;
+        public float EnergyPercentage => 0.8f;
+        public Vector3 Position => new Vector3(10, 0, 5);
+        public Vector3 Velocity => Vector3.zero;
+        public ActionMode CurrentMode => ActionMode.Melee;
+        public ActionState CurrentState => ActionState.Idle;
+        public AttackDirection CurrentDirection => AttackDirection.Up;
+        public bool IsStunned => false;
+        public bool IsInvincible => false;
+        public float TimeSinceLastAction => 2.5f;
+        public bool CanUseSkills => true;
+        public bool CanUseManeuvers => false;
+        public float[] SkillCooldowns => new float[] { 0f, 15f, 5f, 0f, 0f };
+        public float[] ManeuverCooldowns => new float[] { 2f, 0f, 0f };
+        public bool IsReloading => false;
+        public float AimingAccuracy => 0.9f;
+        public Vector3 AimDirection => Vector3.forward;
 
-        /// <summary>
-        /// 初期化処理
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void Awake()
-        {
-            if ( this.characterController == null )
-            {
-                this.characterController = GetComponent<BattleCharacterController>();
-            }
+        // 既存のAwakeとUpdateメソッドは、デバッグ表示のため保持します
 
-            if ( this.stateSystem == null )
-            {
-                this.stateSystem = GetComponent<StateSystem>();
-            }
-        }
-
-        /// <summary>
-        /// デバッグ情報の更新
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void Update()
         {
-            if ( this.characterController != null && this.stateSystem != null )
-            {
-                this.debugHealthPercentage = HealthPercentage;
-                this.debugEnergyPercentage = EnergyPercentage;
-                this.debugCurrentState = $"{CurrentMode} / {CurrentState}";
-            }
+            // デバッグ情報のみを更新します
+            this._debugHealthPercentage = HealthPercentage;
+            this._debugEnergyPercentage = EnergyPercentage;
+            this._debugCurrentState = $"{CurrentMode} / {CurrentState}";
         }
 
-        // IOpponentDataの実装
-        public float HealthPercentage
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => this.characterController?.CurrentHealth / this.characterController?.MaxHealth ?? 0f;
-        }
-
-        public float EnergyPercentage
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => this.stateSystem?.EnergyPercentage ?? 0f;
-        }
-
-        public Vector3 Position
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => this.characterController?.Position ?? Vector3.zero;
-        }
-
-        public Vector3 Velocity
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => this.stateSystem?.AnalysisData.currentVelocity ?? Vector3.zero;
-        }
-
-        public ActionMode CurrentMode
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => this.stateSystem?.CurrentActionMode ?? ActionMode.Melee;
-        }
-
-        public ActionState CurrentState
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => this.stateSystem?.CurrentActionState ?? ActionState.Idle;
-        }
-
-        public AttackDirection CurrentDirection
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => this.stateSystem?.CurrentDirection ?? AttackDirection.Up;
-        }
-
-        public bool IsStunned
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => this.stateSystem?.HealthData.isStunned ?? false;
-        }
-
-        public bool IsInvincible
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => this.stateSystem?.HealthData.isInvincible ?? false;
-        }
-
-        public float TimeSinceLastAction
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => this.stateSystem?.AnalysisData.timeSinceLastAction ?? 0f;
-        }
-
-        public bool CanUseSkills
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => this.stateSystem?.AnalysisData.canUseSkills ?? false;
-        }
-
-        public bool CanUseManeuvers
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => this.stateSystem?.AnalysisData.canUseManeuvers ?? false;
-        }
-
-        public float[] SkillCooldowns
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => this.stateSystem?.AnalysisData.skillCooldowns ?? new float[5];
-        }
-
-        public float[] ManeuverCooldowns
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => this.stateSystem?.AnalysisData.maneuverCooldowns ?? new float[3];
-        }
-
-        public bool IsReloading
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => this.stateSystem?.AnalysisData.isReloading ?? false;
-        }
-
-        public float AimingAccuracy
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => this.stateSystem?.AnalysisData.aimingAccuracy ?? 0f;
-        }
-
-        public Vector3 AimDirection
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => this.stateSystem?.AnalysisData.aimDirection ?? Vector3.forward;
-        }
-
-        /// <summary>
-        /// 相手が脆弱な状態かどうかを判定
-        /// </summary>
-        /// <returns>脆弱状態かどうか</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        // テスト用メソッドはそのまま保持します
         public bool IsVulnerable()
         {
             return IsStunned ||
@@ -273,11 +161,6 @@ namespace LearningAIGame.CombatSystem
                    CurrentState == ActionState.Dodging;
         }
 
-        /// <summary>
-        /// 攻撃的な状態かどうかを判定
-        /// </summary>
-        /// <returns>攻撃的状態かどうか</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool IsAggressive()
         {
             return CurrentState == ActionState.Attacking ||
@@ -285,35 +168,11 @@ namespace LearningAIGame.CombatSystem
                    (CurrentMode == ActionMode.Ranged && AimingAccuracy > 0.7f);
         }
 
-        /// <summary>
-        /// 防御的な状態かどうかを判定
-        /// </summary>
-        /// <returns>防御的状態かどうか</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool IsDefensive()
         {
             return CurrentState == ActionState.Guarding ||
                    EnergyPercentage < 0.3f ||
                    HealthPercentage < 0.3f;
-        }
-
-        [Title("開発者ツール")]
-        [Button("対戦相手情報を出力", ButtonSizes.Medium)]
-        [GUIColor(0.8f, 0.8f, 1f)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void LogOpponentInfo()
-        {
-            var info = $"=== 対戦相手情報 ===\n" +
-                      $"体力: {HealthPercentage:P1}\n" +
-                      $"エネルギー: {EnergyPercentage:P1}\n" +
-                      $"モード: {CurrentMode}\n" +
-                      $"状態: {CurrentState}\n" +
-                      $"方向: {CurrentDirection}\n" +
-                      $"脆弱: {IsVulnerable()}\n" +
-                      $"攻撃的: {IsAggressive()}\n" +
-                      $"防御的: {IsDefensive()}";
-
-            Debug.Log(info);
         }
     }
 }

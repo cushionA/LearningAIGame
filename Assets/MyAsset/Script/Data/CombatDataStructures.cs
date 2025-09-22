@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
 using UnityEngine;
-using Sirenix.OdinInspector;
+using NaughtyAttributes;
 
 namespace LearningAIGame.CombatSystem
 {
@@ -11,98 +11,98 @@ namespace LearningAIGame.CombatSystem
     [Serializable]
     public class AnalysisData
     {
-        [Title("移動関連")]
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在の移動ベクトル")]
+        [Header("移動関連")]
+        [SerializeField, ReadOnly]
+        [Tooltip("現在の移動ベクトル")]
         public Vector3 currentVelocity;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在の移動速度")]
+        [SerializeField, ReadOnly]
+        [Tooltip("現在の移動速度")]
         public float currentSpeed;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("最後のアクションからの経過時間")]
+        [SerializeField, ReadOnly]
+        [Tooltip("最後のアクションからの経過時間")]
         public float timeSinceLastAction;
 
-        [Title("戦闘状態")]
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在リロード中かどうか")]
+        [Header("戦闘状態")]
+        [SerializeField, ReadOnly]
+        [Tooltip("現在リロード中かどうか")]
         public bool isReloading;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("各スキルのクールタイム残り時間")]
+        [SerializeField, ReadOnly]
+        [Tooltip("各スキルのクールタイム残り時間")]
         public float[] skillCooldowns = new float[5];
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("各マニューバのクールタイム残り時間")]
+        [SerializeField, ReadOnly]
+        [Tooltip("各マニューバのクールタイム残り時間")]
         public float[] maneuverCooldowns = new float[3];
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("スキルが使用可能かどうか")]
+        [SerializeField, ReadOnly]
+        [Tooltip("スキルが使用可能かどうか")]
         public bool canUseSkills;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("マニューバが使用可能かどうか")]
+        [SerializeField, ReadOnly]
+        [Tooltip("マニューバが使用可能かどうか")]
         public bool canUseManeuvers;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("最後に実行した攻撃方向")]
+        [SerializeField, ReadOnly]
+        [Tooltip("最後に実行した攻撃方向")]
         public AttackDirection lastAttackDirection;
 
-        [Title("射撃関連")]
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在の射撃精度（0.0-1.0）")]
+        [Header("射撃関連")]
+        [SerializeField, ReadOnly]
+        [Tooltip("現在の射撃精度（0.0-1.0）")]
         public float aimingAccuracy;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在の狙い方向")]
+        [SerializeField, ReadOnly]
+        [Tooltip("現在の狙い方向")]
         public Vector3 aimDirection;
 
-        [Title("コンボ情報")]
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在のコンボ段数")]
+        [Header("コンボ情報")]
+        [SerializeField, ReadOnly]
+        [Tooltip("現在のコンボ段数")]
         public int currentComboCount;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("最大コンボ数")]
+        [SerializeField, ReadOnly]
+        [Tooltip("最大コンボ数")]
         public int maxComboCount;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("コンボ実行中かどうか")]
+        [SerializeField, ReadOnly]
+        [Tooltip("コンボ実行中かどうか")]
         public bool isInCombo;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("コンボ受付時間残り")]
+        [SerializeField, ReadOnly]
+        [Tooltip("コンボ受付時間残り")]
         public float comboWindowRemaining;
 
-        [Title("空中戦闘")]
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("空中にいるかどうか")]
+        [Header("空中戦闘")]
+        [SerializeField, ReadOnly]
+        [Tooltip("空中にいるかどうか")]
         public bool isAirborne;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("空中コンボ中かどうか")]
+        [SerializeField, ReadOnly]
+        [Tooltip("空中コンボ中かどうか")]
         public bool isInAerialCombo;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("空中滞空時間残り")]
+        [SerializeField, ReadOnly]
+        [Tooltip("空中滞空時間残り")]
         public float aerialFloatTimeRemaining;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("空中時間の合計")]
+        [SerializeField, ReadOnly]
+        [Tooltip("空中時間の合計")]
         public float totalAirTime;
 
-        [Title("回避攻撃")]
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("回避攻撃が可能かどうか")]
+        [Header("回避攻撃")]
+        [SerializeField, ReadOnly]
+        [Tooltip("回避攻撃が可能かどうか")]
         public bool canDodgeAttack;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("最後の回避方向")]
+        [SerializeField, ReadOnly]
+        [Tooltip("最後の回避方向")]
         public Vector3 lastDodgeDirection;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("回避攻撃受付時間残り")]
+        [SerializeField, ReadOnly]
+        [Tooltip("回避攻撃受付時間残り")]
         public float dodgeAttackWindowRemaining;
 
         /// <summary>
@@ -149,55 +149,53 @@ namespace LearningAIGame.CombatSystem
     [Serializable]
     public class HealthData
     {
-        [Title("体力管理")]
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在の体力")]
+        [Header("体力管理")]
+        [SerializeField, ReadOnly]
+        [Tooltip("現在の体力")]
         public float currentHealth;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("最大体力")]
+        [SerializeField, ReadOnly]
+        [Tooltip("最大体力")]
         public float maxHealth;
 
-        [ShowInInspector, ReadOnly]
-        [ProgressBar(0, 1)]
-        [PropertyTooltip("体力割合")]
+        [SerializeField, ReadOnly]
+        [Tooltip("体力割合")]
         public float healthPercentage;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("生存しているかどうか")]
+        [SerializeField, ReadOnly]
+        [Tooltip("生存しているかどうか")]
         public bool isAlive;
 
-        [Title("状態管理")]
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("スタン状態かどうか")]
+        [Header("状態管理")]
+        [SerializeField, ReadOnly]
+        [Tooltip("スタン状態かどうか")]
         public bool isStunned;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("怯み状態かどうか")]
+        [SerializeField, ReadOnly]
+        [Tooltip("怯み状態かどうか")]
         public bool isFlinching;
 
-        [Title("スタンゲージ")]
-        [ShowInInspector, ReadOnly]
-        [ProgressBar(0, 100)]
-        [PropertyTooltip("現在のスタンゲージ蓄積量")]
+        [Header("スタンゲージ")]
+        [SerializeField, ReadOnly]
+        [Tooltip("現在のスタンゲージ蓄積量")]
         public float stunGauge;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("スタンゲージの回復速度")]
+        [SerializeField, ReadOnly]
+        [Tooltip("スタンゲージの回復速度")]
         public float stunRecoveryRate = 20f;
 
-        [Title("無敵関連")]
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("無敵状態かどうか")]
+        [Header("無敵関連")]
+        [SerializeField, ReadOnly]
+        [Tooltip("無敵状態かどうか")]
         public bool isInvincible;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("無敵時間の残り時間")]
+        [SerializeField, ReadOnly]
+        [Tooltip("無敵時間の残り時間")]
         public float invincibilityTimer;
 
-        [Title("生存状態")]
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("死亡状態かどうか")]
+        [Header("生存状態")]
+        [SerializeField, ReadOnly]
+        [Tooltip("死亡状態かどうか")]
         public bool isDead;
 
         /// <summary>
@@ -225,66 +223,66 @@ namespace LearningAIGame.CombatSystem
     [Serializable]
     public class AttackInfo
     {
-        [Title("基本情報")]
-        [PropertyTooltip("攻撃の種類")]
+        [Header("基本情報")]
+        [Tooltip("攻撃の種類")]
         public AttackType attackType;
 
-        [PropertyTooltip("攻撃方向")]
+        [Tooltip("攻撃方向")]
         public AttackDirection direction;
 
-        [PropertyTooltip("攻撃位置")]
+        [Tooltip("攻撃位置")]
         public Vector3 attackerPosition;
 
-        [PropertyTooltip("基本ダメージ量")]
-        [MinValue(0)]
+        [Tooltip("基本ダメージ量")]
+
         public float baseDamage;
 
-        [Title("コンボ情報")]
-        [PropertyTooltip("コンボ段数")]
-        [MinValue(0)]
+        [Header("コンボ情報")]
+        [Tooltip("コンボ段数")]
+
         public int comboIndex;
 
-        [PropertyTooltip("空中攻撃かどうか")]
+        [Tooltip("空中攻撃かどうか")]
         public bool isAerialAttack;
 
-        [PropertyTooltip("回避攻撃かどうか")]
+        [Tooltip("回避攻撃かどうか")]
         public bool isDodgeAttack;
 
-        [PropertyTooltip("コンボフィニッシュかどうか")]
+        [Tooltip("コンボフィニッシュかどうか")]
         public bool isComboFinisher;
 
-        [Title("踏み込み情報")]
-        [PropertyTooltip("踏み込み距離")]
-        [MinValue(0)]
+        [Header("踏み込み情報")]
+        [Tooltip("踏み込み距離")]
+
         public float lungeDistance;
 
-        [PropertyTooltip("踏み込み速度")]
-        [MinValue(0)]
+        [Tooltip("踏み込み速度")]
+
         public float lungeSpeed;
 
-        [PropertyTooltip("踏み込み実行するかどうか")]
+        [Tooltip("踏み込み実行するかどうか")]
         public bool shouldLunge;
 
-        [Title("特殊効果")]
-        [PropertyTooltip("スタンゲージに与える蓄積量")]
-        [MinValue(0)]
+        [Header("特殊効果")]
+        [Tooltip("スタンゲージに与える蓄積量")]
+
         public float stunAccumulation;
 
-        [PropertyTooltip("ガード可能かどうか")]
+        [Tooltip("ガード可能かどうか")]
         public bool canBeGuarded = true;
 
-        [PropertyTooltip("ブロッキング可能かどうか")]
+        [Tooltip("ブロッキング可能かどうか")]
         public bool canBeBlocked = true;
 
-        [PropertyTooltip("カウンター攻撃かどうか")]
+        [Tooltip("カウンター攻撃かどうか")]
         public bool isCounterAttack = false;
 
-        [PropertyTooltip("スーパーアーマー付きかどうか")]
+        [Tooltip("スーパーアーマー付きかどうか")]
         public bool hasSuperArmor = false;
 
-        [Title("エネルギー")]
-        [PropertyTooltip("エネルギーダメージ")]
-        [MinValue(0)]
+        [Header("エネルギー")]
+        [Tooltip("エネルギーダメージ")]
+
         public float energyDamage;
 
         /// <summary>
@@ -337,7 +335,7 @@ namespace LearningAIGame.CombatSystem
             info.isAerialAttack = isAerial;
             info.shouldLunge = comboIndex == 0; // 初段のみ踏み込み
 
-            if ( isAerial )
+            if (isAerial)
             {
                 info.baseDamage *= 2f; // 空中攻撃は威力2倍
                 info.lungeDistance *= 1.3f; // 空中では踏み込み距離延長
@@ -373,50 +371,50 @@ namespace LearningAIGame.CombatSystem
     [Serializable]
     public class DamageResult
     {
-        [Title("ダメージ情報")]
-        [PropertyTooltip("実際に与えられたダメージ")]
+        [Header("ダメージ情報")]
+        [Tooltip("実際に与えられたダメージ")]
         public float actualDamage;
 
-        [PropertyTooltip("スタンゲージ蓄積量")]
+        [Tooltip("スタンゲージ蓄積量")]
         public float stunAccumulation;
 
-        [PropertyTooltip("エネルギーダメージ")]
+        [Tooltip("エネルギーダメージ")]
         public float energyDamage;
 
-        [Title("結果フラグ")]
-        [PropertyTooltip("攻撃がヒットしたかどうか")]
+        [Header("結果フラグ")]
+        [Tooltip("攻撃がヒットしたかどうか")]
         public bool wasHit;
 
-        [PropertyTooltip("ガードされたかどうか")]
+        [Tooltip("ガードされたかどうか")]
         public bool wasGuarded;
 
-        [PropertyTooltip("ブロッキングされたかどうか")]
+        [Tooltip("ブロッキングされたかどうか")]
         public bool wasBlocked;
 
-        [PropertyTooltip("ジャスト回避されたかどうか")]
+        [Tooltip("ジャスト回避されたかどうか")]
         public bool wasJustDodged;
 
-        [PropertyTooltip("スタンを引き起こしたかどうか")]
+        [Tooltip("スタンを引き起こしたかどうか")]
         public bool causedStun;
 
-        [PropertyTooltip("コンボが中断されたかどうか")]
+        [Tooltip("コンボが中断されたかどうか")]
         public bool brokeCombo;
 
-        [Title("位置情報")]
-        [PropertyTooltip("ヒット位置")]
+        [Header("位置情報")]
+        [Tooltip("ヒット位置")]
         public Vector3 hitPosition;
 
-        [PropertyTooltip("ヒット方向")]
+        [Tooltip("ヒット方向")]
         public Vector3 hitDirection;
 
-        [Title("特殊情報")]
-        [PropertyTooltip("空中攻撃だったかどうか")]
+        [Header("特殊情報")]
+        [Tooltip("空中攻撃だったかどうか")]
         public bool wasAerialAttack;
 
-        [PropertyTooltip("カウンター攻撃だったかどうか")]
+        [Tooltip("カウンター攻撃だったかどうか")]
         public bool wasCounterAttack;
 
-        [PropertyTooltip("クリティカルヒットだったかどうか")]
+        [Tooltip("クリティカルヒットだったかどうか")]
         public bool wasCriticalHit;
 
         /// <summary>

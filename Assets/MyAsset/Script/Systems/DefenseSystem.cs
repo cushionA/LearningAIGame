@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
 using UnityEngine;
-using Sirenix.OdinInspector;
-using UniRx;
+using UnityEditor;
 using System;
+using NaughtyAttributes;
 
 namespace LearningAIGame.CombatSystem
 {
@@ -29,70 +29,47 @@ namespace LearningAIGame.CombatSystem
     {
 
         // 防御状態
-        private DefenseData currentDefenseData;
+        private DefenseData _currentDefenseData;
 
-        [Title("現在の状態")]
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在ガード中かどうか")]
+        [Header("現在の状態")]
+
+        [Tooltip("現在ガード中かどうか")]
         public bool IsGuarding { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = false;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在のガード方向")]
+        [Tooltip("現在のガード方向")]
         public AttackDirection GuardDirection { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = AttackDirection.Up;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("ブロッキング判定ウィンドウ中かどうか")]
+        [Tooltip("ブロッキング判定ウィンドウ中かどうか")]
         public bool IsInBlockWindow { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = false;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("ガード成功によるエネルギーボーナス中かどうか")]
+        [Tooltip("ガード成功によるエネルギーボーナス中かどうか")]
         public bool HasGuardEnergyBonus { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = false;
 
         // 内部状態
-        private float blockWindowStartTime = 0f;
-        private float guardEnergyBonusEndTime = 0f;
-        private AttackDirection lastBlockDirection = AttackDirection.Up;
+        private float _blockWindowStartTime = 0f;
+        private float _guardEnergyBonusEndTime = 0f;
+        private AttackDirection _lastBlockDirection = AttackDirection.Up;
 
         /// <summary>
         /// エネルギー切れ時のシールド関連フィールド
         /// </summary>
-        [Title("エネルギー切れシールド設定")]
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("エネルギー切れシールドが展開中かどうか")]
-        private bool isEnergyShieldActive = false;
+        [Header("エネルギー切れシールド設定")]
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("エネルギー切れシールドの現在耐久値")]
-        private float energyShieldDurability = 100f;
+        [Tooltip("エネルギー切れシールドが展開中かどうか")]
+        private bool _isEnergyShieldActive = false;
 
-        [PropertyTooltip("エネルギー切れシールドの最大耐久値")]
-        private const float MAX_ENERGY_SHIELD_DURABILITY = 100f;
+        [Tooltip("エネルギー切れシールドの現在耐久値")]
+        private float _energyShieldDurability = 100f;
 
-        [PropertyTooltip("エネルギー切れシールド展開中の移動速度減少率")]
+        [Tooltip("エネルギー切れシールドの最大耐久値")]
+        private const float k_MAX_ENERGY_SHIELD_DURABILITY = 100f;
+
+        [Tooltip("エネルギー切れシールド展開中の移動速度減少率")]
         [Range(0.1f, 1f)]
-        [SerializeField] private float energyShieldMovementSpeedReduction = 0.5f;
-
-        /// <summary>
-        /// 初期化処理
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void Awake()
-        {
-            // 他のシステムの参照取得は OnInitialized で行う
-        }
+        [SerializeField] private float _energyShieldMovementSpeedReduction = 0.5f;
 
         protected override void OnInitialized()
         {
-            // 他のシステムの参照取得
-            stateSystem = GetComponent<StateSystem>();
-            energySystem = GetComponent<EnergySystem>();
-            movementSystem = GetComponent<MovementSystem>();
-
-            if ( Settings?.defense == null )
-            {
-                DebugLogError("DefenseSettingsが見つかりません");
-                return;
-            }
 
             // 初期データの設定
             UpdateDefenseData();
@@ -100,30 +77,27 @@ namespace LearningAIGame.CombatSystem
 
         protected override void SetupObservables()
         {
-            // 防御状態の更新をObservableで通知
-            UniRx.Observable.EveryUpdate()
-                .Subscribe(_ => UpdateAndNotifyDefenseData())
-                .AddTo(disposables);
+
         }
 
         private void UpdateAndNotifyDefenseData()
         {
             UpdateDefenseData();
-            NotifyObservers(currentDefenseData);
+            NotifyObservers(_currentDefenseData);
         }
 
         private void UpdateDefenseData()
         {
-            currentDefenseData = new DefenseData
+            _currentDefenseData = new DefenseData
             {
                 isGuarding = IsGuarding,
                 isBlocking = IsInBlockWindow,
                 guardDirection = GuardDirection,
-                lastBlockTime = blockWindowStartTime,
+                lastBlockTime = _blockWindowStartTime,
                 blockSuccess = false, // 実際のブロッキング成功時に設定
                 hasEnergyBonus = HasGuardEnergyBonus,
-                isEnergyShieldActive = isEnergyShieldActive,
-                energyShieldDurability = energyShieldDurability
+                isEnergyShieldActive = _isEnergyShieldActive,
+                energyShieldDurability = _energyShieldDurability
             };
         }
 
@@ -147,12 +121,8 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void StartGuard(AttackDirection direction)
         {
-            if ( !CanGuard() )
-                return;
-
             IsGuarding = true;
             GuardDirection = direction;
-            stateSystem.ReportActionStateChange(ActionState.Guarding);
         }
 
         /// <summary>
@@ -162,7 +132,6 @@ namespace LearningAIGame.CombatSystem
         public void StopGuard()
         {
             IsGuarding = false;
-            stateSystem.ReportActionStateChange(ActionState.Idle);
         }
 
         /// <summary>
@@ -173,17 +142,10 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AttemptBlock(AttackDirection direction)
         {
-            if ( !CanBlock() )
-                return;
-
-            lastBlockDirection = direction;
+            _lastBlockDirection = direction;
             IsInBlockWindow = true;
-            blockWindowStartTime = Time.time;
+            _blockWindowStartTime = Time.time;
 
-            // ブロッキング失敗時のペナルティ予約
-            UniRx.Observable.Timer(TimeSpan.FromSeconds(0.2f))
-                .Subscribe(_ => OnBlockWindowEnd())
-                .AddTo(disposables);
         }
 
         /// <summary>
@@ -196,21 +158,15 @@ namespace LearningAIGame.CombatSystem
         public DamageResult ProcessDefense(AttackInfo attackInfo)
         {
             // ブロッキング判定（最優先）
-            if ( IsInBlockWindow && CanBlockAttack(attackInfo) )
+            if (IsInBlockWindow && CanBlockAttack(attackInfo))
             {
                 return ProcessBlockingSuccess(attackInfo);
             }
 
             // ガード判定
-            if ( IsGuarding && CanGuardAttack(attackInfo) )
+            if (IsGuarding && CanGuardAttack(attackInfo))
             {
                 return ProcessGuardSuccess(attackInfo);
-            }
-
-            // エネルギー切れシールド判定（手動展開かつエネルギー切れ状態）
-            if ( isEnergyShieldActive && stateSystem.IsEnergyDepleted )
-            {
-                return ProcessEnergyShieldDefense(attackInfo);
             }
 
             // 防御失敗
@@ -226,21 +182,8 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void StartEnergyShield()
         {
-            // エネルギー切れ状態でない場合は使用不可
-            if ( !stateSystem.IsEnergyDepleted )
-            {
-                Debug.LogWarning("エネルギーが切れていないため、エネルギーシールドは使用できません");
-                return;
-            }
 
-            isEnergyShieldActive = true;
-            stateSystem.ReportActionStateChange(ActionState.EnergyShielding);
-
-            // 移動速度を減少させる
-            if ( movementSystem != null )
-            {
-                movementSystem.ApplyMovementSpeedModifier(energyShieldMovementSpeedReduction, "EnergyShield");
-            }
+            _isEnergyShieldActive = true;
 
             Debug.Log("エネルギー切れシールドを展開しました");
         }
@@ -252,17 +195,16 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void StopEnergyShield()
         {
-            if ( !isEnergyShieldActive )
+            if (!_isEnergyShieldActive)
                 return;
 
-            isEnergyShieldActive = false;
-            stateSystem.ReportActionStateChange(ActionState.Idle);
+            _isEnergyShieldActive = false;
 
             // 移動速度を元に戻す
-            if ( movementSystem != null )
-            {
-                movementSystem.RemoveMovementSpeedModifier("EnergyShield");
-            }
+            //if (movementSystem != null)
+            //{
+            //    movementSystem.RemoveMovementSpeedModifier("EnergyShield");
+            //}
 
             Debug.Log("エネルギー切れシールドを解除しました");
         }
@@ -274,7 +216,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool IsEnergyShieldActive()
         {
-            return isEnergyShieldActive;
+            return _isEnergyShieldActive;
         }
 
         /// <summary>
@@ -285,85 +227,14 @@ namespace LearningAIGame.CombatSystem
         private void UpdateEnergyShieldDurability()
         {
             // シールドが展開されていない時のみ耐久値が回復
-            if ( !isEnergyShieldActive && energyShieldDurability < MAX_ENERGY_SHIELD_DURABILITY )
+            if (!_isEnergyShieldActive && _energyShieldDurability < k_MAX_ENERGY_SHIELD_DURABILITY)
             {
                 // 毎秒50ポイント回復
-                energyShieldDurability += 50f * Time.deltaTime;
-                energyShieldDurability = Mathf.Min(energyShieldDurability, MAX_ENERGY_SHIELD_DURABILITY);
+                _energyShieldDurability += 50f * Time.deltaTime;
+                _energyShieldDurability = Mathf.Min(_energyShieldDurability, k_MAX_ENERGY_SHIELD_DURABILITY);
             }
         }
 
-        /// <summary>
-        /// エネルギー切れシールド防御処理（修正版）
-        /// 手動展開されたシールドのみが防御効果を発揮
-        /// </summary>
-        /// <param name="attackInfo">攻撃情報</param>
-        /// <returns>ダメージ結果</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private DamageResult ProcessEnergyShieldDefense(AttackInfo attackInfo)
-        {
-            // 攻撃方向とシールド方向が合っていれば防御可能
-            if ( stateSystem.CurrentDirection == attackInfo.direction )
-            {
-                // 強攻撃はシールドを貫通
-                if ( attackInfo.attackType == AttackType.StrongMelee || attackInfo.attackType == AttackType.StrongShoot )
-                {
-                    Debug.Log("強攻撃：エネルギーシールドを貫通");
-                    return ProcessDefenseFailure(attackInfo);
-                }
-
-                // シールド耐久値をチェック
-                float damage = attackInfo.baseDamage;
-                if ( damage > energyShieldDurability )
-                {
-                    // 耐久値を超えるダメージでスタン発生
-                    energyShieldDurability = 0f;
-                    StopEnergyShield();
-                    stateSystem.ForceStun(2f); // 2秒間スタン
-
-                    Debug.Log($"シールド耐久値超過：スタン発生 (ダメージ{damage} > 耐久値{energyShieldDurability})");
-
-                    return new DamageResult
-                    {
-                        actualDamage = damage * 0.5f, // 軽減ダメージ
-                        stunAccumulation = 100f, // 強制スタン
-                        energyDamage = 0f,
-                        wasHit = true,
-                        wasGuarded = false,
-                        wasBlocked = false,
-                        wasJustDodged = false,
-                        causedStun = true,
-                        hitPosition = transform.position,
-                        hitDirection = Vector3.zero
-                    };
-                }
-                else
-                {
-                    // 耐久値内なら防御成功、耐久値を減らす
-                    energyShieldDurability -= damage;
-
-                    Debug.Log($"エネルギーシールド防御成功：耐久値{energyShieldDurability}/{MAX_ENERGY_SHIELD_DURABILITY}");
-
-                    return new DamageResult
-                    {
-                        actualDamage = 0f,
-                        stunAccumulation = 0f,
-                        energyDamage = 0f,
-                        wasHit = false,
-                        wasGuarded = true,
-                        wasBlocked = false,
-                        wasJustDodged = false,
-                        causedStun = false,
-                        hitPosition = transform.position,
-                        hitDirection = Vector3.zero
-                    };
-                }
-            }
-
-            // 方向が合わない場合は防御失敗
-            Debug.Log("攻撃方向とシールド方向が不一致：防御失敗");
-            return ProcessDefenseFailure(attackInfo);
-        }
 
         #endregion エネルギー切れシールド管理
 
@@ -373,6 +244,7 @@ namespace LearningAIGame.CombatSystem
 
         /// <summary>
         /// ブロッキング成功処理
+        /// エネルギー回復はStateSystemでする
         /// </summary>
         /// <param name="attackInfo">攻撃情報</param>
         /// <returns>ダメージ結果</returns>
@@ -381,11 +253,8 @@ namespace LearningAIGame.CombatSystem
         {
             IsInBlockWindow = false;
 
-            // エネルギー回復
-            energySystem.RecoverEnergy(Settings.defense.blockEnergyRecovery);
-
             // 射撃攻撃に対するブロッキングは移動効果
-            if ( IsRangedAttack(attackInfo.attackType) )
+            if (IsRangedAttack(attackInfo.attackType))
             {
                 ExecuteBlockMovement();
             }
@@ -417,16 +286,10 @@ namespace LearningAIGame.CombatSystem
             float stunAccumulation = 0f;
 
             // 強攻撃はガードしても怯み発生
-            if ( attackInfo.attackType == AttackType.StrongMelee || attackInfo.attackType == AttackType.StrongShoot )
+            if (attackInfo.attackType == AttackType.StrongMelee || attackInfo.attackType == AttackType.StrongShoot)
             {
                 damage = attackInfo.baseDamage * 0.3f; // 軽減ダメージ
                 stunAccumulation = attackInfo.stunAccumulation * 0.5f;
-                stateSystem.HealthData.isFlinching = true;
-
-                // 怯み時間設定
-                UniRx.Observable.Timer(TimeSpan.FromSeconds(0.5f))
-                    .Subscribe(_ => stateSystem.HealthData.isFlinching = false)
-                    .AddTo(disposables);
             }
             else
             {
@@ -461,10 +324,9 @@ namespace LearningAIGame.CombatSystem
             float stunAccumulation = attackInfo.stunAccumulation;
 
             // ブロッキング失敗ペナルティ
-            if ( IsInBlockWindow )
+            if (IsInBlockWindow)
             {
                 damage *= Settings.defense.blockFailDamageMultiplier;
-                energySystem.UseEnergy(Settings.defense.blockFailEnergyCost);
                 IsInBlockWindow = false;
             }
 
@@ -477,7 +339,6 @@ namespace LearningAIGame.CombatSystem
                 wasGuarded = false,
                 wasBlocked = false,
                 wasJustDodged = false,
-                causedStun = stateSystem.HealthData.stunGauge + stunAccumulation >= 100f,
                 hitPosition = transform.position,
                 hitDirection = Vector3.forward // 簡易的な方向
             };
@@ -488,32 +349,6 @@ namespace LearningAIGame.CombatSystem
         #region Private Helper Methods
 
         /// <summary>
-        /// ガードが可能かどうか
-        /// </summary>
-        /// <returns>ガード可能かどうか</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool CanGuard()
-        {
-            return stateSystem.CurrentActionMode == ActionMode.Melee &&
-                   stateSystem.CanExecuteAction(ActionType.Guard);
-        }
-
-        /// <summary>
-        /// ブロッキングが可能かどうかを判定（修正版）
-        /// ブースト中は無効、近接モード時のみ有効
-        /// </summary>
-        /// <returns>ブロッキング可能かどうか</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool CanBlock()
-        {
-            // ブースト中はブロッキングできない
-            return stateSystem.CurrentActionMode == ActionMode.Melee &&
-                   stateSystem.CurrentActionState != ActionState.Boosting && // ブースト中は無効
-                   stateSystem.CanExecuteAction(ActionType.Block) &&
-                   !IsInBlockWindow;
-        }
-
-        /// <summary>
         /// 攻撃をブロッキングできるかどうか
         /// </summary>
         /// <param name="attackInfo">攻撃情報</param>
@@ -522,8 +357,8 @@ namespace LearningAIGame.CombatSystem
         private bool CanBlockAttack(AttackInfo attackInfo)
         {
             return attackInfo.canBeBlocked &&
-                   lastBlockDirection == attackInfo.direction &&
-                   (Time.time - blockWindowStartTime) <= 0.2f;
+                   _lastBlockDirection == attackInfo.direction &&
+                   (Time.time - _blockWindowStartTime) <= 0.2f;
         }
 
         /// <summary>
@@ -547,8 +382,7 @@ namespace LearningAIGame.CombatSystem
         private bool IsRangedAttack(AttackType attackType)
         {
             return attackType == AttackType.WeakShoot ||
-                   attackType == AttackType.StrongShoot ||
-                   attackType == AttackType.RangedSkill;
+                   attackType == AttackType.StrongShoot;
         }
 
         /// <summary>
@@ -558,8 +392,7 @@ namespace LearningAIGame.CombatSystem
         private void ApplyGuardEnergyBonus()
         {
             HasGuardEnergyBonus = true;
-            guardEnergyBonusEndTime = Time.time + Settings.defense.guardEnergyBonusTime;
-            energySystem.ApplyEnergyRecoveryBonus(Settings.defense.guardEnergyBonusMultiplier, Settings.defense.guardEnergyBonusTime);
+            _guardEnergyBonusEndTime = Time.time + Settings.defense.guardEnergyBonusTime;
         }
 
         /// <summary>
@@ -570,10 +403,6 @@ namespace LearningAIGame.CombatSystem
         {
             Vector3 moveDirection = GetBlockMoveDirection();
             transform.position += moveDirection * Settings.defense.blockMoveDistance;
-
-            // 無敵時間付与
-            stateSystem.HealthData.isInvincible = true;
-            stateSystem.HealthData.invincibilityTimer = 0.5f;
         }
 
         /// <summary>
@@ -583,7 +412,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private Vector3 GetBlockMoveDirection()
         {
-            return lastBlockDirection switch
+            return _lastBlockDirection switch
             {
                 AttackDirection.Up => transform.forward,
                 AttackDirection.Left => -transform.right,
@@ -598,7 +427,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateBlockWindow()
         {
-            if ( IsInBlockWindow && (Time.time - blockWindowStartTime) > 0.2f )
+            if (IsInBlockWindow && (Time.time - _blockWindowStartTime) > 0.2f)
             {
                 OnBlockWindowEnd();
             }
@@ -610,7 +439,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void OnBlockWindowEnd()
         {
-            if ( IsInBlockWindow )
+            if (IsInBlockWindow)
             {
                 IsInBlockWindow = false;
                 // ブロッキング失敗ペナルティは実際の被弾時に適用
@@ -623,126 +452,11 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateGuardEnergyBonus()
         {
-            if ( HasGuardEnergyBonus && Time.time >= guardEnergyBonusEndTime )
+            if (HasGuardEnergyBonus && Time.time >= _guardEnergyBonusEndTime)
             {
                 HasGuardEnergyBonus = false;
             }
         }
-
-        #endregion
-
-        #region Debug Methods
-
-        [Title("デバッグ機能")]
-        [Button("ガード開始（上）", ButtonSizes.Medium)]
-        [GUIColor(0.8f, 1f, 0.8f)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void DebugStartGuardUp()
-        {
-            StartGuard(AttackDirection.Up);
-        }
-
-        [Button("ブロッキング試行（上）", ButtonSizes.Medium)]
-        [GUIColor(0.8f, 0.8f, 1f)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void DebugAttemptBlockUp()
-        {
-            AttemptBlock(AttackDirection.Up);
-        }
-
-        [Button("ガード停止", ButtonSizes.Medium)]
-        [GUIColor(1f, 0.8f, 0.8f)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void DebugStopGuard()
-        {
-            StopGuard();
-        }
-
-        [Button("エネルギーシールド開始", ButtonSizes.Medium)]
-        [GUIColor(0.8f, 1f, 1f)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void DebugStartEnergyShield()
-        {
-            StartEnergyShield();
-        }
-
-        [Button("エネルギーシールド停止", ButtonSizes.Medium)]
-        [GUIColor(1f, 0.8f, 1f)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void DebugStopEnergyShield()
-        {
-            StopEnergyShield();
-        }
-
-        [Button("テスト攻撃受け", ButtonSizes.Medium)]
-        [GUIColor(1f, 1f, 0.8f)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void DebugTestDefense()
-        {
-            var testAttack = new AttackInfo
-            {
-                attackType = AttackType.WeakMelee,
-                direction = AttackDirection.Up,
-                baseDamage = 25f,
-                stunAccumulation = 12.5f,
-                canBeGuarded = true,
-                canBeBlocked = true
-            };
-
-            var result = ProcessDefense(testAttack);
-            Debug.Log($"防御テスト結果: ダメージ{result.actualDamage}, ガード{result.wasGuarded}, ブロック{result.wasBlocked}");
-        }
-
-        #endregion
-
-        #region SRDebugger Integration
-
-        [System.ComponentModel.Category("SRDebugger - 防御")]
-        public bool DebugIsGuarding
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => IsGuarding;
-        }
-
-        [System.ComponentModel.Category("SRDebugger - 防御")]
-        public bool DebugIsInBlockWindow
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => IsInBlockWindow;
-        }
-
-        [System.ComponentModel.Category("SRDebugger - 防御")]
-        public string DebugGuardDirection
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => GuardDirection.ToString();
-        }
-
-        [System.ComponentModel.Category("SRDebugger - 防御")]
-        public bool DebugIsEnergyShieldActive
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => isEnergyShieldActive;
-        }
-
-        [System.ComponentModel.Category("SRDebugger - 防御")]
-        public float DebugEnergyShieldDurability
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => energyShieldDurability;
-        }
-
-        [System.ComponentModel.Category("SRDebugger - 防御")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DebugForceGuard() => StartGuard(AttackDirection.Up);
-
-        [System.ComponentModel.Category("SRDebugger - 防御")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DebugForceBlock() => AttemptBlock(AttackDirection.Up);
-
-        [System.ComponentModel.Category("SRDebugger - 防御")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DebugForceEnergyShield() => StartEnergyShield();
 
         #endregion
     }

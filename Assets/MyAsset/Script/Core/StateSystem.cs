@@ -1,10 +1,10 @@
 using LearningAIGame.CombatSystem.Core.StateReportData;
-using Sirenix.OdinInspector;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using UniRx;
 using UnityEngine;
+using NaughtyAttributes;
 
 namespace LearningAIGame.CombatSystem.Core
 {
@@ -314,7 +314,7 @@ namespace LearningAIGame.CombatSystem.Core
                 maneuverStartTime = 0f;
 
                 // 初期状態では全て利用可能
-                for ( int i = 0; i < maneuverCount; i++ )
+                for (int i = 0; i < maneuverCount; i++)
                 {
                     availableStates[i] = true;
                 }
@@ -357,30 +357,30 @@ namespace LearningAIGame.CombatSystem.Core
     public partial class StateSystem : BaseSystem<StateNotification>
     {
         // 各システムからの報告データ保持
-        [Title("報告データ保持")]
-        [ShowInInspector, ReadOnly]
+        [Header("報告データ保持")]
+        [SerializeField, ReadOnly]
         private StateReportData.MovementReport movementReport;
 
-        [ShowInInspector, ReadOnly]
+        [SerializeField, ReadOnly]
         private StateReportData.AttackReport attackReport;
 
-        [ShowInInspector, ReadOnly]
+        [SerializeField, ReadOnly]
         private StateReportData.DefenseReport defenseReport;
 
-        [ShowInInspector, ReadOnly]
+        [SerializeField, ReadOnly]
         private StateReportData.EnergyReport energyReport;
 
-        [ShowInInspector, ReadOnly]
+        [SerializeField, ReadOnly]
         private StateReportData.HealthReport healthReport;
 
-        [ShowInInspector, ReadOnly]
+        [SerializeField, ReadOnly]
         private StateReportData.DirectionReport directionReport;
 
-        [ShowInInspector, ReadOnly]
+        [SerializeField, ReadOnly]
         private StateReportData.ManeuverReport maneuverReport;
 
         // 射撃関連は存在しないため削除
-        // [ShowInInspector, ReadOnly]
+        // [SerializeField, ReadOnly]
         // private StateReportData.ShootingReport shootingReport;
 
         // BaseController向け通知用Subject
@@ -488,7 +488,7 @@ namespace LearningAIGame.CombatSystem.Core
             ProcessAttackStateChange(isAttacking, comboCount, isAirAttack);
 
             // コンボ中断の通知判定
-            if ( previousComboCount > 0 && comboCount == 0 && !isAttacking )
+            if (previousComboCount > 0 && comboCount == 0 && !isAttacking)
             {
                 SendControllerNotification(new StateNotification(StateNotificationTrigger.ComboInterrupted, previousComboCount, 0.4f));
             }
@@ -525,7 +525,7 @@ namespace LearningAIGame.CombatSystem.Core
             ProcessSkillCooldownChange(skillIndex, cooldownTime);
 
             // スキル使用可能通知判定
-            if ( cooldownTime <= 0f )
+            if (cooldownTime <= 0f)
             {
                 SendControllerNotification(new StateNotification(StateNotificationTrigger.SkillBecameAvailable, skillIndex, 0.6f));
             }
@@ -567,9 +567,9 @@ namespace LearningAIGame.CombatSystem.Core
             ProcessBlockingStateChange(isBlocking, success);
 
             // ブロッキング結果通知
-            if ( isBlocking )
+            if (isBlocking)
             {
-                if ( success )
+                if (success)
                 {
                     SendControllerNotification(new StateNotification(StateNotificationTrigger.BlockingSucceeded, 0.7f));
                 }
@@ -595,7 +595,7 @@ namespace LearningAIGame.CombatSystem.Core
             ProcessGuardBrokenChange(isGuardBroken);
 
             // ガード破壊通知
-            if ( isGuardBroken )
+            if (isGuardBroken)
             {
                 SendControllerNotification(new StateNotification(StateNotificationTrigger.GuardBroken, 0.8f));
             }
@@ -623,12 +623,12 @@ namespace LearningAIGame.CombatSystem.Core
             ProcessEnergyChange(energyPercentage);
 
             // エネルギー切れ突入通知
-            if ( !wasDepletedBefore && energyReport.isDepleted )
+            if (!wasDepletedBefore && energyReport.isDepleted)
             {
                 SendControllerNotification(new StateNotification(StateNotificationTrigger.EnergyDepleted, energyPercentage, 1.0f));
             }
             // エネルギー完全回復通知
-            else if ( wasDepletedBefore && energyPercentage >= 1f )
+            else if (wasDepletedBefore && energyPercentage >= 1f)
             {
                 SendControllerNotification(new StateNotification(StateNotificationTrigger.EnergyRecovered, energyPercentage, 0.8f));
             }
@@ -678,13 +678,13 @@ namespace LearningAIGame.CombatSystem.Core
 
             // 体力危険レベル通知
             float healthPercentage = currentHealth / healthReport.maxHealth;
-            if ( healthPercentage <= 0.25f ) // 25%以下で危険
+            if (healthPercentage <= 0.25f) // 25%以下で危険
             {
                 SendControllerNotification(new StateNotification(StateNotificationTrigger.HealthCritical, healthPercentage, 0.9f));
             }
 
             // スタン発生通知
-            if ( causesStun )
+            if (causesStun)
             {
                 SendControllerNotification(new StateNotification(StateNotificationTrigger.StunOccurred, 1.0f));
             }
@@ -705,7 +705,7 @@ namespace LearningAIGame.CombatSystem.Core
             DebugLog($"スタン状態報告受信 - スタン中: {isStunned}, ゲージ: {stunGauge:F1}");
 
             // スタン回復通知
-            if ( wasStunnedBefore && !isStunned )
+            if (wasStunnedBefore && !isStunned)
             {
                 SendControllerNotification(new StateNotification(StateNotificationTrigger.StunRecovered, 0.6f));
             }
@@ -726,12 +726,12 @@ namespace LearningAIGame.CombatSystem.Core
             DebugLog($"無敵状態報告受信 - 無敵: {isInvincible}, 残り時間: {timeRemaining:F1}");
 
             // 無敵状態開始通知
-            if ( !wasInvincibleBefore && isInvincible )
+            if (!wasInvincibleBefore && isInvincible)
             {
                 SendControllerNotification(new StateNotification(StateNotificationTrigger.InvincibilityStarted, timeRemaining, 0.4f));
             }
             // 無敵状態終了通知
-            else if ( wasInvincibleBefore && !isInvincible )
+            else if (wasInvincibleBefore && !isInvincible)
             {
                 SendControllerNotification(new StateNotification(StateNotificationTrigger.InvincibilityEnded, 0.5f));
             }
@@ -756,7 +756,7 @@ namespace LearningAIGame.CombatSystem.Core
             ProcessDirectionChange(newDirection);
 
             // 方向変更阻止通知
-            if ( changeBlocked )
+            if (changeBlocked)
             {
                 SendControllerNotification(new StateNotification(StateNotificationTrigger.DirectionChangeBlocked, newDirection, 0.3f));
             }
@@ -784,7 +784,7 @@ namespace LearningAIGame.CombatSystem.Core
         {
             maneuverReport.isExecutingManeuver = isExecuting;
             maneuverReport.activeManeuverIndex = maneuverIndex;
-            if ( isExecuting )
+            if (isExecuting)
             {
                 maneuverReport.maneuverStartTime = Time.time;
             }
@@ -800,7 +800,7 @@ namespace LearningAIGame.CombatSystem.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReceiveManeuverCooldownReport(int maneuverIndex, float cooldownTime)
         {
-            if ( maneuverIndex >= 0 && maneuverIndex < maneuverReport.cooldownTimes.Length )
+            if (maneuverIndex >= 0 && maneuverIndex < maneuverReport.cooldownTimes.Length)
             {
                 maneuverReport.cooldownTimes[maneuverIndex] = cooldownTime;
                 maneuverReport.availableStates[maneuverIndex] = cooldownTime <= 0f;
@@ -811,7 +811,7 @@ namespace LearningAIGame.CombatSystem.Core
                 ProcessManeuverCooldownChange(maneuverIndex, cooldownTime);
 
                 // マニューバ使用可能通知
-                if ( cooldownTime <= 0f )
+                if (cooldownTime <= 0f)
                 {
                     SendControllerNotification(new StateNotification(StateNotificationTrigger.ManeuverBecameAvailable, maneuverIndex, 0.5f));
                 }
@@ -829,7 +829,7 @@ namespace LearningAIGame.CombatSystem.Core
             DebugLog($"アクション制限報告受信 - {actionType}: {(isRestricted ? "制限" : "解除")}");
 
             // 制限・解除通知
-            if ( isRestricted )
+            if (isRestricted)
             {
                 SendControllerNotification(new StateNotification(StateNotificationTrigger.ActionRestricted, (int)actionType, 0.4f));
             }
@@ -861,7 +861,7 @@ namespace LearningAIGame.CombatSystem.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SendControllerNotifications(params StateNotification[] notifications)
         {
-            foreach ( var notification in notifications )
+            foreach (var notification in notifications)
             {
                 SendControllerNotification(notification);
             }
@@ -1038,44 +1038,6 @@ namespace LearningAIGame.CombatSystem.Core
             maneuverReport = new StateReportData.ManeuverReport(4); // デフォルト4つのマニューバ
 
             DebugLog("通知システム初期化完了");
-        }
-
-        #endregion
-
-        #region デバッグ・開発者ツール
-
-        [Title("通知システムデバッグ")]
-        [Button("通知履歴表示", ButtonSizes.Medium)]
-        [GUIColor(0.8f, 1f, 0.8f)]
-        private void DebugShowNotificationHistory()
-        {
-            // 通知履歴の表示（実装時に詳細追加）
-            Debug.Log("=== 通知履歴 ===");
-            Debug.Log("※通知履歴機能は今後実装予定");
-        }
-
-        [Button("テスト通知送信", ButtonSizes.Medium)]
-        [GUIColor(1f, 0.8f, 0.8f)]
-        private void DebugSendTestNotification()
-        {
-            var testNotification = new StateNotification(StateNotificationTrigger.EnergyDepleted, 0.25f, 1.0f);
-            SendControllerNotification(testNotification);
-            Debug.Log("テスト通知を送信しました: EnergyDepleted");
-        }
-
-        [Button("報告データ状況確認", ButtonSizes.Medium)]
-        [GUIColor(0.8f, 0.8f, 1f)]
-        private void DebugShowReportData()
-        {
-            var info = $"=== 報告データ状況 ===\n" +
-                      $"Movement: 移動中={movementReport.isMoving}, 速度={movementReport.speed:F1}\n" +
-                      $"Attack: 攻撃中={attackReport.isAttacking}, コンボ={attackReport.comboCount}\n" +
-                      $"Defense: ガード中={defenseReport.isGuarding}, 方向={defenseReport.guardDirection}\n" +
-                      $"Energy: 現在={energyReport.currentPercentage:P1}, 枯渇={energyReport.isDepleted}\n" +
-                      $"Health: 体力={healthReport.currentHealth:F0}, スタン={healthReport.isStunned}\n" +
-                      $"Direction: 現在={directionReport.currentDirection}\n";
-
-            Debug.Log(info);
         }
 
         #endregion

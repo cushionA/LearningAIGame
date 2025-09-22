@@ -1,6 +1,5 @@
 using Cysharp.Threading.Tasks;
 using LearningAIGame.CombatSystem.Core;
-using Sirenix.OdinInspector;
 using System;
 using System.Runtime.CompilerServices;
 using UniRx;
@@ -8,6 +7,7 @@ using Unity.Burst;
 using Unity.Mathematics;
 using UnityEngine;
 using static LearningAIGame.CombatSystem.CharacterSettings;
+using NaughtyAttributes;
 
 namespace LearningAIGame.CombatSystem
 {
@@ -18,7 +18,6 @@ namespace LearningAIGame.CombatSystem
     [System.Serializable]
     public struct MovementData
     {
-
         /// <summary>
         /// 現在の行動を開始した時間
         /// </summary>
@@ -86,126 +85,122 @@ namespace LearningAIGame.CombatSystem
     public class MovementSystem : BaseSystem<ActionState>
     {
         // コンポーネント
-        private Rigidbody rigidBody;
+        private Rigidbody _rigidBody;
 
         ///// <summary>
         ///// 移動状態管理
         ///// </summary>
         //private MovementData currentMovementData;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("移動設定")]
+        [Tooltip("移動設定")]
         public MovementSettings moveSetting;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("空中時間の累計")]
+        [Tooltip("空中時間の累計")]
         public float TotalAirTime { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = 0f;
 
         // 移動状態タイマー（減衰処理用）
-        private float jumpDecayRate = 0f;
-        private float dodgeTimer = 0f;
-        private float lungeTimer = 0f;
-        private float lungeDistance = 0f;
-        private float lungeTravelDistance = 0f;
-        private float knockbackDecayRate = 0f;
-        private bool hasUsedDoubleJump = false;
+        private float _jumpDecayRate = 0f;
+        private float _dodgeTimer = 0f;
+        private float _lungeTimer = 0f;
+        private float _lungeDistance = 0f;
+        private float _lungeTravelDistance = 0f;
+        private float _knockbackDecayRate = 0f;
+        private bool _hasUsedDoubleJump = false;
 
         // 移動速度修正システム
-        [Title("移動速度修正システム")]
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在適用中の移動速度修正")]
-        private System.Collections.Generic.Dictionary<string, float> speedModifiers = new System.Collections.Generic.Dictionary<string, float>();
+        [Header("移動速度修正システム")]
+        [Tooltip("現在適用中の移動速度修正")]
+        private System.Collections.Generic.Dictionary<string, float> _speedModifiers = new System.Collections.Generic.Dictionary<string, float>();
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("最終的な移動速度倍率")]
+        [Tooltip("最終的な移動速度倍率")]
         public float FinalSpeedMultiplier { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; } = 1f;
 
         // 地面・壁検知
-        [Title("地面・壁検知設定")]
-        [PropertyTooltip("地面検知のレイヤーマスク")]
-        [SerializeField] private LayerMask groundLayerMask = 1;
+        [Header("地面・壁検知設定")]
+        [Tooltip("地面検知のレイヤーマスク")]
+        [SerializeField] private LayerMask _groundLayerMask = 1;
 
-        [PropertyTooltip("壁検知のレイヤーマスク")]
-        [SerializeField] private LayerMask wallLayerMask = 1;
+        [Tooltip("壁検知のレイヤーマスク")]
+        [SerializeField] private LayerMask _wallLayerMask = 1;
 
-        [PropertyTooltip("地面検知の距離")]
+        [Tooltip("地面検知の距離")]
         [Range(0.1f, 2f)]
-        [SerializeField] private float groundCheckDistance = 1.1f;
+        [SerializeField] private float _groundCheckDistance = 1.1f;
 
-        [PropertyTooltip("壁検知の距離")]
+        [Tooltip("壁検知の距離")]
         [Range(0.1f, 2f)]
-        [SerializeField] private float wallCheckDistance = 0.6f;
+        [SerializeField] private float _wallCheckDistance = 0.6f;
 
         // === 統合機能：重力・ジャンプシステム ===
-        [Title("重力・ジャンプ設定")]
-        [PropertyTooltip("重力値")]
-        [SerializeField] private float gravity = -20f;
+        [Header("重力・ジャンプ設定")]
+        [Tooltip("重力値")]
+        [SerializeField] private float _gravity = -20f;
 
-        [PropertyTooltip("最大落下速度")]
-        [SerializeField] private float maxFallSpeed = -25f;
+        [Tooltip("最大落下速度")]
+        [SerializeField] private float _maxFallSpeed = -25f;
 
-        [PropertyTooltip("ジャンプ力")]
-        [SerializeField] private float jumpForce = 10f;
+        [Tooltip("ジャンプ力")]
+        [SerializeField] private float _jumpForce = 10f;
 
-        [PropertyTooltip("ジャンプ早期終了時の速度倍率")]
+        [Tooltip("ジャンプ早期終了時の速度倍率")]
         [Range(0.1f, 1f)]
-        [SerializeField] private float jumpCutMultiplier = 0.5f;
+        [SerializeField] private float _jumpCutMultiplier = 0.5f;
 
         // === 統合機能：コヨーテタイム・ジャンプバッファ ===
-        [Title("コヨーテタイム設定")]
-        [PropertyTooltip("地面を離れてもジャンプ可能な時間")]
+        [Header("コヨーテタイム設定")]
+        [Tooltip("地面を離れてもジャンプ可能な時間")]
         [Range(0f, 0.5f)]
-        [SerializeField] private float coyoteTime = 0.2f;
+        [SerializeField] private float _coyoteTime = 0.2f;
 
-        [PropertyTooltip("ジャンプ入力を受け付ける猶予時間")]
+        [Tooltip("ジャンプ入力を受け付ける猶予時間")]
         [Range(0f, 0.3f)]
-        [SerializeField] private float jumpBufferTime = 0.1f;
+        [SerializeField] private float _jumpBufferTime = 0.1f;
 
         // === 統合機能：オーディオ・エフェクト ===
-        [Title("オーディオ・エフェクト")]
-        [PropertyTooltip("AudioSourceコンポーネント")]
-        [SerializeField] private AudioSource audioSource;
+        [Header("オーディオ・エフェクト")]
+        [Tooltip("AudioSourceコンポーネント")]
+        [SerializeField] private AudioSource _audioSource;
 
-        [PropertyTooltip("足音配列")]
-        [SerializeField] private AudioClip[] footstepSounds;
+        [Tooltip("足音配列")]
+        [SerializeField] private AudioClip[] _footstepSounds;
 
-        [PropertyTooltip("ジャンプ音")]
-        [SerializeField] private AudioClip jumpSound;
+        [Tooltip("ジャンプ音")]
+        [SerializeField] private AudioClip _jumpSound;
 
-        [PropertyTooltip("着地音")]
-        [SerializeField] private AudioClip landSound;
+        [Tooltip("着地音")]
+        [SerializeField] private AudioClip _landSound;
 
-        [PropertyTooltip("着地エフェクト")]
-        [SerializeField] private ParticleSystem landingParticles;
+        [Tooltip("着地エフェクト")]
+        [SerializeField] private ParticleSystem _landingParticles;
 
-        [PropertyTooltip("ダッシュエフェクト")]
-        [SerializeField] private ParticleSystem dashParticles;
+        [Tooltip("ダッシュエフェクト")]
+        [SerializeField] private ParticleSystem _dashParticles;
 
         // === 統合機能：速度加算システム ===
-        [Title("速度加算システム")]
-        [PropertyTooltip("最大水平速度")]
-        [SerializeField] private float maxHorizontalSpeed = 15f;
+        [Header("速度加算システム")]
+        [Tooltip("最大水平速度")]
+        [SerializeField] private float _maxHorizontalSpeed = 15f;
 
-        [PropertyTooltip("最小速度閾値")]
-        [SerializeField] private float minHorizontalSpeed = 0.1f;
+        [Tooltip("最小速度閾値")]
+        [SerializeField] private float _minHorizontalSpeed = 0.1f;
 
         // === プライベート変数（統合機能用） ===
-        private bool wasGroundedLastFrame;
-        private bool jumpPressed;
-        private bool jumpHeld;
-        private float verticalVelocity;
-        private float coyoteTimeCounter;
-        private float jumpBufferCounter;
-        private float footstepTimer;
-        private float footstepInterval = 0.5f;
+        private bool _wasGroundedLastFrame;
+        private bool _jumpPressed;
+        private bool _jumpHeld;
+        private float _verticalVelocity;
+        private float _coyoteTimeCounter;
+        private float _jumpBufferCounter;
+        private float _footstepTimer;
+        private float _footstepInterval = 0.5f;
 
         // 速度加算システム
-        private Vector3 boostVelocity;
-        private Vector3 baseVelocity;
-        private float boostStartTime;
-        private float boostDuration;
-        private SpeedBoostPattern boostPattern;
-        private bool isSpeedBoostActive = false;
+        private Vector3 _boostVelocity;
+        private Vector3 _baseVelocity;
+        private float _boostStartTime;
+        private float _boostDuration;
+        private SpeedBoostPattern _boostPattern;
+        private bool _isSpeedBoostActive = false;
 
         /// <summary>
         /// 初期化処理
@@ -213,27 +208,18 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void Awake()
         {
-            rigidBody = GetComponent<Rigidbody>();
+            _rigidBody = GetComponent<Rigidbody>();
         }
 
         protected override void OnInitialized()
         {
-            if ( Settings?.movement == null )
+            if (Settings.movement == null)
             {
                 DebugLogError("MovementSettings が設定されていません");
                 return;
             }
 
             //  currentMovementData = new MovementData(Time.time);
-        }
-
-        /// <summary>
-        /// 更新処理
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void Update()
-        {
-
         }
 
         /// <summary>
@@ -252,9 +238,9 @@ namespace LearningAIGame.CombatSystem
         /// </summary>
         public void Stop()
         {
-            baseVelocity.Set(0, baseVelocity.y, 0);
-            boostVelocity = Vector3.zero;
-            isSpeedBoostActive = false;
+            _baseVelocity.Set(0, _baseVelocity.y, 0);
+            _boostVelocity = Vector3.zero;
+            _isSpeedBoostActive = false;
 
             NotifyObservers(ActionState.Idle);
         }
@@ -287,17 +273,9 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void MoveUpdate(Vector2 direction)
         {
-            float useSpeed = characterController.CurrentState.state switch
-            {
-                ActionState.Moving => moveSetting.moveSpeed,
-                ActionState.Boosting => moveSetting.boostSpeed,
-                ActionState.Falling => moveSetting.airMoveSpeed,
-                ActionState.Jumping => moveSetting.airMoveSpeed,
-                _ => 0f
-            };
 
             // 移動ベクトル設定
-            SetBaseVelocity(direction * useSpeed);
+            // SetBaseVelocity(direction * useSpeed);
         }
 
         /// <summary>
@@ -350,7 +328,7 @@ namespace LearningAIGame.CombatSystem
         /// <param name="direction">回避方向（空白時はバックステップ）</param>
         /// <returns>アクション中に別のステートに変わっていないか。偽なら変わってる</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public async UniTaskVoid Dodge(Vector3 direction)
+        public async UniTask Dodge(Vector3 direction)
         {
             // 移動開始
             AddSpeedBoost(direction * moveSetting.dodgeSpeed, moveSetting.dodgeTime, SpeedBoostPattern.Decay);
@@ -358,7 +336,7 @@ namespace LearningAIGame.CombatSystem
 
             await UniTask.Delay(TimeSpan.FromSeconds(moveSetting.dodgeTime));
 
-            if ( characterController.CurrentState.state == ActionState.Dodging )
+            if (characterController.CurrentState.state == ActionState.Dodging)
             {
                 NotifyObservers(ActionState.Idle);
             }
@@ -383,7 +361,7 @@ namespace LearningAIGame.CombatSystem
 
             await UniTask.Delay(TimeSpan.FromSeconds(moveSetting.dodgeTime * 1.8f));
 
-            if ( characterController.CurrentState.state == ActionState.DoubleDodging )
+            if (characterController.CurrentState.state == ActionState.DoubleDodging)
             {
                 NotifyObservers(ActionState.Idle);
             }
@@ -434,7 +412,7 @@ namespace LearningAIGame.CombatSystem
         public void ApplyKnockback(Vector3 direction, float force)
         {
             Stop();
-            rigidBody.AddForce(direction.normalized * force, ForceMode.VelocityChange);
+            _rigidBody.AddForce(direction.normalized * force, ForceMode.VelocityChange);
         }
 
         #endregion
@@ -448,7 +426,7 @@ namespace LearningAIGame.CombatSystem
         /// <param name="velocity"></param>
         private void SetBaseVelocity(Vector2 velocity)
         {
-            baseVelocity.Set(velocity.x, baseVelocity.y, velocity.y);
+            _baseVelocity.Set(velocity.x, _baseVelocity.y, velocity.y);
         }
 
         /// <summary>
@@ -463,16 +441,16 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void AddSpeedBoost(Vector3 velocity, float duration, SpeedBoostPattern pattern = SpeedBoostPattern.Mountain)
         {
-            boostVelocity = velocity;
-            boostDuration = duration;
-            boostStartTime = Time.time;
-            boostPattern = pattern;
-            isSpeedBoostActive = true;
+            _boostVelocity = velocity;
+            _boostDuration = duration;
+            _boostStartTime = Time.time;
+            _boostPattern = pattern;
+            _isSpeedBoostActive = true;
 
             // ダッシュエフェクト再生
-            if ( dashParticles != null )
+            if (_dashParticles != null)
             {
-                dashParticles.Play();
+                _dashParticles.Play();
             }
         }
 
@@ -483,18 +461,18 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private Vector3 GetCurrentAdditionalVelocity()
         {
-            if ( !isSpeedBoostActive )
+            if (!_isSpeedBoostActive)
                 return Vector3.zero;
 
-            float progress = (Time.time - boostStartTime) / boostDuration;
-            if ( progress >= 1f )
+            float progress = (Time.time - _boostStartTime) / _boostDuration;
+            if (progress >= 1f)
             {
-                isSpeedBoostActive = false;
+                _isSpeedBoostActive = false;
                 return Vector3.zero;
             }
 
-            float curveValue = GetSpeedCurveValue(progress, boostPattern);
-            return boostVelocity * curveValue;
+            float curveValue = GetSpeedCurveValue(progress, _boostPattern);
+            return _boostVelocity * curveValue;
         }
 
         /// <summary>
@@ -507,7 +485,7 @@ namespace LearningAIGame.CombatSystem
         [BurstCompile]
         private float GetSpeedCurveValue(float progress, SpeedBoostPattern pattern)
         {
-            switch ( pattern )
+            switch (pattern)
             {
                 case SpeedBoostPattern.Mountain:
                     // 0→1→0の山型（Sin波）
@@ -531,7 +509,7 @@ namespace LearningAIGame.CombatSystem
 
                 case SpeedBoostPattern.Elastic:
                     // 弾性効果（オーバーシュート後に安定）
-                    if ( progress < 0.5f )
+                    if (progress < 0.5f)
                     {
                         // 前半：オーバーシュート
                         return math.sin(progress * 2f * math.PI) * 0.2f + 1f;
@@ -554,8 +532,8 @@ namespace LearningAIGame.CombatSystem
         /// </summary>
         private void ApplyFinalMovement()
         {
-            baseVelocity.y = SetVerticalVelocity();
-            rigidBody.linearVelocity = baseVelocity + GetCurrentAdditionalVelocity();
+            _baseVelocity.y = SetVerticalVelocity();
+            _rigidBody.linearVelocity = _baseVelocity + GetCurrentAdditionalVelocity();
         }
 
         #endregion
@@ -568,7 +546,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool CanJump()
         {
-            return coyoteTimeCounter > 0f && jumpBufferCounter > 0f;
+            return _coyoteTimeCounter > 0f && _jumpBufferCounter > 0f;
         }
 
         /// <summary>
@@ -580,113 +558,24 @@ namespace LearningAIGame.CombatSystem
         private float SetVerticalVelocity()
         {
             // 縦の追加速度がある場合は重力を切る
-            if ( boostVelocity.y != 0 )
+            if (_boostVelocity.y != 0)
             {
-                verticalVelocity = 0;
+                _verticalVelocity = 0;
                 return 0;
             }
 
-            if ( currentMovementData.isGrounded && verticalVelocity <= 0 )
-            {
-                return -0.5f; // 地面に軽く押し付ける
-            }
-            else
-            {
-                // 重力適用
-                verticalVelocity += gravity * Time.fixedDeltaTime;
-                // 最大落下速度制限
-                return Mathf.Max(gravity * Time.fixedDeltaTime, maxFallSpeed);
-            }
-
-        }
-
-        /// <summary>
-        /// コヨーテタイム・ジャンプバッファの更新
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UpdateCoyoteAndBuffer()
-        {
-            // ジャンプ入力の取得
-            jumpPressed = Input.GetKeyDown(KeyCode.Space); // 必要に応じて変更
-            jumpHeld = Input.GetKey(KeyCode.Space);
-
-            // コヨーテタイム更新
-            if ( currentMovementData.isGrounded )
-                coyoteTimeCounter = coyoteTime;
-            else
-                coyoteTimeCounter -= Time.deltaTime;
-
-            // ジャンプバッファ更新
-            if ( jumpPressed )
-                jumpBufferCounter = jumpBufferTime;
-            else
-                jumpBufferCounter -= Time.deltaTime;
-
-            // ジャンプ処理
-            if ( CanJump() )
-            {
-                Jump(Vector3.zero); // 基本的には真上ジャンプ
-            }
-        }
-
-        #endregion
-
-        #region 統合機能：オーディオ・エフェクト
-
-        /// <summary>
-        /// 足音処理
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void HandleFootsteps()
-        {
-            // 地面にいて、移動している場合のみ足音再生
-            Vector3 horizontalVelocity = new Vector3(FinalMovementVector.x, 0, FinalMovementVector.z);
-            if ( !currentMovementData.isGrounded || horizontalVelocity.magnitude < 0.5f )
-                return;
-
-            footstepTimer -= Time.fixedDeltaTime;
-            if ( footstepTimer <= 0f )
-            {
-                // 移動速度に応じて足音間隔を調整
-                bool isFastMoving = horizontalVelocity.magnitude > moveSetting.moveSpeed;
-                footstepInterval = isFastMoving ? 0.3f : 0.5f;
-                footstepTimer = footstepInterval;
-
-                // 足音再生
-                if ( footstepSounds != null && footstepSounds.Length > 0 )
-                {
-                    int randomIndex = UnityEngine.Random.Range(0, footstepSounds.Length);
-                    PlaySound(footstepSounds[randomIndex]);
-                }
-            }
-        }
-
-        /// <summary>
-        /// 着地処理
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void OnLanding()
-        {
-            // 着地音再生
-            PlaySound(landSound);
-
-            // 着地エフェクト再生
-            if ( landingParticles != null )
-            {
-                landingParticles.Play();
-            }
-        }
-
-        /// <summary>
-        /// 音声再生
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void PlaySound(AudioClip clip)
-        {
-            if ( audioSource != null && clip != null )
-            {
-                audioSource.PlayOneShot(clip);
-            }
+            //if (currentMovementData.isGrounded && _verticalVelocity <= 0)
+            //{
+            //    return -0.5f; // 地面に軽く押し付ける
+            //}
+            //else
+            //{
+            //    // 重力適用
+            //    _verticalVelocity += _gravity * Time.fixedDeltaTime;
+            //    // 最大落下速度制限
+            //    return Mathf.Max(_gravity * Time.fixedDeltaTime, _maxFallSpeed);
+            //}
+            return 0;
         }
 
         #endregion
@@ -701,12 +590,12 @@ namespace LearningAIGame.CombatSystem
         {
             float horizontalSpeed = velocity.magnitude;
 
-            if ( horizontalSpeed > maxHorizontalSpeed )
+            if (horizontalSpeed > _maxHorizontalSpeed)
             {
                 // 最大速度制限
-                velocity = velocity.normalized * maxHorizontalSpeed;
+                velocity = velocity.normalized * _maxHorizontalSpeed;
             }
-            else if ( horizontalSpeed > 0 && horizontalSpeed < minHorizontalSpeed )
+            else if (horizontalSpeed > 0 && horizontalSpeed < _minHorizontalSpeed)
             {
                 // 最小速度制限（微小な動きを無効化）
                 velocity = Vector3.zero;
@@ -715,6 +604,4 @@ namespace LearningAIGame.CombatSystem
 
         #endregion
     }
-
-
 }

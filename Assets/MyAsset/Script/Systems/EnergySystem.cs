@@ -1,10 +1,10 @@
 using System.Runtime.CompilerServices;
 using UnityEngine;
-using Sirenix.OdinInspector;
 using UniRx;
 using System;
 using Unity.Mathematics;
 using Unity.Burst;
+using NaughtyAttributes;
 
 namespace LearningAIGame.CombatSystem
 {
@@ -37,7 +37,7 @@ namespace LearningAIGame.CombatSystem
         /// <summary>
         /// 最大エネルギー量
         /// </summary>
-        private readonly float maxEnergy;
+        private readonly float _maxEnergy;
 
         /// <summary>
         /// エネルギーの更新
@@ -47,22 +47,22 @@ namespace LearningAIGame.CombatSystem
         public void UpdateEnergy(float changeEnergy)
         {
             lastEnergy = currentEnergy;
-            currentEnergy = math.min(maxEnergy, currentEnergy + changeEnergy);
-            energyPercentage = (currentEnergy / maxEnergy);
+            currentEnergy = math.min(_maxEnergy, currentEnergy + changeEnergy);
+            energyPercentage = (currentEnergy / _maxEnergy);
 
             // エネルギー枯渇状態の更新
             // すでに枯渇状態の場合は最大エネルギーに達するまで枯渇状態を維持
-            isEnergyDepleted = isEnergyDepleted ? currentEnergy <= maxEnergy : currentEnergy <= 0;
+            isEnergyDepleted = isEnergyDepleted ? currentEnergy <= _maxEnergy : currentEnergy <= 0;
         }
 
         public void SetEnergy(float changeEnergy)
         {
-            currentEnergy = math.min(maxEnergy, changeEnergy);
-            energyPercentage = (currentEnergy / maxEnergy);
+            currentEnergy = math.min(_maxEnergy, changeEnergy);
+            energyPercentage = (currentEnergy / _maxEnergy);
 
             // エネルギー枯渇状態の更新
             // すでに枯渇状態の場合は最大エネルギーに達するまで枯渇状態を維持
-            isEnergyDepleted = isEnergyDepleted ? currentEnergy <= maxEnergy : currentEnergy <= 0;
+            isEnergyDepleted = isEnergyDepleted ? currentEnergy <= _maxEnergy : currentEnergy <= 0;
         }
 
         /// <summary>
@@ -73,7 +73,7 @@ namespace LearningAIGame.CombatSystem
         {
             lastEnergy = maxEnergy;
             currentEnergy = maxEnergy;
-            this.maxEnergy = maxEnergy;
+            this._maxEnergy = maxEnergy;
             isEnergyDepleted = false;
             energyPercentage = 1;
         }
@@ -91,41 +91,24 @@ namespace LearningAIGame.CombatSystem
         /// <summary>
         /// エネルギー状態
         /// </summary>
-        private EnergyData currentEnergyData;
+        private EnergyData _currentEnergyData;
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("最大エネルギー量")]
+        [Tooltip("最大エネルギー量")]
         public float MaxEnergy { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; }
 
-        [ShowInInspector, ReadOnly]
-        [PropertyTooltip("現在の回復速度")]
+        [Tooltip("現在の回復速度")]
         public float CurrentRecoveryRate { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; }
 
         // 内部状態
-        private bool wasEnergyDepleted = false;
-        private float energyRecoveryMultiplier = 1;
-        private float energyRecoveryBonusEndTime = 0;
+        private bool _wasEnergyDepleted = false;
+        private float _energyRecoveryMultiplier = 1;
+        private float _energyRecoveryBonusEndTime = 0;
 
-        /// <summary>
-        /// 初期化処理
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void Awake()
-        {
-            // 他のシステムの参照取得は OnInitialized で行う
-        }
 
         protected override void OnInitialized()
         {
-
-            if ( Settings?.energy == null )
-            {
-                DebugLogError("EnergySettingsが見つかりません");
-                return;
-            }
-
             InitializeEnergy();
-            currentEnergyData = new EnergyData(MaxEnergy);
+            _currentEnergyData = new EnergyData(MaxEnergy);
         }
 
         #region Public Methods
@@ -139,11 +122,11 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool UseEnergy(float amount)
         {
-            if ( !currentEnergyData.isEnergyDepleted )
+            if (!_currentEnergyData.isEnergyDepleted)
                 return false;
 
-            currentEnergyData.UpdateEnergy(-1 * amount);
-            NotifyObservers(currentEnergyData);
+            _currentEnergyData.UpdateEnergy(-1 * amount);
+            NotifyObservers(_currentEnergyData);
             return true;
         }
 
@@ -155,8 +138,8 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool RecoverEnergy(float amount)
         {
-            currentEnergyData.UpdateEnergy(amount);
-            NotifyObservers(currentEnergyData);
+            _currentEnergyData.UpdateEnergy(amount);
+            NotifyObservers(_currentEnergyData);
             return true;
         }
 
@@ -167,8 +150,8 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetEnergy(float amount)
         {
-            currentEnergyData.SetEnergy(Mathf.Clamp(amount, 0f, MaxEnergy));
-            NotifyObservers(currentEnergyData);
+            _currentEnergyData.SetEnergy(Mathf.Clamp(amount, 0f, MaxEnergy));
+            NotifyObservers(_currentEnergyData);
         }
 
         /// <summary>
@@ -179,8 +162,8 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ApplyEnergyRecoveryBonus(float multiplier, float duration)
         {
-            energyRecoveryMultiplier = multiplier;
-            energyRecoveryBonusEndTime = Time.time + duration;
+            _energyRecoveryMultiplier = multiplier;
+            _energyRecoveryBonusEndTime = Time.time + duration;
         }
 
         /// <summary>
@@ -189,29 +172,26 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UpdateEnergyRecovery()
         {
-            if ( stateSystem.IsEnergyRecoveryPaused )
-                return;
-
             // 回復速度の決定
-            float baseRecoveryRate = currentEnergyData.isEnergyDepleted ?
+            float baseRecoveryRate = _currentEnergyData.isEnergyDepleted ?
                 Settings.energy.fastRecoveryRate : Settings.energy.normalRecoveryRate;
 
             // ボーナス倍率の適用
-            if ( Time.time < energyRecoveryBonusEndTime )
+            if (Time.time < _energyRecoveryBonusEndTime)
             {
-                CurrentRecoveryRate = baseRecoveryRate * energyRecoveryMultiplier;
+                CurrentRecoveryRate = baseRecoveryRate * _energyRecoveryMultiplier;
             }
             else
             {
                 CurrentRecoveryRate = baseRecoveryRate;
-                energyRecoveryMultiplier = 1f;
+                _energyRecoveryMultiplier = 1f;
             }
 
             // エネルギー回復実行
-            if ( currentEnergyData.currentEnergy < MaxEnergy )
+            if (_currentEnergyData.currentEnergy < MaxEnergy)
             {
-                currentEnergyData.UpdateEnergy(CurrentRecoveryRate * Time.deltaTime);
-                NotifyObservers(currentEnergyData);
+                _currentEnergyData.UpdateEnergy(CurrentRecoveryRate * Time.deltaTime);
+                NotifyObservers(_currentEnergyData);
             }
         }
 
@@ -226,7 +206,7 @@ namespace LearningAIGame.CombatSystem
         private void InitializeEnergy()
         {
             MaxEnergy = Settings.energy.maxEnergy;
-            currentEnergyData = new EnergyData(MaxEnergy);
+            _currentEnergyData = new EnergyData(MaxEnergy);
             CurrentRecoveryRate = Settings.energy.normalRecoveryRate;
         }
 
@@ -247,88 +227,6 @@ namespace LearningAIGame.CombatSystem
         {
             Debug.Log($"{gameObject.name}: エネルギー全回復 - 制限モード解除");
         }
-
-        #endregion
-
-        #region Debug Methods
-
-        [Title("デバッグ機能")]
-        [Button("エネルギー全回復", ButtonSizes.Medium)]
-        [GUIColor(0.8f, 1f, 0.8f)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void DebugFullRecover()
-        {
-            SetEnergy(MaxEnergy);
-            Debug.Log($"{gameObject.name}: エネルギーを全回復しました");
-        }
-
-        [Button("エネルギー枯渇", ButtonSizes.Medium)]
-        [GUIColor(1f, 0.8f, 0.8f)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void DebugDepleteFully()
-        {
-            SetEnergy(0f);
-            Debug.Log($"{gameObject.name}: エネルギーを枯渇させました");
-        }
-
-        [Button("回復ボーナス付与", ButtonSizes.Medium)]
-        [GUIColor(0.8f, 0.8f, 1f)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void DebugApplyRecoveryBonus()
-        {
-            ApplyEnergyRecoveryBonus(2f, 5f);
-            Debug.Log($"{gameObject.name}: 5秒間2倍回復ボーナスを適用しました");
-        }
-
-        [ShowInInspector, PropertyRange(0, 1)]
-        [PropertyTooltip("デバッグ用エネルギー設定")]
-        private float debugEnergyPercentage = 1f;
-
-        [Button("デバッグエネルギー設定", ButtonSizes.Medium)]
-        [GUIColor(1f, 1f, 0.8f)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void DebugSetEnergyPercentage()
-        {
-            SetEnergy(MaxEnergy * debugEnergyPercentage);
-            Debug.Log($"{gameObject.name}: エネルギーを{debugEnergyPercentage:P0}に設定しました");
-        }
-
-        #endregion
-
-        #region SRDebugger Integration
-
-        [System.ComponentModel.Category("SRDebugger - エネルギー")]
-        public float DebugCurrentEnergy
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => currentEnergyData.currentEnergy;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set => SetEnergy(value);
-        }
-
-        [System.ComponentModel.Category("SRDebugger - エネルギー")]
-        public float DebugRecoveryRate
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => CurrentRecoveryRate;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set => CurrentRecoveryRate = value;
-        }
-
-        [System.ComponentModel.Category("SRDebugger - エネルギー")]
-        public bool DebugIsEnergyDepleted
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => currentEnergyData.isEnergyDepleted;
-        }
-
-        [System.ComponentModel.Category("SRDebugger - エネルギー")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DebugForceDepletion() => DebugDepleteFully();
-
-        [System.ComponentModel.Category("SRDebugger - エネルギー")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DebugForceRecovery() => DebugFullRecover();
 
         #endregion
     }
