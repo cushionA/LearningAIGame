@@ -18,11 +18,6 @@
 # Recordings can get excessive in size
 /[Rr]ecordings/
 
-# Ignore all Assets except MyAsset folder
-/[Aa]ssets/*
-!/[Aa]ssets/[Mm]y[Aa]sset/
-!/[Aa]ssets/[Mm]y[Aa]sset/**
-
 # Visual Studio cache directory
 .vs/
 
