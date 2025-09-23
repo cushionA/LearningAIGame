@@ -107,8 +107,6 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void Update()
         {
-            UpdateBlockWindow();
-            UpdateGuardEnergyBonus();
             UpdateEnergyShieldDurability(); // エネルギーシールド耐久値更新
         }
 
@@ -148,30 +146,30 @@ namespace LearningAIGame.CombatSystem
 
         }
 
-        /// <summary>
-        /// 攻撃を受けた時の防御判定（修正版）
-        /// エネルギー切れ状態の正しい判定を追加
-        /// </summary>
-        /// <param name="attackInfo">攻撃情報</param>
-        /// <returns>防御結果</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public DamageResult ProcessDefense(AttackInfo attackInfo)
-        {
-            // ブロッキング判定（最優先）
-            if (IsInBlockWindow && CanBlockAttack(attackInfo))
-            {
-                return ProcessBlockingSuccess(attackInfo);
-            }
+        ///// <summary>
+        ///// 攻撃を受けた時の防御判定（修正版）
+        ///// エネルギー切れ状態の正しい判定を追加
+        ///// </summary>
+        ///// <param name="attackInfo">攻撃情報</param>
+        ///// <returns>防御結果</returns>
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public DamageResult ProcessDefense(AttackData attackInfo)
+        //{
+        //    // ブロッキング判定（最優先）
+        //    if (IsInBlockWindow && CanBlockAttack(attackInfo))
+        //    {
+        //        return ProcessBlockingSuccess(attackInfo);
+        //    }
 
-            // ガード判定
-            if (IsGuarding && CanGuardAttack(attackInfo))
-            {
-                return ProcessGuardSuccess(attackInfo);
-            }
+        //    // ガード判定
+        //    if (IsGuarding && CanGuardAttack(attackInfo))
+        //    {
+        //        return ProcessGuardSuccess(attackInfo);
+        //    }
 
-            // 防御失敗
-            return ProcessDefenseFailure(attackInfo);
-        }
+        //    // 防御失敗
+        //    return ProcessDefenseFailure(attackInfo);
+        //}
 
         #region エネルギー切れシールド管理（修正版）
 
@@ -235,228 +233,7 @@ namespace LearningAIGame.CombatSystem
             }
         }
 
-
         #endregion エネルギー切れシールド管理
-
-        #endregion
-
-        #region Private Defense Processing Methods
-
-        /// <summary>
-        /// ブロッキング成功処理
-        /// エネルギー回復はStateSystemでする
-        /// </summary>
-        /// <param name="attackInfo">攻撃情報</param>
-        /// <returns>ダメージ結果</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private DamageResult ProcessBlockingSuccess(AttackInfo attackInfo)
-        {
-            IsInBlockWindow = false;
-
-            // 射撃攻撃に対するブロッキングは移動効果
-            if (IsRangedAttack(attackInfo.attackType))
-            {
-                ExecuteBlockMovement();
-            }
-
-            return new DamageResult
-            {
-                actualDamage = 0f,
-                stunAccumulation = 0f,
-                energyDamage = 0f,
-                wasHit = false,
-                wasGuarded = false,
-                wasBlocked = true,
-                wasJustDodged = false,
-                causedStun = false,
-                hitPosition = transform.position,
-                hitDirection = Vector3.zero
-            };
-        }
-
-        /// <summary>
-        /// ガード成功処理
-        /// </summary>
-        /// <param name="attackInfo">攻撃情報</param>
-        /// <returns>ダメージ結果</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private DamageResult ProcessGuardSuccess(AttackInfo attackInfo)
-        {
-            float damage = 0f;
-            float stunAccumulation = 0f;
-
-            // 強攻撃はガードしても怯み発生
-            if (attackInfo.attackType == AttackType.StrongMelee || attackInfo.attackType == AttackType.StrongShoot)
-            {
-                damage = attackInfo.baseDamage * 0.3f; // 軽減ダメージ
-                stunAccumulation = attackInfo.stunAccumulation * 0.5f;
-            }
-            else
-            {
-                // 弱攻撃は完全ガード + エネルギーボーナス
-                ApplyGuardEnergyBonus();
-            }
-
-            return new DamageResult
-            {
-                actualDamage = damage,
-                stunAccumulation = stunAccumulation,
-                energyDamage = 0f,
-                wasHit = damage > 0f,
-                wasGuarded = true,
-                wasBlocked = false,
-                wasJustDodged = false,
-                causedStun = false,
-                hitPosition = transform.position,
-                hitDirection = Vector3.zero
-            };
-        }
-
-        /// <summary>
-        /// 防御失敗処理
-        /// </summary>
-        /// <param name="attackInfo">攻撃情報</param>
-        /// <returns>ダメージ結果</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private DamageResult ProcessDefenseFailure(AttackInfo attackInfo)
-        {
-            float damage = attackInfo.baseDamage;
-            float stunAccumulation = attackInfo.stunAccumulation;
-
-            // ブロッキング失敗ペナルティ
-            if (IsInBlockWindow)
-            {
-                damage *= Settings.defense.blockFailDamageMultiplier;
-                IsInBlockWindow = false;
-            }
-
-            return new DamageResult
-            {
-                actualDamage = damage,
-                stunAccumulation = stunAccumulation,
-                energyDamage = attackInfo.energyDamage,
-                wasHit = true,
-                wasGuarded = false,
-                wasBlocked = false,
-                wasJustDodged = false,
-                hitPosition = transform.position,
-                hitDirection = Vector3.forward // 簡易的な方向
-            };
-        }
-
-        #endregion
-
-        #region Private Helper Methods
-
-        /// <summary>
-        /// 攻撃をブロッキングできるかどうか
-        /// </summary>
-        /// <param name="attackInfo">攻撃情報</param>
-        /// <returns>ブロッキング可能かどうか</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool CanBlockAttack(AttackInfo attackInfo)
-        {
-            return attackInfo.canBeBlocked &&
-                   _lastBlockDirection == attackInfo.direction &&
-                   (Time.time - _blockWindowStartTime) <= 0.2f;
-        }
-
-        /// <summary>
-        /// 攻撃をガードできるかどうか
-        /// </summary>
-        /// <param name="attackInfo">攻撃情報</param>
-        /// <returns>ガード可能かどうか</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool CanGuardAttack(AttackInfo attackInfo)
-        {
-            return attackInfo.canBeGuarded &&
-                   GuardDirection == attackInfo.direction;
-        }
-
-        /// <summary>
-        /// 遠距離攻撃かどうか
-        /// </summary>
-        /// <param name="attackType">攻撃タイプ</param>
-        /// <returns>遠距離攻撃かどうか</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool IsRangedAttack(AttackType attackType)
-        {
-            return attackType == AttackType.WeakShoot ||
-                   attackType == AttackType.StrongShoot;
-        }
-
-        /// <summary>
-        /// ガードエネルギーボーナスを適用
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void ApplyGuardEnergyBonus()
-        {
-            HasGuardEnergyBonus = true;
-            _guardEnergyBonusEndTime = Time.time + Settings.defense.guardEnergyBonusTime;
-        }
-
-        /// <summary>
-        /// ブロッキング移動を実行
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void ExecuteBlockMovement()
-        {
-            Vector3 moveDirection = GetBlockMoveDirection();
-            transform.position += moveDirection * Settings.defense.blockMoveDistance;
-        }
-
-        /// <summary>
-        /// ブロッキング移動方向を取得
-        /// </summary>
-        /// <returns>移動方向</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private Vector3 GetBlockMoveDirection()
-        {
-            return _lastBlockDirection switch
-            {
-                AttackDirection.Up => transform.forward,
-                AttackDirection.Left => -transform.right,
-                AttackDirection.Right => transform.right,
-                _ => transform.forward
-            };
-        }
-
-        /// <summary>
-        /// ブロッキングウィンドウの更新
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UpdateBlockWindow()
-        {
-            if (IsInBlockWindow && (Time.time - _blockWindowStartTime) > 0.2f)
-            {
-                OnBlockWindowEnd();
-            }
-        }
-
-        /// <summary>
-        /// ブロッキングウィンドウ終了時の処理
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void OnBlockWindowEnd()
-        {
-            if (IsInBlockWindow)
-            {
-                IsInBlockWindow = false;
-                // ブロッキング失敗ペナルティは実際の被弾時に適用
-            }
-        }
-
-        /// <summary>
-        /// ガードエネルギーボーナスの更新
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UpdateGuardEnergyBonus()
-        {
-            if (HasGuardEnergyBonus && Time.time >= _guardEnergyBonusEndTime)
-            {
-                HasGuardEnergyBonus = false;
-            }
-        }
 
         #endregion
     }
