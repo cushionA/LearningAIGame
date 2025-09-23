@@ -64,9 +64,9 @@ Assets/Scripts/
 
 ### 開発ガイドライン
 
-- **Git規約:** [リンク]([https://www.conventionalcommits.org/](https://github.com/cushionA/LearningAIGame/blob/main/%E4%BB%95%E6%A7%98%E6%9B%B8/GitHub%E9%81%8B%E7%94%A8%E3%83%9E%E3%83%8B%E3%83%A5%E3%82%A2%E3%83%AB.md))
+- **Git規約:** [リンク](https://github.com/cushionA/LearningAIGame/blob/main/%E4%BB%95%E6%A7%98%E6%9B%B8/GitHub%E9%81%8B%E7%94%A8%E3%83%9E%E3%83%8B%E3%83%A5%E3%82%A2%E3%83%AB.md)
 - **コードスタイル:** Unity標準 + EditorConfig準拠
-- **コーディング規約:** [リンク]([https://github.com/cushionA/LearningAIGame/blob/main/%E4%BB%95%E6%A7%98%E6%9B%B8/%E3%82%B3%E3%83%BC%E3%83%87%E3%82%A3%E3%83%B3%E3%82%B0%E8%A6%8F%E7%B4%84.md])
+- **コーディング規約:** [リンク](https://github.com/cushionA/LearningAIGame/blob/main/%E4%BB%95%E6%A7%98%E6%9B%B8/%E3%82%B3%E3%83%BC%E3%83%87%E3%82%A3%E3%83%B3%E3%82%B0%E8%A6%8F%E7%B4%84.md)
 
 ## ライセンス
 このプロジェクトは [MIT License](LICENSE) の下で公開されています。
