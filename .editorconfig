@@ -1,0 +1,262 @@
+### Unity プロジェクト専用 .editorconfig
+
+```ini
+# 上位ディレクトリから .editorconfig 設定を継承する場合は、以下の行を削除します
+root = true
+
+# C# ファイル
+[*.cs]
+# ファイルヘッダテンプレート
+file_header_template = =====================================================================================================================\nLearningAIGame\n\n概要: {概要}\n\n制作者: {制作者}\n\n機能説明:\n{機能説明}\n\n入力先クラス:\n出力先クラス:\n\nその他:\n{その他}\n=====================================================================================================================
+
+
+#### コア EditorConfig オプション ####
+
+# インデントと間隔
+indent_size = 4
+indent_style = space
+tab_width = 4
+
+# 改行設定
+end_of_line = crlf
+insert_final_newline = false
+
+######################### Unity Performance Rules #########################
+
+### Unity Analyzers ###
+# UNT0001: 空の Unity メソッド (Start, Update等を削除)
+dotnet_diagnostic.UNT0001.severity = error
+
+# UNT0002: 非効率なタグ比較 (CompareTag()を使用)
+dotnet_diagnostic.UNT0002.severity = error
+
+# UNT0006: 不正な MonoBehaviour インスタンス化
+dotnet_diagnostic.UNT0006.severity = error
+
+# UNT0007: Unity オブジェクトでの null 結合演算子 (??)
+dotnet_diagnostic.UNT0007.severity = error
+
+# UNT0008: Unity オブジェクトでの null 伝播演算子 (?.)
+dotnet_diagnostic.UNT0008.severity = error
+
+# UNT0010: Component.gameObject.GetComponent の非効率な使用
+dotnet_diagnostic.UNT0010.severity = error
+
+# UNT0017: SetPixels の低速な呼び出し (SetPixels32を推奨)
+dotnet_diagnostic.UNT0017.severity = error
+
+### メモリ・GC最適化ルール ###
+# CA1825: 長さゼロの配列にはArray.Empty<T>()を使用
+dotnet_diagnostic.CA1825.severity = error
+
+# CA1826: インデクサーが使える場合は使用 (First()→[0])
+dotnet_diagnostic.CA1826.severity = error
+
+# CA1827: Count() > 0 の代わりに Any() を使用
+dotnet_diagnostic.CA1827.severity = error
+
+# CA1829: Count()の代わりにLength/Countプロパティを使用
+dotnet_diagnostic.CA1829.severity = error
+
+######################### その他のUnity推奨設定 #########################
+
+# Unity固有の警告を抑制
+dotnet_diagnostic.IDE0051.severity = none  # Unity メソッドの未使用警告を無効化
+dotnet_diagnostic.IDE0052.severity = none  # SerializeField の未読警告を無効化
+dotnet_diagnostic.CS0649.severity = none   # Unity シリアライズフィールドの警告を無効化
+
+#### .NET コーディング規則 ####
+
+# using の整理
+dotnet_separate_import_directive_groups = false
+dotnet_sort_system_directives_first = false
+
+# this. と Me. の設定
+dotnet_style_qualification_for_event = true
+dotnet_style_qualification_for_field = true
+dotnet_style_qualification_for_method = true
+dotnet_style_qualification_for_property = true
+
+# 言語キーワードと BCL の種類の設定
+dotnet_style_predefined_type_for_locals_parameters_members = true
+dotnet_style_predefined_type_for_member_access = true
+
+# かっこの設定
+dotnet_style_parentheses_in_arithmetic_binary_operators = always_for_clarity
+dotnet_style_parentheses_in_other_binary_operators = always_for_clarity
+dotnet_style_parentheses_in_other_operators = never_if_unnecessary
+dotnet_style_parentheses_in_relational_binary_operators = always_for_clarity
+
+# 修飾子設定
+dotnet_style_require_accessibility_modifiers = for_non_interface_members
+
+# 式レベルの設定
+dotnet_style_coalesce_expression = true
+dotnet_style_collection_initializer = true
+dotnet_style_explicit_tuple_names = true
+dotnet_style_namespace_match_folder = true
+dotnet_style_null_propagation = true
+dotnet_style_object_initializer = true
+dotnet_style_prefer_auto_properties = true
+dotnet_style_prefer_conditional_expression_over_assignment = true
+dotnet_style_prefer_conditional_expression_over_return = true
+dotnet_style_prefer_inferred_anonymous_type_member_names = true
+dotnet_style_prefer_inferred_tuple_names = true
+dotnet_style_prefer_is_null_check_over_reference_equality_method = true
+dotnet_style_prefer_simplified_boolean_expressions = true
+dotnet_style_readonly_field = true
+
+#### C# コーディング規則 ####
+
+# var を優先しない（型を明示）
+csharp_style_var_elsewhere = false:silent
+csharp_style_var_for_built_in_types = false:silent
+csharp_style_var_when_type_is_apparent = false:silent
+
+# 式のようなメンバー
+csharp_style_expression_bodied_accessors = true:silent
+csharp_style_expression_bodied_constructors = false:silent
+csharp_style_expression_bodied_properties = true:silent
+csharp_style_expression_bodied_methods = false:silent
+
+# パターン マッチング設定
+csharp_style_pattern_matching_over_as_with_null_check = true:suggestion
+csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
+csharp_style_prefer_not_pattern = true:suggestion
+
+# Null チェック設定
+csharp_style_conditional_delegate_call = true:suggestion
+
+# 修飾子設定
+csharp_preferred_modifier_order = public,private,protected,internal,static,extern,new,virtual,abstract,sealed,override,readonly,unsafe,volatile,async
+
+# コード ブロックの設定
+csharp_prefer_braces = true:silent
+csharp_prefer_simple_using_statement = true:suggestion
+csharp_style_namespace_declarations = block_scoped:silent
+
+# 式レベルの設定
+csharp_prefer_simple_default_expression = true:suggestion
+csharp_style_inlined_variable_declaration = true:suggestion
+csharp_style_prefer_index_operator = true:suggestion
+csharp_style_prefer_null_check_over_type_check = true:suggestion
+csharp_style_prefer_range_operator = true:suggestion
+csharp_style_throw_expression = true:suggestion
+csharp_style_unused_value_assignment_preference = discard_variable:warning
+
+# 'using' ディレクティブの基本設定
+csharp_using_directive_placement = outside_namespace:silent
+
+#### C# 書式ルール ####
+
+# 改行設定
+csharp_new_line_before_catch = true
+csharp_new_line_before_else = true
+csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_anonymous_types = true
+csharp_new_line_before_members_in_object_initializers = true
+csharp_new_line_before_open_brace = all
+csharp_new_line_between_query_expression_clauses = true
+
+# インデント設定
+csharp_indent_block_contents = true
+csharp_indent_braces = false
+csharp_indent_case_contents = true
+csharp_indent_case_contents_when_block = true
+csharp_indent_labels = no_change
+csharp_indent_switch_labels = true
+
+# スペース設定
+csharp_space_after_cast = false
+csharp_space_after_colon_in_inheritance_clause = true
+csharp_space_after_comma = true
+csharp_space_after_dot = false
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_after_semicolon_in_for_statement = true
+csharp_space_around_binary_operators = before_and_after
+csharp_space_around_declaration_statements = false
+csharp_space_before_colon_in_inheritance_clause = true
+csharp_space_before_comma = false
+csharp_space_before_dot = false
+csharp_space_before_open_square_brackets = false
+csharp_space_before_semicolon_in_for_statement = false
+csharp_space_between_empty_square_brackets = false
+csharp_space_between_method_call_empty_parameter_list_parentheses = false
+csharp_space_between_method_call_name_and_opening_parenthesis = false
+csharp_space_between_method_call_parameter_list_parentheses = false
+csharp_space_between_method_declaration_empty_parameter_list_parentheses = false
+csharp_space_between_method_declaration_name_and_open_parenthesis = false
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+csharp_space_between_parentheses = false
+csharp_space_between_square_brackets = false
+
+# 折り返しの設定
+csharp_preserve_single_line_blocks = true
+csharp_preserve_single_line_statements = false
+
+#### 命名スタイル ####
+
+# インターフェースは I で始める
+dotnet_naming_rule.interface_should_be_begins_with_i.severity = error
+dotnet_naming_rule.interface_should_be_begins_with_i.symbols = interface
+dotnet_naming_rule.interface_should_be_begins_with_i.style = begins_with_i
+
+dotnet_naming_symbols.interface.applicable_kinds = interface
+dotnet_naming_symbols.interface.applicable_accessibilities = public, internal, private, protected, protected_internal, private_protected
+
+dotnet_naming_style.begins_with_i.required_prefix = I
+dotnet_naming_style.begins_with_i.capitalization = pascal_case
+
+# 型は PascalCase
+dotnet_naming_rule.types_should_be_pascal_case.severity = error
+dotnet_naming_rule.types_should_be_pascal_case.symbols = types
+dotnet_naming_rule.types_should_be_pascal_case.style = pascal_case
+
+dotnet_naming_symbols.types.applicable_kinds = class, struct, interface, enum
+dotnet_naming_symbols.types.applicable_accessibilities = public, internal, private, protected, protected_internal, private_protected
+
+# プロパティ・メソッドは PascalCase
+dotnet_naming_rule.non_field_members_should_be_pascal_case.severity = error
+dotnet_naming_rule.non_field_members_should_be_pascal_case.symbols = non_field_members
+dotnet_naming_rule.non_field_members_should_be_pascal_case.style = pascal_case
+
+dotnet_naming_symbols.non_field_members.applicable_kinds = property, event, method
+dotnet_naming_symbols.non_field_members.applicable_accessibilities = public, internal, private, protected, protected_internal, private_protected
+
+# プライベートフィールドは _ で始まる camelCase
+dotnet_naming_rule.private_fields_should_be_camel_case_with_underscore.severity = error
+dotnet_naming_rule.private_fields_should_be_camel_case_with_underscore.symbols = private_fields
+dotnet_naming_rule.private_fields_should_be_camel_case_with_underscore.style = camel_case_with_underscore
+
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+
+dotnet_naming_style.camel_case_with_underscore.capitalization = camel_case
+dotnet_naming_style.camel_case_with_underscore.required_prefix = _
+
+# プライベート定数は k_ で始まる PascalCase
+dotnet_naming_rule.private_constants_should_be_prefixed.severity = error
+dotnet_naming_rule.private_constants_should_be_prefixed.symbols = private_constants
+dotnet_naming_rule.private_constants_should_be_prefixed.style = constant_style
+
+dotnet_naming_symbols.private_constants.applicable_kinds = field
+dotnet_naming_symbols.private_constants.applicable_accessibilities = private
+dotnet_naming_symbols.private_constants.required_modifiers = const
+
+dotnet_naming_style.constant_style.capitalization = pascal_case
+dotnet_naming_style.constant_style.required_prefix = k_
+
+# 共通スタイル
+dotnet_naming_style.pascal_case.capitalization = pascal_case
+
+# 生成コードの除外
+[Assets/TextMeshPro/**.cs]
+generated_code = true
+
+[Packages/**.cs]
+generated_code = true
+
+[*.json]
+indent_style = space
+indent_size = 2
+```
