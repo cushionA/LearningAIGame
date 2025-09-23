@@ -41,7 +41,6 @@ namespace LearningAIGame.CombatSystem
         public float MaxEnergy { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; }
         public CharacterState CurrentState { [MethodImpl(MethodImplOptions.AggressiveInlining)] get; private set; }
 
-        public OpponentDataProvider OpponentData { get; private set; }
         public Vector3 Position
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -402,43 +401,6 @@ namespace LearningAIGame.CombatSystem
             return energySystem.UseEnergy(amount);
         }
 
-        /// <summary>
-        /// ダメージを受ける
-        /// </summary>
-        /// <param name="damage">ダメージ量</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void TakeDamage(float damage)
-        {
-            //healthSystem.TakeDamage(damage);
-        }
-
-        /// <summary>
-        /// 攻撃結果を受け取る
-        /// </summary>
-        /// <param name="result">攻撃結果</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ReceiveAttack(DamageResult result)
-        {
-            //healthSystem.ProcessDamageResult(result);
-        }
-
-        /// <summary>
-        /// 攻撃結果の通知を受け取る（攻撃側）
-        /// </summary>
-        /// <param name="result">攻撃結果</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void OnAttackResult(DamageResult result)
-        {
-            if (result.wasHit)
-            {
-                OnActionSucceeded(ActionType.WeakAttack); // 基本的に成功扱い
-            }
-            else
-            {
-                OnActionFailed(ActionType.WeakAttack);
-            }
-        }
-
         #endregion
 
         #region Protected Helper Methods
@@ -468,7 +430,8 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected float GetDistanceToOpponent()
         {
-            return positionCache.DistanceTo(OpponentData.Position);
+            return 0;
+            //return positionCache.DistanceTo();
         }
 
         /// <summary>
@@ -478,7 +441,7 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected Vector3 GetDirectionToOpponent()
         {
-            return positionCache.DirectionTo(OpponentData.Position);
+            return positionCache.DirectionTo(this.transform.position);
         }
 
         /// <summary>
@@ -488,17 +451,6 @@ namespace LearningAIGame.CombatSystem
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected AttackDirection GetOptimalAttackDirection()
         {
-            // 相手の防御方向と異なる方向を選択
-            var opponentDirection = OpponentData.CurrentDirection;
-            var possibleDirections = new[] { AttackDirection.Up, AttackDirection.Left, AttackDirection.Right };
-
-            foreach (var direction in possibleDirections)
-            {
-                if (direction != opponentDirection)
-                {
-                    return direction;
-                }
-            }
 
             return AttackDirection.Up; // フォールバック
         }
@@ -516,14 +468,13 @@ namespace LearningAIGame.CombatSystem
 
         /// <summary>
         /// 対戦相手が脆弱な状態かどうか
+        /// 怯みやスタン、空振り後など
         /// </summary>
         /// <returns>脆弱状態かどうか</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected bool IsOpponentVulnerable()
         {
-            return OpponentData.IsStunned ||
-                   OpponentData.CurrentState == ActionState.Attacking ||
-                   OpponentData.EnergyPercentage < 0.1f;
+            return false;
         }
 
         /// <summary>
@@ -563,7 +514,7 @@ namespace LearningAIGame.CombatSystem
             Vector3 escapeDirection = -GetDirectionToOpponent();
             if (CanExecuteAction(ActionType.Dodge))
             {
-                ExecuteDodge(escapeDirection);
+                //ExecuteDodge(escapeDirection);
             }
             else
             {
@@ -653,11 +604,6 @@ namespace LearningAIGame.CombatSystem
             if (Settings == null)
             {
                 Debug.LogError($"{gameObject.name}: CharacterSettingsが設定されていません");
-            }
-
-            if (OpponentData == null)
-            {
-                Debug.LogError($"{gameObject.name}: OpponentDataProviderが設定されていません");
             }
         }
 

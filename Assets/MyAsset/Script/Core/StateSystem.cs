@@ -294,34 +294,6 @@ namespace LearningAIGame.CombatSystem.Core
         }
 
         /// <summary>
-        /// マニューバシステムからの報告データ
-        /// </summary>
-        [System.Serializable]
-        public struct ManeuverReport
-        {
-            public bool isExecutingManeuver;
-            public int activeManeuverIndex;
-            public float[] cooldownTimes;
-            public bool[] availableStates;
-            public float maneuverStartTime;
-
-            public ManeuverReport(int maneuverCount)
-            {
-                isExecutingManeuver = false;
-                activeManeuverIndex = -1;
-                cooldownTimes = new float[maneuverCount];
-                availableStates = new bool[maneuverCount];
-                maneuverStartTime = 0f;
-
-                // 初期状態では全て利用可能
-                for (int i = 0; i < maneuverCount; i++)
-                {
-                    availableStates[i] = true;
-                }
-            }
-        }
-
-        /// <summary>
         /// 射撃システムからの報告データ
         /// </summary>
         [System.Serializable]
@@ -359,37 +331,34 @@ namespace LearningAIGame.CombatSystem.Core
         // 各システムからの報告データ保持
         [Header("報告データ保持")]
         [SerializeField, ReadOnly]
-        private StateReportData.MovementReport movementReport;
+        private StateReportData.MovementReport _movementReport;
 
         [SerializeField, ReadOnly]
-        private StateReportData.AttackReport attackReport;
+        private StateReportData.AttackReport _attackReport;
 
         [SerializeField, ReadOnly]
-        private StateReportData.DefenseReport defenseReport;
+        private StateReportData.DefenseReport _defenseReport;
 
         [SerializeField, ReadOnly]
-        private StateReportData.EnergyReport energyReport;
+        private StateReportData.EnergyReport _energyReport;
 
         [SerializeField, ReadOnly]
-        private StateReportData.HealthReport healthReport;
+        private StateReportData.HealthReport _healthReport;
 
         [SerializeField, ReadOnly]
-        private StateReportData.DirectionReport directionReport;
-
-        [SerializeField, ReadOnly]
-        private StateReportData.ManeuverReport maneuverReport;
+        private StateReportData.DirectionReport _directionReport;
 
         // 射撃関連は存在しないため削除
         // [SerializeField, ReadOnly]
         // private StateReportData.ShootingReport shootingReport;
 
         // BaseController向け通知用Subject
-        private readonly Subject<StateNotification> controllerNotificationSubject = new Subject<StateNotification>();
+        private readonly Subject<StateNotification> _controllerNotificationSubject = new Subject<StateNotification>();
 
         /// <summary>
         /// BaseControllerが購読するための通知Observable
         /// </summary>
-        public IObservable<StateNotification> ControllerNotifications => controllerNotificationSubject.AsObservable();
+        public IObservable<StateNotification> ControllerNotifications => _controllerNotificationSubject.AsObservable();
 
         #region 各システムからの報告受信メソッド
 
@@ -402,7 +371,7 @@ namespace LearningAIGame.CombatSystem.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReceiveMovementStateReport(bool isMoving, float speed, Vector3 direction)
         {
-            movementReport = new StateReportData.MovementReport(isMoving, speed, direction);
+            _movementReport = new StateReportData.MovementReport(isMoving, speed, direction);
 
             DebugLog($"移動状態報告受信 - 移動中: {isMoving}, 速度: {speed:F1}");
 
@@ -421,8 +390,8 @@ namespace LearningAIGame.CombatSystem.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReceiveGroundStateReport(bool isGrounded, float verticalVelocity)
         {
-            movementReport.isGrounded = isGrounded;
-            movementReport.verticalVelocity = verticalVelocity;
+            _movementReport.isGrounded = isGrounded;
+            _movementReport.verticalVelocity = verticalVelocity;
 
             DebugLog($"接地状態報告受信 - 接地: {isGrounded}, 垂直速度: {verticalVelocity:F1}");
 
@@ -437,7 +406,7 @@ namespace LearningAIGame.CombatSystem.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReceiveBoostStateReport(bool isBoosting)
         {
-            movementReport.isBoosting = isBoosting;
+            _movementReport.isBoosting = isBoosting;
 
             DebugLog($"ブースト状態報告受信 - ブースト中: {isBoosting}");
 
@@ -451,8 +420,8 @@ namespace LearningAIGame.CombatSystem.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReceiveDodgeExecutedReport()
         {
-            movementReport.dodgeExecuted = true;
-            movementReport.lastDodgeTime = Time.time;
+            _movementReport.dodgeExecuted = true;
+            _movementReport.lastDodgeTime = Time.time;
 
             DebugLog("回避実行報告受信");
 
@@ -474,9 +443,9 @@ namespace LearningAIGame.CombatSystem.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReceiveAttackStateReport(bool isAttacking, AttackType attackType, AttackDirection direction, int comboCount, bool isAirAttack)
         {
-            var previousComboCount = attackReport.comboCount;
+            var previousComboCount = _attackReport.comboCount;
 
-            attackReport = new StateReportData.AttackReport(isAttacking, attackType, direction)
+            _attackReport = new StateReportData.AttackReport(isAttacking, attackType, direction)
             {
                 comboCount = comboCount,
                 isAirAttack = isAirAttack
@@ -502,8 +471,8 @@ namespace LearningAIGame.CombatSystem.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReceiveAttackResultReport(bool attackHit, bool wasBlocked)
         {
-            attackReport.attackHit = attackHit;
-            attackReport.attackBlocked = wasBlocked;
+            _attackReport.attackHit = attackHit;
+            _attackReport.attackBlocked = wasBlocked;
 
             DebugLog($"攻撃結果報告受信 - 命中: {attackHit}, ブロック: {wasBlocked}");
         }
@@ -516,8 +485,8 @@ namespace LearningAIGame.CombatSystem.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReceiveSkillCooldownReport(int skillIndex, float cooldownTime)
         {
-            attackReport.skillIndex = skillIndex;
-            attackReport.skillCooldown = cooldownTime;
+            _attackReport.skillIndex = skillIndex;
+            _attackReport.skillCooldown = cooldownTime;
 
             DebugLog($"スキルクールダウン報告受信 - スキル{skillIndex}: {cooldownTime:F1}秒");
 
@@ -539,7 +508,7 @@ namespace LearningAIGame.CombatSystem.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReceiveGuardStateReport(bool isGuarding, AttackDirection direction)
         {
-            defenseReport = new StateReportData.DefenseReport(isGuarding, direction);
+            _defenseReport = new StateReportData.DefenseReport(isGuarding, direction);
 
             DebugLog($"ガード状態報告受信 - ガード中: {isGuarding}, 方向: {direction}");
 
@@ -556,10 +525,10 @@ namespace LearningAIGame.CombatSystem.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReceiveBlockingResultReport(bool isBlocking, bool success, AttackType blockedAttackType)
         {
-            defenseReport.isBlocking = isBlocking;
-            defenseReport.blockingSuccess = success;
-            defenseReport.blockingTimestamp = Time.time;
-            defenseReport.blockedAttackType = blockedAttackType;
+            _defenseReport.isBlocking = isBlocking;
+            _defenseReport.blockingSuccess = success;
+            _defenseReport.blockingTimestamp = Time.time;
+            _defenseReport.blockedAttackType = blockedAttackType;
 
             DebugLog($"ブロッキング結果報告受信 - ブロッキング中: {isBlocking}, 成功: {success}");
 
@@ -587,7 +556,7 @@ namespace LearningAIGame.CombatSystem.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReceiveGuardBrokenReport(bool isGuardBroken)
         {
-            defenseReport.guardBroken = isGuardBroken;
+            _defenseReport.guardBroken = isGuardBroken;
 
             DebugLog($"ガード破壊報告受信 - ガード破壊: {isGuardBroken}");
 
@@ -609,13 +578,13 @@ namespace LearningAIGame.CombatSystem.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReceiveEnergyChangeReport(float energyPercentage, float consumptionAmount = 0f)
         {
-            var previousPercentage = energyReport.currentPercentage;
-            var wasDepletedBefore = energyReport.isDepleted;
+            var previousPercentage = _energyReport.currentPercentage;
+            var wasDepletedBefore = _energyReport.isDepleted;
 
-            energyReport.previousPercentage = previousPercentage;
-            energyReport.currentPercentage = energyPercentage;
-            energyReport.isDepleted = energyPercentage <= 0f;
-            energyReport.consumptionAmount = consumptionAmount;
+            _energyReport.previousPercentage = previousPercentage;
+            _energyReport.currentPercentage = energyPercentage;
+            _energyReport.isDepleted = energyPercentage <= 0f;
+            _energyReport.consumptionAmount = consumptionAmount;
 
             DebugLog($"エネルギー変更報告受信 - {previousPercentage:P1} → {energyPercentage:P1}");
 
@@ -623,7 +592,7 @@ namespace LearningAIGame.CombatSystem.Core
             ProcessEnergyChange(energyPercentage);
 
             // エネルギー切れ突入通知
-            if (!wasDepletedBefore && energyReport.isDepleted)
+            if (!wasDepletedBefore && _energyReport.isDepleted)
             {
                 SendControllerNotification(new StateNotification(StateNotificationTrigger.EnergyDepleted, energyPercentage, 1.0f));
             }
@@ -641,8 +610,8 @@ namespace LearningAIGame.CombatSystem.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReceiveEnergyRecoveryPauseReport(float pauseDuration)
         {
-            energyReport.isRecoveryPaused = true;
-            energyReport.recoveryPauseEndTime = Time.time + pauseDuration;
+            _energyReport.isRecoveryPaused = true;
+            _energyReport.recoveryPauseEndTime = Time.time + pauseDuration;
 
             DebugLog($"エネルギー回復停止報告受信 - 停止期間: {pauseDuration:F1}秒");
 
@@ -665,11 +634,11 @@ namespace LearningAIGame.CombatSystem.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReceiveDamageReport(float currentHealth, float damageAmount, bool causesStun, bool isCritical, AttackDirection hitDirection)
         {
-            healthReport.previousHealth = healthReport.currentHealth;
-            healthReport.currentHealth = currentHealth;
-            healthReport.lastDamageAmount = damageAmount;
-            healthReport.lastHitWasCritical = isCritical;
-            healthReport.lastHitDirection = hitDirection;
+            _healthReport.previousHealth = _healthReport.currentHealth;
+            _healthReport.currentHealth = currentHealth;
+            _healthReport.lastDamageAmount = damageAmount;
+            _healthReport.lastHitWasCritical = isCritical;
+            _healthReport.lastHitDirection = hitDirection;
 
             DebugLog($"ダメージ報告受信 - 体力: {currentHealth:F0}, ダメージ: {damageAmount:F0}, スタン: {causesStun}");
 
@@ -677,7 +646,7 @@ namespace LearningAIGame.CombatSystem.Core
             ProcessDamageReceived(damageAmount, causesStun);
 
             // 体力危険レベル通知
-            float healthPercentage = currentHealth / healthReport.maxHealth;
+            float healthPercentage = currentHealth / _healthReport.maxHealth;
             if (healthPercentage <= 0.25f) // 25%以下で危険
             {
                 SendControllerNotification(new StateNotification(StateNotificationTrigger.HealthCritical, healthPercentage, 0.9f));
@@ -698,9 +667,9 @@ namespace LearningAIGame.CombatSystem.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReceiveStunStateReport(bool isStunned, float stunGauge)
         {
-            bool wasStunnedBefore = healthReport.isStunned;
-            healthReport.isStunned = isStunned;
-            healthReport.stunGauge = stunGauge;
+            bool wasStunnedBefore = _healthReport.isStunned;
+            _healthReport.isStunned = isStunned;
+            _healthReport.stunGauge = stunGauge;
 
             DebugLog($"スタン状態報告受信 - スタン中: {isStunned}, ゲージ: {stunGauge:F1}");
 
@@ -719,9 +688,9 @@ namespace LearningAIGame.CombatSystem.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReceiveInvincibilityReport(bool isInvincible, float timeRemaining)
         {
-            bool wasInvincibleBefore = healthReport.isInvincible;
-            healthReport.isInvincible = isInvincible;
-            healthReport.invincibilityTimeRemaining = timeRemaining;
+            bool wasInvincibleBefore = _healthReport.isInvincible;
+            _healthReport.isInvincible = isInvincible;
+            _healthReport.invincibilityTimeRemaining = timeRemaining;
 
             DebugLog($"無敵状態報告受信 - 無敵: {isInvincible}, 残り時間: {timeRemaining:F1}");
 
@@ -745,10 +714,10 @@ namespace LearningAIGame.CombatSystem.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReceiveDirectionChangeReport(AttackDirection newDirection, bool changeBlocked)
         {
-            directionReport.previousDirection = directionReport.currentDirection;
-            directionReport.currentDirection = newDirection;
-            directionReport.directionChangeBlocked = changeBlocked;
-            directionReport.lastChangeTime = Time.time;
+            _directionReport.previousDirection = _directionReport.currentDirection;
+            _directionReport.currentDirection = newDirection;
+            _directionReport.directionChangeBlocked = changeBlocked;
+            _directionReport.lastChangeTime = Time.time;
 
             DebugLog($"方向変更報告受信 - 方向: {newDirection}, 変更阻止: {changeBlocked}");
 
@@ -769,53 +738,9 @@ namespace LearningAIGame.CombatSystem.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReceiveDirectionAvailabilityReport(bool canChange)
         {
-            directionReport.canChangeDirection = canChange;
+            _directionReport.canChangeDirection = canChange;
 
             DebugLog($"方向変更可能性報告受信 - 変更可能: {canChange}");
-        }
-
-        /// <summary>
-        /// ManeuverSystemからのマニューバ実行報告
-        /// </summary>
-        /// <param name="isExecuting">マニューバ実行中かどうか</param>
-        /// <param name="maneuverIndex">実行中のマニューバインデックス</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ReceiveManeuverExecutionReport(bool isExecuting, int maneuverIndex)
-        {
-            maneuverReport.isExecutingManeuver = isExecuting;
-            maneuverReport.activeManeuverIndex = maneuverIndex;
-            if (isExecuting)
-            {
-                maneuverReport.maneuverStartTime = Time.time;
-            }
-
-            DebugLog($"マニューバ実行報告受信 - 実行中: {isExecuting}, インデックス: {maneuverIndex}");
-        }
-
-        /// <summary>
-        /// ManeuverSystemからのマニューバクールダウン報告
-        /// </summary>
-        /// <param name="maneuverIndex">マニューバインデックス</param>
-        /// <param name="cooldownTime">クールダウン時間</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ReceiveManeuverCooldownReport(int maneuverIndex, float cooldownTime)
-        {
-            if (maneuverIndex >= 0 && maneuverIndex < maneuverReport.cooldownTimes.Length)
-            {
-                maneuverReport.cooldownTimes[maneuverIndex] = cooldownTime;
-                maneuverReport.availableStates[maneuverIndex] = cooldownTime <= 0f;
-
-                DebugLog($"マニューバクールダウン報告受信 - マニューバ{maneuverIndex}: {cooldownTime:F1}秒");
-
-                // 状態更新
-                ProcessManeuverCooldownChange(maneuverIndex, cooldownTime);
-
-                // マニューバ使用可能通知
-                if (cooldownTime <= 0f)
-                {
-                    SendControllerNotification(new StateNotification(StateNotificationTrigger.ManeuverBecameAvailable, maneuverIndex, 0.5f));
-                }
-            }
         }
 
         /// <summary>
@@ -850,7 +775,7 @@ namespace LearningAIGame.CombatSystem.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SendControllerNotification(StateNotification notification)
         {
-            controllerNotificationSubject.OnNext(notification);
+            _controllerNotificationSubject.OnNext(notification);
             DebugLog($"Controller通知送信: {notification.trigger} (重要度: {notification.severity:F1})");
         }
 
@@ -1029,13 +954,12 @@ namespace LearningAIGame.CombatSystem.Core
         private void InitializeNotificationSystem()
         {
             // 報告データの初期化
-            movementReport = new StateReportData.MovementReport(false, 0f, Vector3.zero);
-            attackReport = new StateReportData.AttackReport(false, AttackType.None, AttackDirection.Up);
-            defenseReport = new StateReportData.DefenseReport(false, AttackDirection.Up);
-            energyReport = new StateReportData.EnergyReport(1f);
-            healthReport = new StateReportData.HealthReport(100f, 100f); // デフォルト値
-            directionReport = new StateReportData.DirectionReport(AttackDirection.Up);
-            maneuverReport = new StateReportData.ManeuverReport(4); // デフォルト4つのマニューバ
+            _movementReport = new StateReportData.MovementReport(false, 0f, Vector3.zero);
+            _attackReport = new StateReportData.AttackReport(false, AttackType.None, AttackDirection.Up);
+            _defenseReport = new StateReportData.DefenseReport(false, AttackDirection.Up);
+            _energyReport = new StateReportData.EnergyReport(1f);
+            _healthReport = new StateReportData.HealthReport(100f, 100f); // デフォルト値
+            _directionReport = new StateReportData.DirectionReport(AttackDirection.Up);
 
             DebugLog("通知システム初期化完了");
         }

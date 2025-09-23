@@ -177,25 +177,12 @@ namespace LearningAIGame.CombatSystem
         /// <param name="attackInfo">攻撃情報</param>
         /// <param name="startupTime">発生時間</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void StartAttack(AttackInfo attackInfo, float startupTime)
+        private void StartAttack(AttackData attackInfo, float startupTime)
         {
 
 
             // 攻撃終了時間
             UniRx.Observable.Timer(TimeSpan.FromSeconds(startupTime + 0.2f)).Subscribe(_ => StopAttack()).AddTo(disposables);
-        }
-
-        /// <summary>
-        /// 攻撃判定実行
-        /// </summary>
-        /// <param name="attackInfo">攻撃情報</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void ExecuteAttackHitCheck(AttackInfo attackInfo)
-        {
-            if (_meleeAttackCollider != null)
-            {
-                _meleeAttackCollider.ActivateAttack(attackInfo, characterController);
-            }
         }
 
         /// <summary>
@@ -254,7 +241,7 @@ namespace LearningAIGame.CombatSystem
     /// </summary>
     public class AttackCollider : MonoBehaviour
     {
-        private AttackInfo _currentAttackInfo;
+        private AttackData _currentAttackData;
         private BattleCharacterController _attackerController;
         private bool _isActive = false;
 
@@ -264,9 +251,9 @@ namespace LearningAIGame.CombatSystem
         /// <param name="attackInfo">攻撃情報</param>
         /// <param name="attacker">攻撃者</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ActivateAttack(AttackInfo attackInfo, BattleCharacterController attacker)
+        public void ActivateAttack(AttackData attackInfo, BattleCharacterController attacker)
         {
-            _currentAttackInfo = attackInfo;
+            _currentAttackData = attackInfo;
             _attackerController = attacker;
             _isActive = true;
         }
@@ -278,7 +265,6 @@ namespace LearningAIGame.CombatSystem
         public void DeactivateAttack()
         {
             _isActive = false;
-            _currentAttackInfo = null;
             _attackerController = null;
         }
 
@@ -292,10 +278,10 @@ namespace LearningAIGame.CombatSystem
             if (!_isActive || _attackerController == null)
                 return;
 
-            var defender = other.GetComponent<BattleCharacterController>();
+            //var defender = other.GetComponent<BattleCharacterController>();
             //if (defender != null && defender != _attackerController)
             //{
-            //    var result = CombatUtilities.CalculateHit(_currentAttackInfo, defender);
+            //    var result = CombatUtilities.CalculateHit(_currentAttackData, defender);
             //    defender.ReceiveAttack(result);
             //    _attackerController.OnAttackResult(result);
             //}
@@ -307,7 +293,7 @@ namespace LearningAIGame.CombatSystem
     /// </summary>
     public class BulletController : MonoBehaviour
     {
-        private AttackInfo _attackInfo;
+        private AttackData _attackInfo;
         private BattleCharacterController _attackerController;
         private float _accuracy;
         private float _speed = 20f;
@@ -320,7 +306,7 @@ namespace LearningAIGame.CombatSystem
         /// <param name="attacker">攻撃者</param>
         /// <param name="aimAccuracy">射撃精度</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Initialize(AttackInfo info, BattleCharacterController attacker, float aimAccuracy)
+        public void Initialize(AttackData info, BattleCharacterController attacker, float aimAccuracy)
         {
             _attackInfo = info;
             _attackerController = attacker;

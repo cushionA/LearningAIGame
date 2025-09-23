@@ -20,8 +20,6 @@ namespace LearningAIGame.CombatSystem
         Guard,
         Block,
         Extension,
-        ModeSwitch,
-        Maneuver
     }
 
     /// <summary>
