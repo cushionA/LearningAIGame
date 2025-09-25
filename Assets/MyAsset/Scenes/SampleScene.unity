@@ -524,7 +524,7 @@ Rigidbody:
   m_UseGravity: 1
   m_IsKinematic: 0
   m_Interpolate: 0
-  m_Constraints: 64
+  m_Constraints: 60
   m_CollisionDetection: 2
 --- !u!114 &599495263
 MonoBehaviour:
@@ -538,7 +538,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fca49d2afc93446afa918de68aa015d6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCtrl
-  _moveAction: {fileID: 82389462588453999, guid: 49df83fb56d2a4e819a7adcde1e4c937, type: 3}
+  _rotateSpeed: 200
   speed: 5
 --- !u!1 &832575517
 GameObject:
