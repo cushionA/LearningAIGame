@@ -2,6 +2,7 @@ using UnityEngine;
 using R3;
 using System;
 using System.Runtime.CompilerServices;
+using LearningAIGame.CombatSystem.Core;
 
 //=====================================================================================================================
 // LearningAIGame
@@ -19,7 +20,7 @@ using System.Runtime.CompilerServices;
 // その他:
 // UniRx → R3対応
 //=====================================================================================================================
-namespace LearningAIGame.CombatSystem
+namespace LearningAIGame.CombatSystem.Core
 {
     /// <summary>
     /// 全システムクラスの基底クラス（ジェネリック版）
@@ -31,17 +32,12 @@ namespace LearningAIGame.CombatSystem
     /// <typeparam name="T">Observable を通じて流すデータの型</typeparam>
     public abstract class BaseSystem<T> : MonoBehaviour
     {
-        #region === インスペクター設定 ===
-
-        [Header("システム基本設定")]
-        [SerializeField] protected bool enableDebugLogs = false;
-
-        #endregion
-
         #region === 参照キャッシュ ===
 
-        protected BattleCharacterController characterController;
-        protected CharacterSettings settings;
+        /// <summary>
+        /// 移動に使用するクラス
+        /// </summary>
+        protected MoveController moveController;
 
         #endregion
 
@@ -64,11 +60,8 @@ namespace LearningAIGame.CombatSystem
         /// <summary>
         /// 初期化エントリーポイント
         /// </summary>
-        public virtual void Initialize(BattleCharacterController controller, CharacterSettings characterSettings)
+        public virtual void Initialize()
         {
-            this.characterController = controller;
-            this.settings = characterSettings;
-
             OnInitialized();
             SetupObservables();
         }
@@ -98,38 +91,6 @@ namespace LearningAIGame.CombatSystem
 
         #endregion
 
-        #region === デバッグログ ===
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected void DebugLog(string message)
-        {
-            if (enableDebugLogs)
-                Debug.Log($"[{GetType().Name}] {message}");
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected void DebugLogWarning(string message)
-        {
-            if (enableDebugLogs)
-                Debug.LogWarning($"[{GetType().Name}] {message}");
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected void DebugLogError(string message)
-        {
-            Debug.LogError($"[{GetType().Name}] {message}");
-        }
-
-        #endregion
-
-        #region === 設定アクセス用プロパティ ===
-
-        protected CharacterSettings Settings => settings;
-
-        protected BattleCharacterController Controller => characterController;
-
-        #endregion
-
         #region === ライフサイクル管理 ===
 
         protected virtual void OnDestroy()
@@ -137,28 +98,6 @@ namespace LearningAIGame.CombatSystem
             systemSubject.OnCompleted();
             systemSubject.Dispose();
             disposables.Dispose();
-        }
-
-        #endregion
-
-        #region === 検証メソッド ===
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected bool ValidateInitialization()
-        {
-            if (characterController == null)
-            {
-                DebugLogError("CharacterControllerが設定されていません");
-                return false;
-            }
-
-            if (settings == null)
-            {
-                DebugLogError("CharacterSettingsが設定されていません");
-                return false;
-            }
-
-            return true;
         }
 
         #endregion
