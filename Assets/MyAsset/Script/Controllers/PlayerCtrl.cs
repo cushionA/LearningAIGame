@@ -1,4 +1,3 @@
-using NaughtyAttributes;
 using UnityEngine;
 
 public class PlayerCtrl : MonoBehaviour
@@ -9,6 +8,9 @@ public class PlayerCtrl : MonoBehaviour
     [SerializeField]
     private float _jumpPower = 5f;
 
+    [SerializeField]
+    GroundChecker _groundChecker;
+
     public float speed = 5f;
 
     private Rigidbody _rb;
@@ -16,6 +18,14 @@ public class PlayerCtrl : MonoBehaviour
     private void Awake()
     {
         _rb = GetComponent<Rigidbody>();
+    }
+
+    private void Start()
+    {
+        if (_groundChecker == null)
+        {
+            Debug.LogError("GroundCheckerがアタッチされていません");
+        }
     }
 
     private void Update()
@@ -53,7 +63,7 @@ public class PlayerCtrl : MonoBehaviour
             transform.Rotate(0, _rotateSpeed * Time.deltaTime, 0);
         }
 
-        if (Input.GetKeyDown(KeyCode.Space))
+        if (Input.GetKeyDown(KeyCode.Space) && _groundChecker.IsGround)
         {
             _rb.linearVelocity = Vector3.zero;
             _rb.AddForce(Vector3.up * _jumpPower, ForceMode.Impulse);
