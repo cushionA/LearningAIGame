@@ -75,10 +75,10 @@ namespace LearningAIGame.CombatSystem
     /// <summary>
     /// 改修版移動システム - アクション別ベクトル管理
     /// シンプルなベクトルブレンドシステム
-    /// 
+    ///
     /// 改修版移動システム - 汎用移動タイプシステム
     /// 様々な移動パターンを統一的に管理
-    /// 
+    ///
     /// 基礎的な移動コードを内包しつつ、ジャンプや吹っ飛ばしなどを行う窓口を持つ。
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
@@ -148,11 +148,11 @@ namespace LearningAIGame.CombatSystem
 
         // === 統合機能：コヨーテタイム・ジャンプバッファ ===
         [Header("コヨーテタイム設定")]
-        [Tooltip("地面を離れてもジャンプ可能な時間")]
+        //[Tooltip("地面を離れてもジャンプ可能な時間")]
         [Range(0f, 0.5f)]
         [SerializeField] private float _coyoteTime = 0.2f;
 
-        [Tooltip("ジャンプ入力を受け付ける猶予時間")]
+        //[Tooltip("ジャンプ入力を受け付ける猶予時間")]
         [Range(0f, 0.3f)]
         [SerializeField] private float _jumpBufferTime = 0.1f;
 
@@ -249,7 +249,7 @@ namespace LearningAIGame.CombatSystem
         /// 歩行移動を設定
         /// プレイヤーの基本的な移動を制御します
         /// 移動方向については有力を方向に変換する処理をプレイヤー側に入れる
-        /// 
+        ///
         /// 他の移動に関しても言えるが、水平移動の入力で軌道制御を行う
         /// ブーストと移動だけが一瞬の加速ではない
         /// </summary>
@@ -283,7 +283,7 @@ namespace LearningAIGame.CombatSystem
         /// チャージジャンプ廃止
         /// 入力がニュートラルなら真上に飛ぶ
         /// directionとboostSpeed分の真上ベクトルをブレンドして飛ぶ
-        /// 
+        ///
         /// ジャンプボタン離した段階で終わろう
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -298,11 +298,11 @@ namespace LearningAIGame.CombatSystem
         /// <summary>
         /// ブーストを設定
         /// エネルギーを消費して高速移動を実行します
-        /// 
+        ///
         /// 入力がなければ向いてる方向に移動する
         /// ブースト中ジャンプボタンを押すと真上に飛んでいく
         /// しかし水平入力をするとその方向に角度がつく
-        /// 
+        ///
         /// やっぱやめた。
         /// ジャンプみたいに力が加わるだけにしよう
         /// 飛び回って撃つゲームじゃないので
@@ -322,7 +322,7 @@ namespace LearningAIGame.CombatSystem
         /// 回避を実行
         /// 無敵フレーム付きの緊急回避を実行します
         /// ブースト中に回避するとブーストがキャンセルされる
-        /// 
+        ///
         /// 時間終了したらステートを戻すためにUnitaskを使用
         /// </summary>
         /// <param name="direction">回避方向（空白時はバックステップ）</param>
@@ -346,7 +346,7 @@ namespace LearningAIGame.CombatSystem
         /// <summary>
         /// 二段回避を実行
         /// 無敵フレーム付きの緊急回避を実行します
-        /// 
+        ///
         /// 時間終了したらステートを戻すためにUnitaskを使用
         /// </summary>
         /// <param name="direction">回避方向（空白時はバックステップ）</param>
@@ -370,7 +370,7 @@ namespace LearningAIGame.CombatSystem
         /// <summary>
         /// クイックターンを実行
         /// 即座に180度振り向きを実行します
-        /// 
+        ///
         /// アニメーションだけでやろう
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -403,7 +403,7 @@ namespace LearningAIGame.CombatSystem
         /// <summary>
         /// ノックバック（被弾時の吹き飛ばし）を適用
         /// 被弾時の強制的な押し戻し効果を実行します
-        /// 
+        ///
         /// これに関しては時間を設定しない
         /// </summary>
         /// <param name="direction">吹き飛ばし方向</param>
@@ -432,7 +432,7 @@ namespace LearningAIGame.CombatSystem
         /// <summary>
         /// 速度加算効果を開始（ダッシュエフェクト付き）
         /// 時間内で様々なパターンで速度変化をする
-        /// 
+        ///
         /// 一定時間の加速的挙動に使用
         /// </summary>
         /// <param name="velocity">追加速度ベクトル</param>
@@ -551,7 +551,7 @@ namespace LearningAIGame.CombatSystem
 
         /// <summary>
         /// 垂直速度の更新（重力適用）
-        /// 
+        ///
         /// 常にy速度が0.5なのでそれ以上の場合に落下にしないとね
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
