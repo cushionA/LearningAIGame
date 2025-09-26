@@ -3,6 +3,9 @@ using UnityEngine;
 public class PlayerCtrl : MonoBehaviour
 {
     [SerializeField]
+    private float _dashSpeed = 10f;
+
+    [SerializeField]
     private float _rotateSpeed = 0.5f;
 
     [SerializeField]
@@ -30,24 +33,35 @@ public class PlayerCtrl : MonoBehaviour
 
     private void Update()
     {
+        float _moveSpeed;
+        if (Input.GetKey(KeyCode.LeftShift))
+        {
+            Debug.Log("LeftShift");
+            _moveSpeed = _dashSpeed;
+        }
+        else
+        {
+            _moveSpeed = speed;
+        }
+
         if (Input.GetKey(KeyCode.W))
         {
-            transform.position += transform.forward * speed * Time.deltaTime;
+            transform.position += transform.forward * _moveSpeed * Time.deltaTime;
         }
 
         if (Input.GetKey(KeyCode.S))
         {
-            transform.position -= transform.forward * speed * Time.deltaTime;
+            transform.position -= transform.forward * _moveSpeed * Time.deltaTime;
         }
 
         if (Input.GetKey(KeyCode.A))
         {
-            transform.position -= transform.right * speed * Time.deltaTime;
+            transform.position -= transform.right * _moveSpeed * Time.deltaTime;
         }
 
         if (Input.GetKey(KeyCode.D))
         {
-            transform.position += transform.right * speed * Time.deltaTime;
+            transform.position += transform.right * _moveSpeed * Time.deltaTime;
         }
 
         if (Input.GetKey(KeyCode.LeftArrow) && Input.GetKey(KeyCode.RightArrow))
