@@ -8,6 +8,7 @@ TagManager:
   - PW - Nature
   - CinemachineTarget
   - Ground
+  - Enemy
   layers:
   - Default
   - TransparentFX
