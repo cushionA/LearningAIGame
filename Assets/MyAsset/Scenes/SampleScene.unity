@@ -205,13 +205,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.11771069, y: -0, z: -0, w: 0.99304795}
-  m_LocalPosition: {x: 0, y: 2.42, z: -5.13}
+  m_LocalRotation: {x: 0.11499556, y: -0.21205732, z: 0.025136162, w: 0.9701422}
+  m_LocalPosition: {x: 3.8, y: 0.98, z: -2.69}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 599495261}
-  m_LocalEulerAnglesHint: {x: 13.52, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 13.52, y: -24.66, z: 0}
 --- !u!114 &330585547
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -463,6 +463,7 @@ GameObject:
   - component: {fileID: 599495258}
   - component: {fileID: 599495262}
   - component: {fileID: 599495263}
+  - component: {fileID: 599495264}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -605,10 +606,26 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fca49d2afc93446afa918de68aa015d6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCtrl
+  _dashSpeed: 10
   _rotateSpeed: 200
   _jumpPower: 5
   _groundChecker: {fileID: 381522994}
   speed: 5
+--- !u!114 &599495264
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 599495257}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d49bd6592cec84815a30e5e7e069397f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AttackCtrl
+  _attackCoolSecondTime: 0.5
+  _isAttackAble: 1
+  _attackBodyPrefab: {fileID: 2717135601073881745, guid: f650f9943b9cf4310944658b9ca3d4b8, type: 3}
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
