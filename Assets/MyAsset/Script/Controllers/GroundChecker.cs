@@ -3,7 +3,7 @@ using UnityEngine;
 
 public class GroundChecker : MonoBehaviour
 {
-    public ReactiveProperty<bool> IsGround = new ReactiveProperty<bool>(false);
+    public ReactiveProperty<bool> IsGround { get; } = new ReactiveProperty<bool>(false);
 
     private const string k_GroundTag = "Ground";
 
