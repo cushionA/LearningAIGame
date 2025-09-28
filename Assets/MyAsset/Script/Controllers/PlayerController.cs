@@ -39,14 +39,6 @@ public class PlayerController : MonoBehaviour
         _jumpAction.Disable();
     }
 
-    private void Start()
-    {
-        if (_groundChecker == null)
-        {
-            Debug.LogError("GroundCheckerがアタッチされていません");
-        }
-    }
-
     private void Update()
     {
         // 1) 入力を毎フレーム取得（ポーリング）
