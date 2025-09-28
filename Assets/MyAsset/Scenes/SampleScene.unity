@@ -462,8 +462,8 @@ GameObject:
   - component: {fileID: 599495259}
   - component: {fileID: 599495258}
   - component: {fileID: 599495262}
-  - component: {fileID: 599495263}
   - component: {fileID: 599495264}
+  - component: {fileID: 599495265}
   m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
@@ -594,121 +594,6 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 122
   m_CollisionDetection: 2
---- !u!114 &599495263
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 599495257}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fca49d2afc93446afa918de68aa015d6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerCtrl
-  _rotateSpeed: 200
-  _jumpPower: 5
-  _groundChecker: {fileID: 381522994}
-  speed: 5
-  _moveAction:
-    m_Name: Move
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: d9c45d73-33ad-47f5-8d66-10da2fc9f78e
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings:
-    - m_Name: 2D Vector
-      m_Id: d25c395b-9995-451d-beeb-5759133b0c94
-      m_Path: 2DVector
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Move
-      m_Flags: 4
-    - m_Name: Up
-      m_Id: 6e664eea-a2d9-4f67-908f-57a57f95accf
-      m_Path: <Keyboard>/w
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Move
-      m_Flags: 8
-    - m_Name: Down
-      m_Id: d9c0d5a1-2702-4e93-9698-ed1386bd999b
-      m_Path: <Keyboard>/s
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Move
-      m_Flags: 8
-    - m_Name: Left
-      m_Id: 7bcb53a6-b679-4616-970d-9d5ae1afc0a8
-      m_Path: <Keyboard>/a
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Move
-      m_Flags: 8
-    - m_Name: Right
-      m_Id: 5d2f7ff8-1574-4670-9d30-799aa84f106c
-      m_Path: <Keyboard>/d
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Move
-      m_Flags: 8
-    m_Flags: 0
-  _lookAction:
-    m_Name: Look
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: f3c594fe-bb66-4ab6-8b2b-f02fd2781ea5
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings:
-    - m_Name: 1D Axis
-      m_Id: b88032c0-fdef-433a-b8c4-3db79da754ce
-      m_Path: 1DAxis
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Look
-      m_Flags: 4
-    - m_Name: negative
-      m_Id: 0c2b01dc-6286-426e-a65a-43ed63b943a7
-      m_Path: <Keyboard>/leftArrow
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Look
-      m_Flags: 8
-    - m_Name: positive
-      m_Id: 541da075-2946-4b01-94da-417d4aa87b0e
-      m_Path: <Keyboard>/rightArrow
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Look
-      m_Flags: 8
-    m_Flags: 0
-  _jumpAction:
-    m_Name: Jump
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: d1b5e0e4-341b-43a2-b688-36af8ff69389
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings:
-    - m_Name: 
-      m_Id: fcc54c05-f1ab-4338-afea-8966d109376e
-      m_Path: <Keyboard>/space
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Jump
-      m_Flags: 0
-    m_Flags: 0
 --- !u!114 &599495264
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -739,6 +624,121 @@ MonoBehaviour:
       m_Processors: 
       m_Groups: 
       m_Action: Attack
+      m_Flags: 0
+    m_Flags: 0
+--- !u!114 &599495265
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 599495257}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 51ffd034f830d42519ba62523711f049, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerController
+  _rotateSpeed: 200
+  _jumpPower: 5
+  _groundChecker: {fileID: 381522994}
+  speed: 5
+  _moveAction:
+    m_Name: Move
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 72c8f9c4-4f02-4417-90bd-9248455d5d61
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 2D Vector
+      m_Id: b18d893e-2580-4f61-9ce7-3a35faea659b
+      m_Path: 2DVector
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Move
+      m_Flags: 4
+    - m_Name: up
+      m_Id: 1e828d2f-09f0-4c7c-8206-c3a19f0f65f6
+      m_Path: <Keyboard>/w
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Move
+      m_Flags: 8
+    - m_Name: down
+      m_Id: ba4517b2-dba2-469c-b1a3-edda4641feeb
+      m_Path: <Keyboard>/s
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Move
+      m_Flags: 8
+    - m_Name: left
+      m_Id: 4beb5381-0508-4a8f-b50c-c2c37cedb5ae
+      m_Path: <Keyboard>/a
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Move
+      m_Flags: 8
+    - m_Name: right
+      m_Id: b353e893-7dc7-4697-8e80-402f5eefdb9c
+      m_Path: <Keyboard>/d
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Move
+      m_Flags: 8
+    m_Flags: 0
+  _lookAction:
+    m_Name: Look
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: cd0c6781-c52c-4dac-ac43-e09e7e459bb0
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 1D Axis
+      m_Id: 94ab13ee-47a2-488b-a459-3b5f34f42d26
+      m_Path: 1DAxis
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Look
+      m_Flags: 4
+    - m_Name: negative
+      m_Id: 610ffa6e-a8a1-4ade-b452-071d919b5873
+      m_Path: <Keyboard>/leftArrow
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Look
+      m_Flags: 8
+    - m_Name: positive
+      m_Id: f13546bb-d120-4e3f-987f-68cb0b74a459
+      m_Path: <Keyboard>/rightArrow
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Look
+      m_Flags: 8
+    m_Flags: 0
+  _jumpAction:
+    m_Name: Jump
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: eae9c43e-572b-477e-b186-5081b9693273
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: f88c22e4-19c1-4903-b43c-eee4845d5764
+      m_Path: KeyBoard/Space
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Jump
       m_Flags: 0
     m_Flags: 0
 --- !u!1 &832575517

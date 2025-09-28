@@ -1,10 +1,10 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public class PlayerCtrl : MonoBehaviour
+public class PlayerController : MonoBehaviour
 {
     [SerializeField]
-    private float _rotateSpeed = 0.5f;
+    private float _rotateSpeed = 200f;
 
     [SerializeField]
     private float _jumpPower = 5f;
