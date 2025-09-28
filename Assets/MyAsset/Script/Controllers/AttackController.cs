@@ -2,6 +2,7 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using System;
 using UnityEngine.InputSystem;
+using System.Threading;
 
 /// <summary>
 /// Playerの攻撃を制御するクラス
@@ -19,6 +20,8 @@ public class AttackController : MonoBehaviour
     private GameObject _attackBodyPrefab;
 
     [SerializeField] private InputAction _attackAction;
+
+    private CancellationTokenSource _cts;
 
     private void OnEnable()
     {
@@ -60,7 +63,24 @@ public class AttackController : MonoBehaviour
         _isAttackAble = false;
 
         // 攻撃のクールダウン処理
-        await UniTask.Delay(TimeSpan.FromSeconds(_attackCoolSecondTime));
+        try
+        {
+            _cts = new CancellationTokenSource();
+            await UniTask.Delay(TimeSpan.FromSeconds(_attackCoolSecondTime), cancellationToken: _cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            Debug.Log("Attack Cool Down Canceled");
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"Attack Cool Down Error: {e}");
+        }
+        finally
+        {
+            _cts.Dispose();
+            _cts = null;
+        }
 
         _isAttackAble = true;
     }
