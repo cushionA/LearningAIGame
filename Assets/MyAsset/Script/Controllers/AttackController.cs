@@ -7,7 +7,7 @@ using UnityEngine.InputSystem;
 /// Playerの攻撃を制御するクラス
 /// TODO:クールダウンの処理が明らかにリファクタリングできそうなので時間があればぜひ行ってください
 /// </summary>
-public class AttackCtrl : MonoBehaviour
+public class AttackController : MonoBehaviour
 {
     [SerializeField]
     private float _attackCoolSecondTime = 1f;

@@ -606,7 +606,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fca49d2afc93446afa918de68aa015d6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCtrl
-  _dashSpeed: 10
   _rotateSpeed: 200
   _jumpPower: 5
   _groundChecker: {fileID: 381522994}
@@ -710,23 +709,6 @@ MonoBehaviour:
       m_Action: Jump
       m_Flags: 0
     m_Flags: 0
-  _dashAction:
-    m_Name: Dash
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: 4aa4d505-dd13-4c76-888a-4333c2b65b22
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings:
-    - m_Name: 
-      m_Id: 262228c5-b4fb-451b-abbb-f6d5b4d4411e
-      m_Path: <Keyboard>/leftShift
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Dash
-      m_Flags: 0
-    m_Flags: 0
 --- !u!114 &599495264
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -736,23 +718,23 @@ MonoBehaviour:
   m_GameObject: {fileID: 599495257}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d49bd6592cec84815a30e5e7e069397f, type: 3}
+  m_Script: {fileID: 11500000, guid: dfdfaa3de68fe416296e2ccc1b22a07c, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AttackCtrl
+  m_EditorClassIdentifier: Assembly-CSharp::AttackController
   _attackCoolSecondTime: 0.5
   _isAttackAble: 1
   _attackBodyPrefab: {fileID: 2717135601073881745, guid: f650f9943b9cf4310944658b9ca3d4b8, type: 3}
   _attackAction:
     m_Name: Attack
     m_Type: 0
-    m_ExpectedControlType: Button
-    m_Id: ff2af51a-5b29-4bf3-94e0-60e0f9d0cfae
+    m_ExpectedControlType: 
+    m_Id: df552fd9-f986-42a8-804b-d288287d15f9
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings:
     - m_Name: 
-      m_Id: 115458c8-e37e-45c7-b5e2-dace2f3e07a8
-      m_Path: <Keyboard>/enter
+      m_Id: 1ee912ce-1da6-4053-bfa4-bcd95c9b4524
+      m_Path: KeyBoard/Enter
       m_Interactions: 
       m_Processors: 
       m_Groups: 
