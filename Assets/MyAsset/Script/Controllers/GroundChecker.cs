@@ -1,8 +1,9 @@
+using R3;
 using UnityEngine;
 
 public class GroundChecker : MonoBehaviour
 {
-    public bool IsGround { get; private set; }
+    public ReactiveProperty<bool> IsGround = new ReactiveProperty<bool>(false);
 
     private const string k_GroundTag = "Ground";
 
@@ -10,7 +11,7 @@ public class GroundChecker : MonoBehaviour
     {
         if (other.CompareTag(k_GroundTag))
         {
-            IsGround = true;
+            this.IsGround.Value = true;
         }
     }
 
@@ -18,7 +19,7 @@ public class GroundChecker : MonoBehaviour
     {
         if (other.CompareTag(k_GroundTag))
         {
-            IsGround = true;
+            this.IsGround.Value = true;
         }
     }
 
@@ -26,7 +27,12 @@ public class GroundChecker : MonoBehaviour
     {
         if (other.CompareTag(k_GroundTag))
         {
-            IsGround = false;
+            this.IsGround.Value = false;
         }
+    }
+
+    private void OnDestroy()
+    {
+        this.IsGround?.Dispose();
     }
 }

@@ -1,3 +1,4 @@
+using R3;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -23,6 +24,15 @@ public class PlayerController : MonoBehaviour
     private void Awake()
     {
         _rb = GetComponent<Rigidbody>();
+    }
+
+    private void Start()
+    {
+        this._groundChecker.IsGround.Subscribe(value =>
+        {
+            // TODO: ログをserviceに送ってLLMのプロンプトに変更する
+            Debug.Log("[PlayerController] IsGround: " + value);
+        });
     }
 
     private void OnEnable()
@@ -60,7 +70,7 @@ public class PlayerController : MonoBehaviour
         // ジャンプは「このフレームで押されたか」をifで判定
         if (_jumpAction.WasPressedThisFrame())
         {
-            if (_groundChecker != null && _groundChecker.IsGround)
+            if (_groundChecker.IsGround.Value)
             {
                 // 連続ジャンプ対策でY速度をリセット
                 Vector3 v = _rb.linearVelocity;
