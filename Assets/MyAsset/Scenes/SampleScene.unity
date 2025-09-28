@@ -592,7 +592,7 @@ Rigidbody:
   m_UseGravity: 1
   m_IsKinematic: 0
   m_Interpolate: 0
-  m_Constraints: 58
+  m_Constraints: 122
   m_CollisionDetection: 2
 --- !u!114 &599495263
 MonoBehaviour:
@@ -611,6 +611,122 @@ MonoBehaviour:
   _jumpPower: 5
   _groundChecker: {fileID: 381522994}
   speed: 5
+  _moveAction:
+    m_Name: Move
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: d9c45d73-33ad-47f5-8d66-10da2fc9f78e
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 2D Vector
+      m_Id: d25c395b-9995-451d-beeb-5759133b0c94
+      m_Path: 2DVector
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Move
+      m_Flags: 4
+    - m_Name: Up
+      m_Id: 6e664eea-a2d9-4f67-908f-57a57f95accf
+      m_Path: <Keyboard>/w
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Move
+      m_Flags: 8
+    - m_Name: Down
+      m_Id: d9c0d5a1-2702-4e93-9698-ed1386bd999b
+      m_Path: <Keyboard>/s
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Move
+      m_Flags: 8
+    - m_Name: Left
+      m_Id: 7bcb53a6-b679-4616-970d-9d5ae1afc0a8
+      m_Path: <Keyboard>/a
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Move
+      m_Flags: 8
+    - m_Name: Right
+      m_Id: 5d2f7ff8-1574-4670-9d30-799aa84f106c
+      m_Path: <Keyboard>/d
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Move
+      m_Flags: 8
+    m_Flags: 0
+  _lookAction:
+    m_Name: Look
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: f3c594fe-bb66-4ab6-8b2b-f02fd2781ea5
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 1D Axis
+      m_Id: b88032c0-fdef-433a-b8c4-3db79da754ce
+      m_Path: 1DAxis
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Look
+      m_Flags: 4
+    - m_Name: negative
+      m_Id: 0c2b01dc-6286-426e-a65a-43ed63b943a7
+      m_Path: <Keyboard>/leftArrow
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Look
+      m_Flags: 8
+    - m_Name: positive
+      m_Id: 541da075-2946-4b01-94da-417d4aa87b0e
+      m_Path: <Keyboard>/rightArrow
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Look
+      m_Flags: 8
+    m_Flags: 0
+  _jumpAction:
+    m_Name: Jump
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: d1b5e0e4-341b-43a2-b688-36af8ff69389
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: fcc54c05-f1ab-4338-afea-8966d109376e
+      m_Path: <Keyboard>/space
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Jump
+      m_Flags: 0
+    m_Flags: 0
+  _dashAction:
+    m_Name: Dash
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 4aa4d505-dd13-4c76-888a-4333c2b65b22
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: 262228c5-b4fb-451b-abbb-f6d5b4d4411e
+      m_Path: <Keyboard>/leftShift
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Dash
+      m_Flags: 0
+    m_Flags: 0
 --- !u!114 &599495264
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -626,6 +742,23 @@ MonoBehaviour:
   _attackCoolSecondTime: 0.5
   _isAttackAble: 1
   _attackBodyPrefab: {fileID: 2717135601073881745, guid: f650f9943b9cf4310944658b9ca3d4b8, type: 3}
+  _attackAction:
+    m_Name: Attack
+    m_Type: 0
+    m_ExpectedControlType: Button
+    m_Id: ff2af51a-5b29-4bf3-94e0-60e0f9d0cfae
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: 115458c8-e37e-45c7-b5e2-dace2f3e07a8
+      m_Path: <Keyboard>/enter
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Attack
+      m_Flags: 0
+    m_Flags: 0
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0

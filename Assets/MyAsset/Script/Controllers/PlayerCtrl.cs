@@ -1,10 +1,8 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class PlayerCtrl : MonoBehaviour
 {
-    [SerializeField]
-    private float _dashSpeed = 10f;
-
     [SerializeField]
     private float _rotateSpeed = 0.5f;
 
@@ -18,9 +16,27 @@ public class PlayerCtrl : MonoBehaviour
 
     private Rigidbody _rb;
 
+    [SerializeField] private InputAction _moveAction;   // Vector2 (WASD/Stick)
+    [SerializeField] private InputAction _lookAction;   // Axis (左右回転)
+    [SerializeField] private InputAction _jumpAction;   // Button (Space)
+
     private void Awake()
     {
         _rb = GetComponent<Rigidbody>();
+    }
+
+    private void OnEnable()
+    {
+        _moveAction.Enable();
+        _lookAction.Enable();
+        _jumpAction.Enable();
+    }
+
+    private void OnDisable()
+    {
+        _moveAction.Disable();
+        _lookAction.Disable();
+        _jumpAction.Disable();
     }
 
     private void Start()
@@ -33,54 +49,34 @@ public class PlayerCtrl : MonoBehaviour
 
     private void Update()
     {
-        float _moveSpeed;
-        if (Input.GetKey(KeyCode.LeftShift))
+        // 1) 入力を毎フレーム取得（ポーリング）
+        Vector2 move = _moveAction.ReadValue<Vector2>();   // x: 左右, y: 前後
+        float look = _lookAction.ReadValue<float>();       // -1..1
+
+        // 前後左右の入力がある時だけ移動
+        if (move != Vector2.zero)
         {
-            Debug.Log("LeftShift");
-            _moveSpeed = _dashSpeed;
-        }
-        else
-        {
-            _moveSpeed = speed;
+            transform.position += transform.TransformDirection(new Vector3(move.x, 0f, move.y)) * speed * Time.deltaTime;
         }
 
-        if (Input.GetKey(KeyCode.W))
+        // 左右回転（lookが0でなければ回す）
+        if (Mathf.Abs(look) > 0.0001f)
         {
-            transform.position += transform.forward * _moveSpeed * Time.deltaTime;
+            transform.Rotate(0, look * _rotateSpeed * Time.deltaTime, 0);
         }
 
-        if (Input.GetKey(KeyCode.S))
+        // ジャンプは「このフレームで押されたか」をifで判定
+        if (_jumpAction.WasPressedThisFrame())
         {
-            transform.position -= transform.forward * _moveSpeed * Time.deltaTime;
-        }
+            if (_groundChecker != null && _groundChecker.IsGround)
+            {
+                // 連続ジャンプ対策でY速度をリセット
+                Vector3 v = _rb.linearVelocity;
+                v.y = 0f;
+                _rb.linearVelocity = v;
 
-        if (Input.GetKey(KeyCode.A))
-        {
-            transform.position -= transform.right * _moveSpeed * Time.deltaTime;
-        }
-
-        if (Input.GetKey(KeyCode.D))
-        {
-            transform.position += transform.right * _moveSpeed * Time.deltaTime;
-        }
-
-        if (Input.GetKey(KeyCode.LeftArrow) && Input.GetKey(KeyCode.RightArrow))
-        {
-            //同時押しはなにもしない
-        }
-        else if (Input.GetKey(KeyCode.LeftArrow))
-        {
-            transform.Rotate(0, -_rotateSpeed * Time.deltaTime, 0);
-        }
-        else if (Input.GetKey(KeyCode.RightArrow))
-        {
-            transform.Rotate(0, _rotateSpeed * Time.deltaTime, 0);
-        }
-
-        if (Input.GetKeyDown(KeyCode.Space) && _groundChecker.IsGround)
-        {
-            _rb.linearVelocity = Vector3.zero;
-            _rb.AddForce(Vector3.up * _jumpPower, ForceMode.Impulse);
+                _rb.AddForce(Vector3.up * _jumpPower, ForceMode.Impulse);
+            }
         }
     }
 }

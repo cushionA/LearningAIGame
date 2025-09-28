@@ -1,6 +1,7 @@
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using System;
+using UnityEngine.InputSystem;
 
 /// <summary>
 /// Playerの攻撃を制御するクラス
@@ -17,6 +18,18 @@ public class AttackCtrl : MonoBehaviour
     [SerializeField]
     private GameObject _attackBodyPrefab;
 
+    [SerializeField] private InputAction _attackAction;
+
+    private void OnEnable()
+    {
+        _attackAction.Enable();
+    }
+
+    private void OnDisable()
+    {
+        _attackAction.Disable();
+    }
+
     private void Start()
     {
         _isAttackAble = true;
@@ -29,7 +42,7 @@ public class AttackCtrl : MonoBehaviour
             return;
 
         //攻撃のキー受付
-        if (Input.GetKeyDown(KeyCode.Return))
+        if (_attackAction.WasPerformedThisFrame())
         {
             Attack();
         }
