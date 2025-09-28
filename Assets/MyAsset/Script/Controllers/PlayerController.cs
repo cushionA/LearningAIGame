@@ -1,3 +1,4 @@
+using R3;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -15,6 +16,8 @@ public class PlayerController : MonoBehaviour
     public float speed = 5f;
 
     private Rigidbody _rb;
+    
+    private CompositeDisposable _disposables;
 
     [SerializeField] private InputAction _moveAction;   // Vector2 (WASD/Stick)
     [SerializeField] private InputAction _lookAction;   // Axis (左右回転)
@@ -23,6 +26,16 @@ public class PlayerController : MonoBehaviour
     private void Awake()
     {
         _rb = GetComponent<Rigidbody>();
+        _disposables = new CompositeDisposable();
+    }
+
+    private void Start()
+    {
+        this._groundChecker.IsGround.Subscribe(value =>
+        {
+            // TODO: ログをserviceに送ってLLMのプロンプトに変更する
+            Debug.Log("[PlayerController] IsGround: " + value);
+        }).AddTo(_disposables);
     }
 
     private void OnEnable()
@@ -60,7 +73,7 @@ public class PlayerController : MonoBehaviour
         // ジャンプは「このフレームで押されたか」をifで判定
         if (_jumpAction.WasPressedThisFrame())
         {
-            if (_groundChecker != null && _groundChecker.IsGround)
+            if (_groundChecker.IsGround.Value)
             {
                 // 連続ジャンプ対策でY速度をリセット
                 Vector3 v = _rb.linearVelocity;
@@ -70,5 +83,10 @@ public class PlayerController : MonoBehaviour
                 _rb.AddForce(Vector3.up * _jumpPower, ForceMode.Impulse);
             }
         }
+    }
+    
+    private void OnDestroy()
+    {
+        _disposables?.Dispose();
     }
 }
