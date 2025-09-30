@@ -1,11 +1,9 @@
-using UnityEngine;
 using R3;
-using System;
 using System.Runtime.CompilerServices;
-using LearningAIGame.CombatSystem.Core;
+using UnityEngine;
 
-//=====================================================================================================================
-// LearningAIGame
+//==============================================ファイルヘッダ===========================================================
+// BaseSystem
 // 
 // 概要: キャラクターコントローラーが実行する行動関連クラスの基底クラス
 // 
