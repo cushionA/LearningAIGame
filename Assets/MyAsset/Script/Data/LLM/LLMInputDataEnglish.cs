@@ -6,9 +6,10 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
-using static LLMDataArchitectTest.ActionTableEnglish;
+using static LLMDataArchitect.ActionTableEnglish;
 
-namespace LLMDataArchitectTest
+
+namespace LLMDataArchitect
 {
     #region —ñ‹“Œ^
 

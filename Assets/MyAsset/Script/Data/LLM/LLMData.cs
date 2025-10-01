@@ -1,16 +1,63 @@
+using LearningAIGame.CombatSystem.Data;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
-using static LLMDataArchitectTest.ActionTable;
-using static StateSystem;
-using static UnityEditorInternal.VersionControl.ListControl;
+using static LearningAIGame.CombatSystem.Core.StateSystem;
+using static LLMDataArchitect.ActionTable;
 
-namespace LLMDataArchitectTest
+//==============================================ファイルヘッダ=========================================================
+// LLMData
+// 
+// 概要: LLMへの入力データ構造とテストデータ生成機能を提供
+// 
+// 制作者: 小さな座布団
+// 
+// 機能説明:
+// [LLMInputData構造体]
+// - RecentActionArray: 敵の直近行動履歴
+// - MyData / EnemyData: 自分と敵のキャラクターデータ（HP、エネルギー）
+// - ActionLog: 敵の行動確率統計（ActionProbabilityManager）
+// - HitSituations / EnemyHitSituations: 与ダメージ/被ダメージ履歴
+// - LastStrategy: 前回の戦略判断データ
+// - ToJson: JSON形式にシリアライズ
+// - CreateForTestSituation: テスト状況別データ生成
+// - CreateCustom: カスタムパラメータからデータ生成
+// 
+// [ActionProbabilityManager]
+// - 各行動（後ろ回避、横回避、前回避、ガード、ブロッキング、弱攻撃、強攻撃など）の実行確率を管理
+// - InitializeBasicProbabilities: 基本確率で初期化
+// 
+// [HitSituation]
+// - 攻撃ヒット/被弾時の状況記録（自分の行動、敵の行動、ダメージ量）
+// - DamageReportInfoからの変換コンストラクタ提供
+// 
+// [StrategyData]
+// - LLMの判断結果を格納（結論、理由、基本戦術、行動テーブル）
+// 
+// [ActionTable]
+// - 状況別の行動マッピング（敵攻撃体勢、敵待機状態、有利/不利状況など）
+// - CreateDefault / CreateAggressive / CreateDefensive: 戦術別テーブル生成
+// - Validate: 行動テーブルの妥当性検証
+// - GetStats: 攻撃/防御比率の統計情報取得
+// 
+// [BattleAnalysisResult]
+// - 戦闘状況の分析結果（HP割合、体力差、効果的だった攻撃、危険だった防御など）
+// - AnalyzeFromInputData: LLMInputDataから分析結果を計算
+// 
+// [補助クラス]
+// - Vector3JsonConverter: System.Numerics.Vector3のJSON変換
+// - ActionTableStats: 行動テーブルの統計情報（攻撃/防御数、割合、戦術傾向）
+// 
+// 入力元クラス: BattleCharacterController, StateSystem
+// 出力先クラス: LLMシステム（JSON形式）
+// 
+// その他:
+// テスト用データ生成機能（優勢/拮抗/劣勢/エネルギー不足/体力危険）を含む
+// 新プロンプト形式に対応したJSON出力構造
+//=====================================================================================================================
+namespace LLMDataArchitect
 {
 
     /// <summary>
@@ -581,466 +628,6 @@ namespace LLMDataArchitectTest
                     敵強攻撃ヒット = "後ろ回避"
                 }
             };
-        }
-    }
-
-    /// <summary>
-    /// Vector3用のJSONコンバーター
-    /// </summary>
-    public class Vector3JsonConverter : JsonConverter<Vector3>
-    {
-        public override Vector3 ReadJson(JsonReader reader, Type objectType, Vector3 existingValue, bool hasExistingValue, JsonSerializer serializer)
-        {
-            if (reader.TokenType != JsonToken.StartObject)
-                throw new JsonException("Expected StartObject token");
-
-            float x = 0, y = 0, z = 0;
-
-            while (reader.Read())
-            {
-                if (reader.TokenType == JsonToken.EndObject)
-                    break;
-
-                if (reader.TokenType == JsonToken.PropertyName)
-                {
-                    string propertyName = reader.Value?.ToString()?.ToLowerInvariant() ?? "";
-                    reader.Read();
-
-                    switch (propertyName)
-                    {
-                        case "x":
-                            x = Convert.ToSingle(reader.Value);
-                            break;
-                        case "y":
-                            y = Convert.ToSingle(reader.Value);
-                            break;
-                        case "z":
-                            z = Convert.ToSingle(reader.Value);
-                            break;
-                    }
-                }
-            }
-
-            return new Vector3(x, y, z);
-        }
-
-        public override void WriteJson(JsonWriter writer, Vector3 value, JsonSerializer serializer)
-        {
-            writer.WriteStartObject();
-            writer.WritePropertyName("x");
-            writer.WriteValue(value.X);
-            writer.WritePropertyName("y");
-            writer.WriteValue(value.Y);
-            writer.WritePropertyName("z");
-            writer.WriteValue(value.Z);
-            writer.WriteEndObject();
-        }
-    }
-
-    /// <summary>
-    /// AIキャラクターの各アクションの実行確率を管理するクラス
-    /// プロンプトで使用される確率名に対応
-    /// </summary>
-    public class ActionProbabilityManager
-    {
-        /// <summary>
-        /// 後ろ回避の実行確率
-        /// </summary>
-        public float BackwardDodgePercentage { get; set; }
-
-        /// <summary>
-        /// 横回避の実行確率（左右統合）
-        /// </summary>
-        public float HorizontalDodgePercentage { get; set; }
-
-        /// <summary>
-        /// 前回避の実行確率
-        /// </summary>
-        public float ForwardDodgePercentage { get; set; }
-
-        /// <summary>
-        /// ガードの実行確率
-        /// </summary>
-        public float GuardPercentage { get; set; }
-
-        /// <summary>
-        /// ブロッキングの実行確率
-        /// </summary>
-        public float BlockingPercentage { get; set; }
-
-        /// <summary>
-        /// 弱攻撃の実行確率
-        /// </summary>
-        public float LightAttackPercentage { get; set; }
-
-        /// <summary>
-        /// 強攻撃の実行確率
-        /// </summary>
-        public float StrongAttackPercentage { get; set; }
-
-        /// <summary>
-        /// 強攻撃キャンセルの実行確率
-        /// </summary>
-        public float StrongAttackCancelPercentage { get; set; }
-
-        /// <summary>
-        /// 横回避攻撃の実行確率
-        /// </summary>
-        public float HorizontalDodgeAttackPercentage { get; set; }
-
-        /// <summary>
-        /// 前回避攻撃の実行確率
-        /// </summary>
-        public float ForwardDodgeAttackPercentage { get; set; }
-
-        /// <summary>
-        /// コンストラクタ。基本確率で初期化
-        /// </summary>
-        public ActionProbabilityManager()
-        {
-            InitializeBasicProbabilities();
-        }
-
-        /// <summary>
-        /// 基本的な確率で初期化
-        /// </summary>
-        public void InitializeBasicProbabilities()
-        {
-            BackwardDodgePercentage = 0.05f;
-            HorizontalDodgePercentage = 0.05f;
-            ForwardDodgePercentage = 0.15f;
-            GuardPercentage = 0.05f;
-            BlockingPercentage = 0.05f;
-            LightAttackPercentage = 0.25f;
-            StrongAttackPercentage = 0.20f;
-            StrongAttackCancelPercentage = 0.05f;
-            HorizontalDodgeAttackPercentage = 0.10f;
-            ForwardDodgeAttackPercentage = 0.10f;
-        }
-    }
-
-    /// <summary>
-    /// 攻撃ヒット時の状況をまとめる
-    /// </summary>
-    public struct HitSituation
-    {
-        /// <summary>
-        /// ヒットした時の状態（自身の行動）
-        /// </summary>
-        public ActionState HitState { get; set; }
-
-        /// <summary>
-        /// ヒット時の敵の行動（敵の攻撃・行動）
-        /// </summary>
-        public ActionState HitType { get; set; }
-
-        /// <summary>
-        /// 与えた/受けたダメージ
-        /// </summary>
-        // 2. GetDamage の型を float に修正し、より正確なダメージ計算に対応
-        public float GetDamage { get; set; }
-
-        // 3. コンストラクタを完成させる
-        public HitSituation(ActionState hitState, ActionState attackType, float damage)
-        {
-            // プロパティに引数を代入
-            HitState = hitState;
-            HitType = attackType;
-            GetDamage = damage;
-        }
-
-        /// <summary>
-        /// ダメージ報告情報からヒット情報を作成する
-        /// </summary>
-        /// <param name="reportInfo"></param>
-        public HitSituation(in DamageReportInfo reportInfo, ActionState hitState)
-        {
-            // プロパティに引数を代入
-            HitState = hitState;
-            HitType = reportInfo.attackType == AttackType.WeakAttack ? ActionState.弱攻撃 : ActionState.強攻撃;
-            GetDamage = reportInfo.damage;
-        }
-    }
-
-    /// <summary>
-    /// 新プロンプト対応の戦略データ
-    /// </summary>
-    public class StrategyData
-    {
-        /// <summary>
-        /// 戦略的な結論（行動方針）
-        /// </summary>
-        [JsonProperty("結論")]
-        public string? 結論 { get; set; }
-
-        /// <summary>
-        /// 結論に至った理由
-        /// </summary>
-        [JsonProperty("理由")]
-        public string? 理由 { get; set; }
-
-        /// <summary>
-        /// 基本戦術
-        /// </summary>
-        [JsonProperty("基本戦術")]
-        public string? 基本戦術 { get; set; }
-
-        /// <summary>
-        /// 状況ごとの行動テーブル
-        /// </summary>
-        [JsonProperty("行動テーブル")]
-        public ActionTable? 行動テーブル { get; set; }
-
-        /// <summary>
-        /// サンプルデータを生成するファクトリーメソッド
-        /// </summary>
-        public static StrategyData CreateSample()
-        {
-            return new StrategyData
-            {
-                結論 = "軸ずらしと防御を優先し、隙が出たら弱攻撃で反撃する戦術を取る。",
-                理由 = "敵が強攻撃を狙うと隙が大きいため、そのタイミングを見て反撃できる。また、無理に前進するとリスクが高いため、防御と回避を基本とする。",
-                基本戦術 = "対応型",
-                行動テーブル = new ActionTable
-                {
-                    敵攻撃体勢 = "ガード",
-                    敵待機状態 = "弱攻撃",
-                    自分微有利状況 = "弱攻撃",
-                    自分有利状況 = "強攻撃",
-                    自分微不利状況 = "ガード",
-                    自分不利状況 = "後ろ回避",
-                    自分強攻撃ヒット = "弱攻撃",
-                    敵強攻撃ヒット = "後ろ回避"
-                }
-            };
-        }
-    }
-
-    /// <summary>
-    /// 新プロンプト対応の行動テーブル
-    /// </summary>
-    public class ActionTable
-    {
-        [JsonProperty("敵攻撃体勢")]
-        public string? 敵攻撃体勢 { get; set; }
-
-        [JsonProperty("敵待機状態")]
-        public string? 敵待機状態 { get; set; }
-
-        [JsonProperty("自分微有利状況")]
-        public string? 自分微有利状況 { get; set; }
-
-        [JsonProperty("自分有利状況")]
-        public string? 自分有利状況 { get; set; }
-
-        [JsonProperty("自分微不利状況")]
-        public string? 自分微不利状況 { get; set; }
-
-        [JsonProperty("自分不利状況")]
-        public string? 自分不利状況 { get; set; }
-
-        [JsonProperty("自分強攻撃ヒット")]
-        public string? 自分強攻撃ヒット { get; set; }
-
-        [JsonProperty("敵強攻撃ヒット")]
-        public string? 敵強攻撃ヒット { get; set; }
-
-        /// <summary>
-        /// デフォルトの行動テーブルを作成
-        /// </summary>
-        public static ActionTable CreateDefault()
-        {
-            return new ActionTable
-            {
-                敵攻撃体勢 = "ガード",
-                敵待機状態 = "弱攻撃",
-                自分微有利状況 = "弱攻撃",
-                自分有利状況 = "強攻撃",
-                自分微不利状況 = "ガード",
-                自分不利状況 = "後ろ回避",
-                自分強攻撃ヒット = "弱攻撃",
-                敵強攻撃ヒット = "後ろ回避"
-            };
-        }
-
-        /// <summary>
-        /// 攻撃的な行動テーブルを作成（優勢時用）
-        /// </summary>
-        public static ActionTable CreateAggressive()
-        {
-            return new ActionTable
-            {
-                敵攻撃体勢 = "強攻撃",
-                敵待機状態 = "強攻撃",
-                自分微有利状況 = "強攻撃",
-                自分有利状況 = "強攻撃",
-                自分微不利状況 = "弱攻撃",
-                自分不利状況 = "弱攻撃",
-                自分強攻撃ヒット = "強攻撃",
-                敵強攻撃ヒット = "強攻撃"
-            };
-        }
-
-        /// <summary>
-        /// 守備的な行動テーブルを作成（劣勢時用）
-        /// </summary>
-        public static ActionTable CreateDefensive()
-        {
-            return new ActionTable
-            {
-                敵攻撃体勢 = "後ろ回避",
-                敵待機状態 = "ガード",
-                自分微有利状況 = "ガード",
-                自分有利状況 = "弱攻撃",
-                自分微不利状況 = "後ろ回避",
-                自分不利状況 = "後ろ回避",
-                自分強攻撃ヒット = "ガード",
-                敵強攻撃ヒット = "後ろ回避"
-            };
-        }
-
-        /// <summary>
-        /// エネルギー節約重視の行動テーブルを作成（エネルギー不足時用）
-        /// </summary>
-        public static ActionTable CreateEnergySaving()
-        {
-            return new ActionTable
-            {
-                敵攻撃体勢 = "ガード",
-                敵待機状態 = "ガード",
-                自分微有利状況 = "ガード",
-                自分有利状況 = "弱攻撃",
-                自分微不利状況 = "ガード",
-                自分不利状況 = "ガード",
-                自分強攻撃ヒット = "ガード",
-                敵強攻撃ヒット = "ガード"
-            };
-        }
-
-        /// <summary>
-        /// 回避重視の行動テーブルを作成（体力危険時用）
-        /// </summary>
-        public static ActionTable CreateEvasive()
-        {
-            return new ActionTable
-            {
-                敵攻撃体勢 = "後ろ回避",
-                敵待機状態 = "後ろ回避",
-                自分微有利状況 = "後ろ回避",
-                自分有利状況 = "横回避",
-                自分微不利状況 = "後ろ回避",
-                自分不利状況 = "後ろ回避",
-                自分強攻撃ヒット = "後ろ回避",
-                敵強攻撃ヒット = "後ろ回避"
-            };
-        }
-
-        /// <summary>
-        /// 状況に応じた行動テーブルを作成
-        /// </summary>
-        /// <param name="situationType">テスト状況の種類</param>
-        /// <returns>適切な行動テーブル</returns>
-        public static ActionTable CreateForSituation(TestSituationType situationType)
-        {
-            return situationType switch
-            {
-                TestSituationType.優勢 => CreateAggressive(),
-                TestSituationType.劣勢 => CreateDefensive(),
-                TestSituationType.エネルギー不足 => CreateEnergySaving(),
-                TestSituationType.体力危険 => CreateEvasive(),
-                _ => CreateDefault()
-            };
-        }
-
-        /// <summary>
-        /// TestSituationType列挙型
-        /// </summary>
-        public enum TestSituationType
-        {
-            優勢,      // 自分有利
-            拮抗,      // 互角
-            劣勢,      // 敵有利
-            エネルギー不足, // エネルギー危機
-            体力危険    // 体力危機
-        }
-
-        /// <summary>
-        /// 行動テーブルを検証（全ての行動が有効な選択肢かチェック）
-        /// </summary>
-        /// <returns>検証結果のメッセージ</returns>
-        public List<string> Validate()
-        {
-            var errors = new List<string>();
-            var validActions = new HashSet<string>
-        {
-            "後ろ回避", "横回避", "前回避", "ガード", "ブロッキング",
-            "弱攻撃", "強攻撃", "強攻撃キャンセル", "横回避攻撃", "前回避攻撃",
-            "弱攻撃ブロッキング", "強攻撃ブロッキング"
-        };
-
-            CheckAction(nameof(敵攻撃体勢), 敵攻撃体勢, validActions, errors);
-            CheckAction(nameof(敵待機状態), 敵待機状態, validActions, errors);
-            CheckAction(nameof(自分微有利状況), 自分微有利状況, validActions, errors);
-            CheckAction(nameof(自分有利状況), 自分有利状況, validActions, errors);
-            CheckAction(nameof(自分微不利状況), 自分微不利状況, validActions, errors);
-            CheckAction(nameof(自分不利状況), 自分不利状況, validActions, errors);
-            CheckAction(nameof(自分強攻撃ヒット), 自分強攻撃ヒット, validActions, errors);
-            CheckAction(nameof(敵強攻撃ヒット), 敵強攻撃ヒット, validActions, errors);
-
-            return errors;
-        }
-
-        private void CheckAction(string fieldName, string? action, HashSet<string> validActions, List<string> errors)
-        {
-            if (string.IsNullOrEmpty(action))
-            {
-                errors.Add($"{fieldName} が設定されていません。");
-            }
-            else if (!validActions.Contains(action))
-            {
-                errors.Add($"{fieldName} の値 '{action}' は有効な行動ではありません。");
-            }
-        }
-
-        /// <summary>
-        /// 行動テーブルの統計情報を取得
-        /// </summary>
-        /// <returns>統計情報</returns>
-        public ActionTableStats GetStats()
-        {
-            var actions = new[] { 敵攻撃体勢, 敵待機状態, 自分微有利状況, 自分有利状況,
-                             自分微不利状況, 自分不利状況, 自分強攻撃ヒット, 敵強攻撃ヒット };
-
-            var stats = new ActionTableStats();
-
-            foreach (var action in actions.Where(a => !string.IsNullOrEmpty(a)))
-            {
-                switch (action)
-                {
-                    case "弱攻撃":
-                    case "強攻撃":
-                    case "強攻撃キャンセル":
-                    case "横回避攻撃":
-                    case "前回避攻撃":
-                    case "弱攻撃ブロッキング":
-                    case "強攻撃ブロッキング":
-                        stats.AttackActionsCount++;
-                        break;
-                    case "後ろ回避":
-                    case "横回避":
-                    case "前回避":
-                    case "ガード":
-                    case "ブロッキング":
-                        stats.DefenseActionsCount++;
-                        break;
-                }
-            }
-
-            stats.TotalActions = actions.Count(a => !string.IsNullOrEmpty(a));
-            stats.AttackRatio = stats.TotalActions > 0 ? (float)stats.AttackActionsCount / stats.TotalActions : 0f;
-            stats.DefenseRatio = stats.TotalActions > 0 ? (float)stats.DefenseActionsCount / stats.TotalActions : 0f;
-
-            return stats;
         }
     }
 

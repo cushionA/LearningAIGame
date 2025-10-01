@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using static LLMDataArchitectTest.ActionTableEnglish;
+using static LLMDataArchitect.ActionTableEnglish;
 
-namespace LLMDataArchitectTest
+namespace LLMDataArchitect
 {
     /// <summary>
     /// 英語版LLM戦略分析プロンプトジェネレーター

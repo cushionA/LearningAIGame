@@ -2,7 +2,7 @@
 using System.Text;
 using System.Linq;
 
-namespace LLMDataArchitectTest
+namespace LLMDataArchitect
 {
     /// <summary>
     /// 最終版プロンプト形式でのSystemPrompt生成クラス

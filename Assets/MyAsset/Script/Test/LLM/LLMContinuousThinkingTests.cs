@@ -8,11 +8,11 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using UnityEngine;
-using static LLMDataArchitectTest.ActionTable;
-using static LLMDataArchitectTest.ActionTableEnglish;
-using static UnityEditor.ShaderData;
+using static LLMDataArchitect.ActionTable;
+using static LLMDataArchitect.ActionTableEnglish;
 
-namespace LLMDataArchitectTest
+
+namespace LLMDataArchitect.Test
 {
     /// <summary>
     /// LLM for Unityを使用した連続的な思考テスト用コンポーネント（最適化版）
@@ -586,7 +586,6 @@ Always respond with ONLY valid JSON, no markdown, no explanations.";
             {
                 UnityEngine.Debug.Log($"計算結果: {calculationSummary}, 戦術: {tacticsType}");
             }
-
 
             // LLMに完全なプロンプトを送信
             yield return StartCoroutine(SendToLLM(fullPrompt, testResult));

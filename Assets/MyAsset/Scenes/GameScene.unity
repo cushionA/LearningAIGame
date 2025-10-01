@@ -505,7 +505,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cde58c20aff33f74ca4a79d64a46b7ad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LLMDataArchitectTest.Scene.SceneLLMContinuousThinkingTest
-  _testIterations: 50
+  _testIterations: 10
   _delayBetweenTests: 2
   _autoStartOnPlay: 1
   _generateRandomDataEachIteration: 1
@@ -515,7 +515,7 @@ MonoBehaviour:
   _llmCharacter: {fileID: 1262174236}
   _timeoutSeconds: 30
   _autoConfigureLLM: 0
-  _useGrammar: 1
+  _useGrammar: 0
   _optimalThreads: 6
   _optimalGpuLayers: 33
   _optimalContextSize: 2048
