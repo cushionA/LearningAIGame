@@ -1,11 +1,9 @@
-using UnityEngine;
 using R3;
-using System;
 using System.Runtime.CompilerServices;
-using LearningAIGame.CombatSystem.Core;
+using UnityEngine;
 
-//=====================================================================================================================
-// LearningAIGame
+//==============================================ファイルヘッダ===========================================================
+// BaseSystem
 // 
 // 概要: キャラクターコントローラーが実行する行動関連クラスの基底クラス
 // 
@@ -22,21 +20,6 @@ using LearningAIGame.CombatSystem.Core;
 //=====================================================================================================================
 namespace LearningAIGame.CombatSystem.Core
 {
-    #region === 列挙型定義 ===
-
-    /// <summary>
-    /// 攻撃/防御の方向
-    /// </summary>
-    public enum StanceType : byte
-    {
-        Up,     // 上
-        Left,   // 左
-        Right,  // 右
-        None    // ガード無し
-    }
-
-    #endregion
-
     /// <summary>
     /// 全システムクラスの基底クラス（ジェネリック版）
     /// <para>

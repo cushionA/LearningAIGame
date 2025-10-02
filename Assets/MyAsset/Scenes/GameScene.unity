@@ -383,6 +383,168 @@ MonoBehaviour:
   m_ShadowLayerMask: 1
   m_RenderingLayers: 1
   m_ShadowRenderingLayers: 1
+--- !u!1 &1262174234
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1262174238}
+  - component: {fileID: 1262174237}
+  - component: {fileID: 1262174236}
+  - component: {fileID: 1262174235}
+  m_Layer: 0
+  m_Name: GameObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1262174235
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1262174234}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a50e3140c3ecaaf1c848dbf141cc2074, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: undream.llmunity.Runtime::LLMUnity.LLM
+  advancedOptions: 1
+  remote: 0
+  port: 13331
+  numThreads: -1
+  numGPULayers: 25
+  debug: 0
+  parallelPrompts: 1
+  dontDestroyOnLoad: 1
+  contextSize: 2048
+  batchSize: 512
+  model: gemma-2-2b-jpn-it-IQ4_XS.gguf
+  chatTemplate: gemma
+  lora: 
+  loraWeights: 
+  flashAttention: 0
+  APIKey: 
+  SSLCert: 
+  SSLCertPath: 
+  SSLKey: 
+  SSLKeyPath: 
+  minContextLength: 0
+  maxContextLength: 8192
+  embeddingsOnly: 0
+  embeddingLength: 2304
+--- !u!114 &1262174236
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1262174234}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3f6c87a428fd5d0be9bbc686bdc8c3c2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: undream.llmunity.Runtime::LLMUnity.LLMCharacter
+  advancedOptions: 1
+  remote: 0
+  _llm: {fileID: 1262174235}
+  APIKey: 
+  host: localhost
+  port: 13333
+  numRetries: 10
+  save: 
+  saveCache: 0
+  debugPrompt: 0
+  numPredict: -1
+  slot: -1
+  grammar: 
+  grammarJSON: 
+  cachePrompt: 1
+  seed: 0
+  temperature: 0.5
+  topK: 40
+  topP: 0.9
+  minP: 0.05
+  repeatPenalty: 1.1
+  presencePenalty: 0
+  frequencyPenalty: 0
+  typicalP: 1
+  repeatLastN: 64
+  penalizeNl: 1
+  penaltyPrompt: 
+  mirostat: 0
+  mirostatTau: 5
+  mirostatEta: 0.1
+  nProbs: 0
+  ignoreEos: 0
+  nKeep: -1
+  stop: []
+  stream: 0
+  playerName: user
+  AIName: assistant
+  prompt: A chat between a curious human and an artificial intelligence assistant.
+    The assistant gives helpful, detailed, and polite answers to the human's questions.
+  setNKeepToPrompt: 1
+  chat: []
+  grammarString: 
+  grammarJSONString: 
+--- !u!114 &1262174237
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1262174234}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cde58c20aff33f74ca4a79d64a46b7ad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LLMDataArchitectTest.Scene.SceneLLMContinuousThinkingTest
+  _testIterations: 10
+  _delayBetweenTests: 2
+  _autoStartOnPlay: 1
+  _generateRandomDataEachIteration: 1
+  _isUseEnglish: 0
+  _outputDirectoryPath: Assets/LLMTestResults
+  _filePrefix: LLMTest
+  _llmCharacter: {fileID: 1262174236}
+  _timeoutSeconds: 30
+  _autoConfigureLLM: 0
+  _useGrammar: 0
+  _optimalThreads: 6
+  _optimalGpuLayers: 33
+  _optimalContextSize: 2048
+  _optimalBatchSize: 512
+  _situationType: 1
+  _situationTypeEnglish: 1
+  _useMixedSituations: 1
+  _showProgressInConsole: 1
+  _showDetailedTiming: 1
+  _showPromptSummary: 1
+  _validateResponses: 1
+  _showPerformanceMetrics: 1
+  _enableResponseCache: 0
+  _maxCacheSize: 20
+--- !u!4 &1262174238
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1262174234}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 1
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1387439237
 GameObject:
   m_ObjectHideFlags: 0
@@ -3308,11 +3470,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 60f54da2483e151448e08a09acdadc1b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.CombatSystem.MovementSystem
-  enableDebugLogs: 0
-  groundLayerMask:
-    serializedVersion: 2
-    m_Bits: 1
-  groundCheckDistance: 1.1
 --- !u!114 &5615815007695211512
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3325,12 +3482,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 526dd1a14e8e05f4a83c0bdac0b05712, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.CombatSystem.ManeuverSystem
-  characterController: {fileID: 0}
-  stateSystem: {fileID: 0}
-  energySystem: {fileID: 0}
-  movementSystem: {fileID: 0}
-  availableManeuvers: []
-  maxManeuverSlots: 3
 --- !u!114 &5615815007695211513
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3343,9 +3494,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c2f02697d43f35d48bced19a4a2496d8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.CombatSystem.HealthSystem
-  enableDebugLogs: 0
-  stateSystem: {fileID: 0}
-  defenseSystem: {fileID: 0}
 --- !u!114 &5615815007695211514
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3358,7 +3506,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e62c230923970404490819c3be2d53ca, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.CombatSystem.EnergySystem
-  enableDebugLogs: 0
 --- !u!114 &5615815007695211515
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3371,7 +3518,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fa0bd8508a598e041a40f10eb468dc73, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.CombatSystem.DirectionSystem
-  stickThreshold: 0.5
 --- !u!114 &5615815007695211516
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3384,7 +3530,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 59390ccc3fa8fbc46b8c53048c65f7ec, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.CombatSystem.DefenseSystem
-  enableDebugLogs: 0
 --- !u!114 &5615815007695211517
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3397,11 +3542,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 08a8230d4ab1db143974bd17cc99bb09, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.CombatSystem.AttackSystem
-  enableDebugLogs: 0
-  meleeAttackCollider: {fileID: 0}
-  bulletPrefab: {fileID: 0}
-  bulletSpawnPoint: {fileID: 0}
-  availableSkills: []
 --- !u!114 &5615815007695211518
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3414,11 +3554,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9f07ab1e37f4aba4da40914f189b0edf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.CombatSystem.PlayerController
-  characterSettings: {fileID: 0}
-  opponentDataProvider: {fileID: 0}
-  enableAutoAim: 1
-  enableInputBuffer: 1
-  inputSensitivity: 1
 --- !u!1 &5659221110347129306
 GameObject:
   m_ObjectHideFlags: 0
@@ -4889,3 +5024,4 @@ SceneRoots:
   - {fileID: 1216372670}
   - {fileID: 1387439241}
   - {fileID: 1114260476598191523}
+  - {fileID: 1262174238}
