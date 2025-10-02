@@ -39,6 +39,17 @@ namespace LearningAIGame.CombatSystem.Data
         public StanceType stance;           // 上、左、右の攻撃方向
         public int damage;                // ダメージの値
         public AttackReportType reportType; // 開始、キャンセル、のどれか
+
+        /// <summary>
+        /// 報告用の情報を設定する
+        /// インスタンスを使いまわすために後からセットできるように
+        /// </summary>
+        public void SetInfo(StanceType newStance, int nextDamage, AttackReportType type)
+        {
+            stance = newStance;
+            damage = nextDamage;
+            reportType = type;
+        }
     }
 
     /// <summary>
