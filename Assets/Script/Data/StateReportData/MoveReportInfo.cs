@@ -47,6 +47,18 @@ namespace LearningAIGame.CombatSystem.Data
         /// 移動報告の区分
         /// </summary>
         public MovementReportType reportType;
+
+        /// <summary>
+        /// 報告用の情報を設定する
+        /// インスタンスを使いまわすために後からセットできるように
+        /// </summary>
+        /// <param name="newVector"></param>
+        /// <param name="type"></param>
+        public void SetInfo(Vector3 newVector, MovementReportType type)
+        {
+            moveVector = newVector;
+            reportType = type;
+        }
     }
 
     /// <summary>

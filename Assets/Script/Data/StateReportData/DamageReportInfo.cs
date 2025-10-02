@@ -92,17 +92,15 @@ namespace LearningAIGame.CombatSystem.Data
         /// 報告内容に従い現在の攻撃情報を作成する
         /// </summary>
         /// <param name="reportInfo">報告データ</param>
-        public void SetInfo(in DefenseReportInfo reportInfo)
+        public void SetInfo(in DefenseReportInfo reportInfo, float startTime, float duration)
         {
             // ガードとブロッキングで処理を分ける
             // ブロッキング
             if (reportInfo.reportType == DefenseReportType.BlockingStart)
             {
                 _defenseType = DefenseType.Blocking;
-
-                // とりあえずリテラルで入れておきますが、最終的には設定データに置き換えます
-                _defenseStartTime = Time.time + 0.1f;
-                _defenseDuration = 0.4f;
+                _defenseStartTime = Time.time + startTime;
+                _defenseDuration = duration;
             }
 
             // ガード
@@ -121,7 +119,7 @@ namespace LearningAIGame.CombatSystem.Data
         /// 回避アクションの情報を受け付けるオーバーロード
         /// </summary>
         /// <param name="reportInfo">報告データ</param>
-        public void SetInfo(in MoveReportInfo reportInfo)
+        public void SetInfo(in MoveReportInfo reportInfo, float startTime, float duration)
         {
             // 通常移動なら戻る
             if (reportInfo.reportType == MovementReportType.NormalMove)
@@ -131,10 +129,8 @@ namespace LearningAIGame.CombatSystem.Data
 
             // 回避情報を入れる
             _defenseType = DefenseType.Blocking;
-
-            // とりあえずリテラルで入れますが、最終的には設定データに置き換えます
-            _defenseStartTime = Time.time + 0.5f;
-            _defenseDuration = 0.8f;
+            _defenseStartTime = Time.time + startTime;
+            _defenseDuration = duration;
         }
 
         /// <summary>
