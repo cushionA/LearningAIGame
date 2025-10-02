@@ -162,6 +162,11 @@ namespace LearningAIGame.CombatSystem.Core
         /// </summary>
         private DefenseInfo _defenseInfo;
 
+        /// <summary>
+        /// リアクティブプロパティ破棄用
+        /// </summary>
+        private readonly CompositeDisposable _disposables = new();
+
         #endregion
 
         #region Publicプロパティ
@@ -405,12 +410,18 @@ namespace LearningAIGame.CombatSystem.Core
                     {
                         useState = ActionState.弱攻撃;
                     }
+
+                    // 攻撃方向切り替え
+                    CurrentStance.Value = attackReport.stance;
                     break;
 
                 // 強攻撃開始
                 case AttackReportType.HeavyAttackStart:
                     // 強攻撃に状態切り替え
                     useState = ActionState.強攻撃;
+
+                    // 攻撃方向切り替え
+                    CurrentStance.Value = attackReport.stance;
                     break;
 
                 // 強攻撃キャンセル
@@ -421,9 +432,6 @@ namespace LearningAIGame.CombatSystem.Core
                 default:
                     throw new ArgumentOutOfRangeException();
             }
-
-            // 攻撃方向切り替え
-            CurrentStance.Value = attackReport.stance;
 
             // 行動切り替え
             ChangeState(useState, isCancel);
@@ -498,6 +506,28 @@ namespace LearningAIGame.CombatSystem.Core
 
             // アクションが切り替わった際に移動フラグは一度消す
             MoveVector.Value = Vector3.zero;
+        }
+
+        #endregion
+
+        #region ライフサイクル
+
+        /// <summary>
+        /// 初期化時にReactivePropertyを生成して登録
+        /// </summary>
+        private void Awake()
+        {
+            CurrentState = new ReactiveProperty<ActionState>().AddTo(_disposables);
+            MoveVector = new ReactiveProperty<Vector3>().AddTo(_disposables);
+            CurrentStance = new ReactiveProperty<StanceType>().AddTo(_disposables);
+        }
+
+        /// <summary>
+        /// リアクティブプロパティを破棄しておく。
+        /// </summary>
+        private void OnDestroy()
+        {
+            _disposables.Dispose();
         }
 
         #endregion
