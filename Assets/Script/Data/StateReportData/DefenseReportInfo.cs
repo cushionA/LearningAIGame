@@ -43,6 +43,17 @@ namespace LearningAIGame.CombatSystem.Data
         /// 報告内容
         /// </summary>
         public DefenseReportType reportType;
+
+        /// <summary>
+        /// 防御報告用データに値を設定するメソッド
+        /// </summary>
+        /// <param name="newStance"></param>
+        /// <param name="type"></param>
+        public void SetInfo(StanceType newStance, DefenseReportType type)
+        {
+            stance = newStance;
+            reportType = type;
+        }
     }
 
     /// <summary>
