@@ -1,5 +1,6 @@
 using NaughtyAttributes;
 using UnityEngine;
+using static LearningAIGame.CombatSystem.Core.StateSystem;
 
 //==============================================ファイルヘッダ===========================================================
 // ActionSetting
@@ -53,6 +54,24 @@ namespace LearningAIGame.CombatSystem.Setting
         [MinValue(0f)]
         [SerializeField] private float _weakAttackStepDuration = 0.2f;
 
+        [BoxGroup("弱攻撃")]
+        [Label("実行後硬直時間")]
+        [Tooltip("弱攻撃後の硬直時間(秒)")]
+        [MinValue(0f)]
+        [SerializeField] private float _weakAttackStun = 0.2f;
+
+        [BoxGroup("弱攻撃")]
+        [Label("攻撃判定発生フレーム")]
+        [Tooltip("弱攻撃時の判定発生フレーム")]
+        [MinValue(0f)]
+        [SerializeField] private int _weakAttackStartFrame = 2;
+
+        [BoxGroup("弱攻撃")]
+        [Label("攻撃判定持続フレーム")]
+        [Tooltip("弱攻撃時の判定持続フレーム")]
+        [MinValue(1f)]
+        [SerializeField] private int _weakAttackDurationFrame = 5;
+
         // === プロパティ（読み取り専用） ===
 
         /// <summary>弱攻撃のダメージ値</summary>
@@ -63,6 +82,10 @@ namespace LearningAIGame.CombatSystem.Setting
         public float WeakAttackStepSpeed => _weakAttackStepSpeed;
         /// <summary>弱攻撃時の踏み込み継続時間</summary>
         public float WeakAttackStepDuration => _weakAttackStepDuration;
+        /// <summary>弱攻撃時の判定開始時間</summary>
+        public int WeakAttackStartFrame => _weakAttackStartFrame;
+        /// <summary>弱攻撃時の判定継続時間</summary>
+        public int WeakAttackDurationFrame => _weakAttackDurationFrame;
 
         #endregion
 
@@ -93,10 +116,34 @@ namespace LearningAIGame.CombatSystem.Setting
         [SerializeField] private float _heavyAttackStepDuration = 0.3f;
 
         [BoxGroup("強攻撃")]
+        [Label("実行後硬直時間")]
+        [Tooltip("強攻撃後の硬直時間(秒)")]
+        [MinValue(0f)]
+        [SerializeField] private float _heavyAttackStun = 0.5f;
+
+        [BoxGroup("強攻撃")]
         [Label("キャンセル時の消費エネルギー")]
         [Tooltip("強攻撃をキャンセルする際に追加で消費するエネルギー量")]
         [MinValue(0)]
         [SerializeField] private int _heavyAttackCancelEnergyCost = 10;
+
+        [BoxGroup("強攻撃")]
+        [Label("キャンセル時の硬直時間")]
+        [Tooltip("強攻撃をキャンセルした際の硬直時間(秒)")]
+        [MinValue(0f)]
+        [SerializeField] private float _heavyAttackCancelStun = 0.3f;
+
+        [BoxGroup("強攻撃")]
+        [Label("攻撃判定発生フレーム")]
+        [Tooltip("強攻撃時の判定発生フレーム")]
+        [MinValue(0f)]
+        [SerializeField] private int _heavyAttackStartFrame = 2;
+
+        [BoxGroup("強攻撃")]
+        [Label("攻撃判定持続フレーム")]
+        [Tooltip("強攻撃時の判定持続フレーム")]
+        [MinValue(1f)]
+        [SerializeField] private int _heavyAttackDurationFrame = 5;
 
         // === プロパティ（読み取り専用） ===
 
@@ -110,6 +157,10 @@ namespace LearningAIGame.CombatSystem.Setting
         public float HeavyAttackStepDuration => _heavyAttackStepDuration;
         /// <summary>強攻撃キャンセル時の消費エネルギー</summary>
         public int HeavyAttackCancelEnergyCost => _heavyAttackCancelEnergyCost;
+        /// <summary>強攻撃時の判定開始時間</summary>
+        public int HeavyAttackStartFrame => _heavyAttackStartFrame;
+        /// <summary>強攻撃時の判定継続時間</summary>
+        public int HeavyAttackDurationFrame => _heavyAttackDurationFrame;
 
         #endregion
 
@@ -133,6 +184,18 @@ namespace LearningAIGame.CombatSystem.Setting
         [MinValue(0f)]
         [SerializeField] private float _blockingDuration = 0.4f;
 
+        [BoxGroup("ブロッキング")]
+        [Label("実行後硬直時間")]
+        [Tooltip("ブロッキング後の硬直時間(秒)")]
+        [MinValue(0f)]
+        [SerializeField] private float _blockingStun = 0.3f;
+
+        [BoxGroup("ブロッキング")]
+        [Label("成功時の硬直時間")]
+        [Tooltip("ブロッキング成功時の硬直時間(秒)")]
+        [MinValue(0f)]
+        [SerializeField] private float _blockingSuccessStun = 0.1f;
+
         // === プロパティ（読み取り専用） ===
 
         /// <summary>ブロッキングの消費エネルギー</summary>
@@ -141,6 +204,8 @@ namespace LearningAIGame.CombatSystem.Setting
         public float BlockingStartDelay => _blockingStartDelay;
         /// <summary>ブロッキング判定の継続時間</summary>
         public float BlockingDuration => _blockingDuration;
+        /// <summary>ブロッキングの実行後硬直時間</summary>
+        public float BlockingStun => _blockingStun;
 
         #endregion
 
@@ -165,6 +230,12 @@ namespace LearningAIGame.CombatSystem.Setting
         [SerializeField] private float _avoidDuration = 0.4f;
 
         [BoxGroup("回避")]
+        [Label("実行後硬直時間")]
+        [Tooltip("回避後の硬直時間(秒)")]
+        [MinValue(0f)]
+        [SerializeField] private float _avoidStun = 0.2f;
+
+        [BoxGroup("回避")]
         [Label("無敵判定発生遅延")]
         [Tooltip("回避実行から無敵判定が有効になるまでの遅延時間（秒）")]
         [MinValue(0f)]
@@ -177,6 +248,18 @@ namespace LearningAIGame.CombatSystem.Setting
         [MinValue(0f)]
         [SerializeField] private float _avoidInvincibleDuration = 0.3f;
 
+        [BoxGroup("回避攻撃")]
+        [Label("前回避攻撃の硬直時間")]
+        [Tooltip("前回避攻撃後の硬直時間(秒)")]
+        [MinValue(0f)]
+        [SerializeField] private float _forwardAvoidAttackStun = 0.25f;
+
+        [BoxGroup("回避攻撃")]
+        [Label("横回避攻撃の硬直時間")]
+        [Tooltip("横回避攻撃後の硬直時間(秒)")]
+        [MinValue(0f)]
+        [SerializeField] private float _sideAvoidAttackStun = 0.25f;
+
         // === プロパティ（読み取り専用） ===
 
         /// <summary>回避の消費エネルギー</summary>
@@ -185,6 +268,8 @@ namespace LearningAIGame.CombatSystem.Setting
         public float AvoidSpeed => _avoidSpeed;
         /// <summary>回避の継続時間</summary>
         public float AvoidDuration => _avoidDuration;
+        /// <summary>回避の実行後硬直時間</summary>
+        public float AvoidStun => _avoidStun;
         /// <summary>回避の無敵判定発生遅延時間</summary>
         public float AvoidInvincibleStartDelay => _avoidInvincibleStartDelay;
         /// <summary>回避の無敵判定継続時間</summary>
@@ -201,6 +286,18 @@ namespace LearningAIGame.CombatSystem.Setting
         [Tooltip("ガード状態での通常移動速度")]
         [MinValue(0f)]
         [SerializeField] private float _moveSpeed = 4f;
+
+        [BoxGroup("移動")]
+        [Label("ガード時の硬直時間")]
+        [Tooltip("ガード状態時の硬直時間(秒) - 通常は0")]
+        [MinValue(0f)]
+        [SerializeField] private float _guardStun = 0f;
+
+        [BoxGroup("移動")]
+        [Label("ガード成功時の硬直時間")]
+        [Tooltip("ガードで攻撃を受けた際の硬直時間(秒)")]
+        [MinValue(0f)]
+        [SerializeField] private float _guardSuccessStun = 0.15f;
 
         // === プロパティ（読み取り専用） ===
 
@@ -229,6 +326,50 @@ namespace LearningAIGame.CombatSystem.Setting
         public float EnergyRecoveryRatePerSecond => _energyRecoveryRatePerSecond;
         /// <summary>ブロッキング成功時のエネルギー回復量（%）</summary>
         public float BlockingSuccessEnergyRecovery => _blockingSuccessEnergyRecovery;
+
+        #endregion
+
+        #region インデクサ（硬直時間の取得）
+
+        /// <summary>
+        /// ActionStateから対応する硬直時間を取得するインデクサ
+        /// </summary>
+        /// <param name="state">アクション状態</param>
+        /// <returns>対応する硬直時間（秒）。該当しない場合は0</returns>
+        public float this[ActionState state]
+        {
+            get
+            {
+                switch (state)
+                {
+                    case ActionState.ガード:
+                        return _guardStun;
+                    case ActionState.ブロッキング:
+                        return _blockingStun;
+                    case ActionState.前回避:
+                    case ActionState.横回避:
+                    case ActionState.後ろ回避:
+                        return _avoidStun;
+                    case ActionState.前回避攻撃:
+                        return _forwardAvoidAttackStun;
+                    case ActionState.横回避攻撃:
+                        return _sideAvoidAttackStun;
+                    case ActionState.弱攻撃:
+                        return _weakAttackStun;
+                    case ActionState.強攻撃:
+                        return _heavyAttackStun;
+                    case ActionState.ブロッキング成功:
+                        return _blockingSuccessStun;
+                    case ActionState.ガード成功:
+                        return _guardSuccessStun;
+                    case ActionState.強攻撃キャンセル:
+                        return _heavyAttackCancelStun;
+                    default:
+                        Debug.LogWarning($"[{name}] 未定義のActionState: {state}");
+                        return 0f;
+                }
+            }
+        }
 
         #endregion
 
@@ -269,6 +410,13 @@ namespace LearningAIGame.CombatSystem.Setting
             if (_heavyAttackEnergyCost <= _weakAttackEnergyCost)
             {
                 Debug.LogWarning($"[{name}] 強攻撃のコスト（{_heavyAttackEnergyCost}）が弱攻撃（{_weakAttackEnergyCost}）以下です。");
+                hasWarnings = true;
+            }
+
+            // 硬直時間の妥当性チェック
+            if (_weakAttackStun < 0f || _heavyAttackStun < 0f || _blockingStun < 0f || _avoidStun < 0f)
+            {
+                Debug.LogWarning($"[{name}] 硬直時間に負の値が設定されています。");
                 hasWarnings = true;
             }
 
