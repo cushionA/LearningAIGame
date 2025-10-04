@@ -36,14 +36,15 @@ namespace LLMDataArchitect
 
         /// <summary>
         /// ダメージ報告情報からヒット情報を作成する
+        /// こちらをメインで使う
         /// </summary>
         /// <param name="reportInfo"></param>
-        public HitSituation(in DamageReportInfo reportInfo, ActionState hitState)
+        public HitSituation(in DamageReportInfo reportInfo)
         {
             // プロパティに引数を代入
-            HitState = hitState;
-            HitType = reportInfo.attackType == AttackType.WeakAttack ? ActionState.弱攻撃 : ActionState.強攻撃;
-            GetDamage = reportInfo.damage;
+            HitState = reportInfo.DefenseAction;
+            HitType = reportInfo.AttackType == AttackType.WeakAttack ? ActionState.弱攻撃 : ActionState.強攻撃;
+            GetDamage = reportInfo.Damage;
         }
     }
 }

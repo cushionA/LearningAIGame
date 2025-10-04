@@ -2,6 +2,7 @@ using Cysharp.Threading.Tasks;
 using LearningAIGame.CombatSystem.Data;
 using LearningAIGame.CombatSystem.Setting;
 using LearningAIGame.CombatSystem.Systems;
+using R3;
 using System;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -34,6 +35,12 @@ namespace LearningAIGame.CombatSystem.Core
     public class BattleCharacterController : MonoBehaviour
     {
         /// <summary>
+        /// アクション設定データ
+        /// </summary>
+        [SerializeField]
+        private ActionSetting _actionSetting;
+
+        /// <summary>
         /// 攻撃実行クラス
         /// </summary>
         [SerializeField]
@@ -52,10 +59,10 @@ namespace LearningAIGame.CombatSystem.Core
         private MovementSystem _movementSystem;
 
         /// <summary>
-        /// アクション設定データ
+        /// ダメージ判定の管理クラス
         /// </summary>
         [SerializeField]
-        private ActionSetting _actionSetting;
+        private HitSystem _hitSystem;
 
         /// <summary>
         /// 状態管理システム
@@ -80,6 +87,15 @@ namespace LearningAIGame.CombatSystem.Core
         /// </summary>
         private Vector3 _enemyPosition;
 
+        private void Awake()
+        {
+            // 被ダメージによる行動キャンセルイベント
+            _stateSystem.CurrentState
+                .Where(state => (state & ActionState.強制行動キャンセル) > 0)
+                .Subscribe(_ => OnStunCancel())
+                .AddTo(this);
+        }
+
         private void Update()
         {
             // 自分の位置を毎フレームキャッシュ
@@ -92,7 +108,7 @@ namespace LearningAIGame.CombatSystem.Core
         /// <summary>
         /// 弱攻撃実行
         /// </summary>
-        public void WeakAttackAct(StanceType stance)
+        public async UniTaskVoid WeakAttackAct(StanceType stance)
         {
             // 攻撃可能な状態かを確認
             if (!_stateSystem.CanAttack)
@@ -114,12 +130,22 @@ namespace LearningAIGame.CombatSystem.Core
 
             // 攻撃実行
             _attackSystem.WeakAttack(damage, stance, stepVector, stepDuration);
+
+            // 攻撃判定発生フレームまで待機
+            bool isCancel = await UniTask.DelayFrame(_actionSetting.WeakAttackStartFrame, cancellationToken: destroyCancellationToken).SuppressCancellationThrow();
+
+            // 攻撃継続中であれば判定を出す
+            if (!isCancel && _stateSystem.CurrentState.CurrentValue == ActionState.弱攻撃)
+            {
+                _hitSystem.DamageStart(_stateSystem.CurrentAttackInfo, _actionSetting.WeakAttackDurationFrame);
+            }
         }
 
         /// <summary>
         /// 強攻撃実行
+        /// 攻撃判定発生フレーム消化後に判定を発生させる
         /// </summary>
-        public void HeavyAttackAct(StanceType stance)
+        public async UniTaskVoid HeavyAttackAct(StanceType stance)
         {
             // 攻撃可能な状態かを確認
             if (!_stateSystem.CanAttack)
@@ -141,6 +167,15 @@ namespace LearningAIGame.CombatSystem.Core
 
             // 攻撃実行
             _attackSystem.HeavyAttack(damage, stance, stepVector, stepDuration);
+
+            // 攻撃判定発生フレームまで待機
+            bool isCancel = await UniTask.DelayFrame(_actionSetting.HeavyAttackStartFrame, cancellationToken: destroyCancellationToken).SuppressCancellationThrow();
+
+            // 攻撃継続中であれば判定を出す
+            if (!isCancel && _stateSystem.CurrentState.CurrentValue == ActionState.強攻撃)
+            {
+                _hitSystem.DamageStart(_stateSystem.CurrentAttackInfo, _actionSetting.HeavyAttackDurationFrame);
+            }
         }
 
         /// <summary>
@@ -160,6 +195,9 @@ namespace LearningAIGame.CombatSystem.Core
 
             // キャンセル実行
             _attackSystem.HeavyAttackCancel();
+
+            // 攻撃判定の終了を行う
+            _hitSystem.DamageStop(true);
         }
 
         /// <summary>
@@ -168,13 +206,13 @@ namespace LearningAIGame.CombatSystem.Core
         public async UniTaskVoid HeavyAttackFeint(StanceType stance)
         {
             // 強攻撃を開始
-            HeavyAttackAct(stance);
+            HeavyAttackAct(stance).Forget();
 
             // 1秒待機
-            bool isSuccess = await UniTask.Delay(TimeSpan.FromSeconds(1f), cancellationToken: this.GetCancellationTokenOnDestroy()).SuppressCancellationThrow();
+            bool IsCancel = await UniTask.Delay(TimeSpan.FromSeconds(1f), cancellationToken: destroyCancellationToken).SuppressCancellationThrow();
 
             // 正常に待機が終わればキャンセル実行
-            if (isSuccess)
+            if (!IsCancel)
             {
                 HeavyAttackCancel();
             }
@@ -259,10 +297,10 @@ namespace LearningAIGame.CombatSystem.Core
             float waitTime = _actionSetting.AvoidAttackInputDuration * 0.7f;
 
             // 実行猶予分待機
-            bool isSuccess = await UniTask.Delay(TimeSpan.FromSeconds(waitTime), cancellationToken: this.GetCancellationTokenOnDestroy()).SuppressCancellationThrow();
+            bool isCancel = await UniTask.Delay(TimeSpan.FromSeconds(waitTime), cancellationToken: destroyCancellationToken).SuppressCancellationThrow();
 
             // 正常に待機が終わればキャンセル実行
-            if (isSuccess)
+            if (!isCancel)
             {
                 HeavyAttackCancel();
             }
@@ -281,18 +319,27 @@ namespace LearningAIGame.CombatSystem.Core
             }
 
             // 移動開始
-            _movementSystem.Move(moveVector);
+            _movementSystem.Move(moveVector * _actionSetting.MoveSpeed);
         }
 
+        #region 購読用メソッド
+
         /// <summary>
-        /// エネルギー消費処理
+        /// 怯み等で行動キャンセルされた場合にコールバックされる
+        /// 実行中だった行動の影響をキャンセルする
         /// </summary>
-        /// <param name="useAmount">消費量</param>
-        private void InternalEnergyUse(int useAmount)
+        private void OnStunCancel()
         {
-            // 状態管理システムのエネルギーを減らす
-            _stateSystem.UseEnergy(useAmount);
+            // 強制キャンセル時の行動を確認。
+            ActionState last = _stateSystem.LastState;
+
+            if ((last & ActionState.攻撃) > 0)
+            {
+                _hitSystem.DamageStop();
+            }
         }
+
+        #endregion
 
         /// <summary>
         /// 敵への法線ベクトルを取得

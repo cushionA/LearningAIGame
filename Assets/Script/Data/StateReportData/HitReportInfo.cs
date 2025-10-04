@@ -38,10 +38,6 @@ using static LearningAIGame.CombatSystem.Core.StateSystem;
 
 namespace LearningAIGame.CombatSystem.Data
 {
-    // ... (既存のコード)
-}
-namespace LearningAIGame.CombatSystem.Data
-{
     /// <summary>
     /// 状態管理システムへの報告用構造体
     /// 攻撃ヒット時の状況を報告する
@@ -63,6 +59,24 @@ namespace LearningAIGame.CombatSystem.Data
         /// 攻撃の実行結果
         /// </summary>
         public HitResultType hitResultType;
+
+        /// <summary>
+        /// 攻撃開始時にダメージと攻撃の種類を設定する
+        /// </summary>
+        public void InitializeDamage(in AttackInfo info)
+        {
+            damage = info.damage;
+            attackType = info.attackType;
+        }
+
+        /// <summary>
+        /// 結果を設定する
+        /// </summary>
+        /// <param name="result"></param>
+        public void SetResult(HitResultType result)
+        {
+            hitResultType = result;
+        }
     }
 
     /// <summary>
@@ -71,7 +85,8 @@ namespace LearningAIGame.CombatSystem.Data
     public enum AttackType : byte
     {
         WeakAttack,
-        HeavyAttack
+        HeavyAttack,
+        NoAttack
     }
 
     /// <summary>
@@ -83,6 +98,8 @@ namespace LearningAIGame.CombatSystem.Data
         Guard,
         Avoid,
         Hit,
+        Stun,// 敵攻撃により中断
+        Cancel,// 自分でキャンセルした
         Miss// 空振り。初期値
     }
 
