@@ -13,13 +13,13 @@ TagManager:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 
+  - Platform
   - Water
   - UI
-  - Character
-  - Platform
-  - Attack
-  - 
+  - Player
+  - NPC
+  - PlayerAttack
+  - NPCAttack
   - 
   - 
   - 
