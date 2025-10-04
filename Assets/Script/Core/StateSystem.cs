@@ -117,6 +117,10 @@ namespace LearningAIGame.CombatSystem.Core
             攻撃可能 = ガード | ブロッキング成功 | ガード成功,
             強攻撃キャンセル可能 = 強攻撃,
             移動可能 = ガード | ブロッキング成功 | ガード成功,
+            攻撃 = 強攻撃 | 弱攻撃,
+            回避 = 前回避 | 横回避 | 後ろ回避,
+            防御 = 回避 | ガード | ブロッキング,
+            強制行動キャンセル = 小怯み | 大怯み | 弱攻撃ブロッキング | 強攻撃ブロッキング | 死亡,
             行動履歴に記録しない = ブロッキング成功 | ガード成功 | 小怯み | 大怯み | 弱攻撃ブロッキング | 強攻撃ブロッキング | 弱攻撃ガード | 死亡
         }
 
@@ -172,9 +176,10 @@ namespace LearningAIGame.CombatSystem.Core
         private DefenseInfo _defenseInfo;
 
         /// <summary>
-        /// リアクティブプロパティ破棄用
+        /// 行動硬直を記録する変数
+        /// ある行動のあと、硬直を経て次に行動できるようになる時間を設定する
         /// </summary>
-        private readonly CompositeDisposable _disposables = new();
+        private float _moveStunTime = -1f;
 
         #region 購読対象
 
@@ -196,6 +201,18 @@ namespace LearningAIGame.CombatSystem.Core
         [SerializeField]
         private MovementSystem _movementSystem;
 
+        /// <summary>
+        /// 与ダメージ管理クラス
+        /// </summary>
+        [SerializeField]
+        private HitSystem _hitSystem;
+
+        /// <summary>
+        /// 被弾管理クラス
+        /// </summary>
+        [SerializeField]
+        private DamageSystem _damageSystem;
+
         #endregion
 
         #endregion
@@ -211,6 +228,16 @@ namespace LearningAIGame.CombatSystem.Core
         /// 読み取り専用の攻撃情報
         /// </summary>
         public AttackInfo CurrentAttackInfo { get { return _attackInfo; } }
+
+        /// <summary>
+        /// 読み取り専用の防御情報
+        /// </summary>
+        public DefenseInfo CurrentDefenseInfo { get { return _defenseInfo; } }
+
+        /// <summary>
+        /// 一つ前の行動状態
+        /// </summary>
+        public ActionState LastState { get; private set; }
 
         #region アニメーション管理リアクティブプロパティ
 
@@ -236,32 +263,32 @@ namespace LearningAIGame.CombatSystem.Core
         /// <summary>
         /// 攻撃可能かどうか
         /// </summary>
-        public bool CanAttack { get { return !_characterData.IsEnergyExhaust && (CurrentState.CurrentValue & ActionState.攻撃可能) > 0; } }
+        public bool CanAttack { get { return !_characterData.IsEnergyExhaust && Time.time >= _moveStunTime && (CurrentState.CurrentValue & ActionState.攻撃可能) > 0; } }
 
         /// <summary>
         /// ガード方向切り替え可能かどうか
         /// </summary>
-        public bool CanChangeGuardDirection { get { return (CurrentState.CurrentValue & ActionState.ガード方向切り替え可能) > 0; } }
+        public bool CanChangeGuardDirection { get { return (CurrentState.CurrentValue & ActionState.ガード方向切り替え可能) > 0 && Time.time >= _moveStunTime; } }
 
         /// <summary>
         /// ブロッキング可能かどうか
         /// </summary>
-        public bool CanBlock { get { return !_characterData.IsEnergyExhaust && (CurrentState.CurrentValue & ActionState.ブロッキング可能) > 0; } }
+        public bool CanBlock { get { return !_characterData.IsEnergyExhaust && (CurrentState.CurrentValue & ActionState.ブロッキング可能) > 0 && Time.time >= _moveStunTime; } }
 
         /// <summary>
         /// 回避可能かどうか
         /// </summary>
-        public bool CanAvoid { get { return (CurrentState.CurrentValue & ActionState.回避可能) > 0; } }
+        public bool CanAvoid { get { return (CurrentState.CurrentValue & ActionState.回避可能) > 0 && Time.time >= _moveStunTime; } }
 
         /// <summary>
         /// 強攻撃をキャンセル可能かどうか
         /// </summary>
-        public bool CanCancelHeavyAttack { get { return !_characterData.IsEnergyExhaust && (CurrentState.CurrentValue & ActionState.強攻撃キャンセル可能) > 0; } }
+        public bool CanCancelHeavyAttack { get { return !_characterData.IsEnergyExhaust && (CurrentState.CurrentValue & ActionState.強攻撃キャンセル可能) > 0 && Time.time >= _moveStunTime; } }
 
         /// <summary>
         /// 移動可能かどうか
         /// </summary>
-        public bool CanMove { get { return (CurrentState.CurrentValue & ActionState.移動可能) > 0; } }
+        public bool CanMove { get { return (CurrentState.CurrentValue & ActionState.移動可能) > 0 && Time.time >= _moveStunTime; } }
 
         #endregion
 
@@ -272,9 +299,10 @@ namespace LearningAIGame.CombatSystem.Core
         /// </summary>
         public void Update()
         {
-            // 毎フレームエネルギーの回復
-            // リテラルは設定データに置き換え予定
-            _characterData.RecoverEnergyByRate(Time.deltaTime * 3); // 1秒に3%回復
+            // ActionSettingの値を使用
+            _characterData.RecoverEnergyByRate(
+                Time.deltaTime * _actionSetting.EnergyRecoveryRatePerSecond
+            );
         }
 
         #region Publicメソッド
@@ -291,10 +319,12 @@ namespace LearningAIGame.CombatSystem.Core
 
         /// <summary>
         /// アニメ完了を待ってニュートラル状態に戻りガードを開始する
+        /// また、行動後硬直を設定する
         /// アニメ管理クラスから各モーション終了時に呼ぶ想定
         /// </summary>
         public void SetNeutral()
         {
+            _moveStunTime = Time.time + _actionSetting[CurrentState.CurrentValue];
             ChangeState(ActionState.ガード);
         }
 
@@ -306,6 +336,11 @@ namespace LearningAIGame.CombatSystem.Core
         /// <returns>ヒット、回避、ガード、の中のどの結果であるかを返す</returns>
         public HitResultType GetAttackResult(in AttackInfo attackInfo)
         {
+            // 現在防御中でなければ判定も行わない
+            if ((CurrentState.CurrentValue & ActionState.防御) == 0)
+            {
+                return HitResultType.Hit;
+            }
             return _defenseInfo.IsDefenseSuccess(attackInfo, CurrentStance.CurrentValue);
         }
 
@@ -353,9 +388,10 @@ namespace LearningAIGame.CombatSystem.Core
         private void OnDamage(DamageReportInfo damageReport)
         {
             // 被弾している場合
-            if (damageReport.damage != 0)
+            if (damageReport.Damage != 0)
             {
-                _characterData.TakeDamage(damageReport.damage);
+                // ダメージを受ける処理
+                _characterData.TakeDamage(damageReport.Damage);
 
                 // 死んでいたら死亡状態に移行
                 if (_characterData.IsDead)
@@ -364,7 +400,7 @@ namespace LearningAIGame.CombatSystem.Core
                 }
 
                 // 弱攻撃の場合
-                if (damageReport.attackType == AttackType.WeakAttack)
+                if (damageReport.AttackType == AttackType.WeakAttack)
                 {
                     ChangeState(ActionState.小怯み);
                 }
@@ -374,25 +410,25 @@ namespace LearningAIGame.CombatSystem.Core
                 }
 
                 // 被弾状況を追加
-                _damageSituation.Add(new HitSituation(damageReport, CurrentState.CurrentValue));
+                _damageSituation.Add(new HitSituation(damageReport));
             }
             // 防御成功した場合
             else
             {
                 // ガード成功
-                if (damageReport.defenseType == DefenseType.Guard)
+                if (damageReport.DefenseAction == ActionState.ガード)
                 {
                     ChangeState(ActionState.ガード成功);
                 }
 
                 // ブロッキング成功
-                else
+                else if (damageReport.DefenseAction == ActionState.ブロッキング)
                 {
                     ChangeState(ActionState.ブロッキング成功);
 
                     // ブロッキング成功時10パーセントエネルギー回復
                     // リテラルは設定データに置き換え予定
-                    _characterData.RecoverEnergyByRate(20);
+                    _characterData.RecoverEnergyByRate(_actionSetting.BlockingSuccessEnergyRecovery);
                 }
             }
         }
@@ -534,6 +570,9 @@ namespace LearningAIGame.CombatSystem.Core
                 {
                     // 行動切り替え前に現在の行動を履歴に保存
                     this._actHistory.Add(CurrentState.CurrentValue);
+
+                    // 前回の行動を保存する
+                    LastState = CurrentState.CurrentValue;
                 }
 
                 // 行動切り替え
@@ -549,17 +588,24 @@ namespace LearningAIGame.CombatSystem.Core
         #region ライフサイクル
 
         /// <summary>
-        /// 初期化時にReactivePropertyを生成して登録
+        /// 初期化時にフィールド、ReactiveProperty、購読設定を行う
         /// </summary>
         private void Awake()
         {
-            // リアクティブプロパティの破棄登録
-            CurrentState = new ReactiveProperty<ActionState>().AddTo(_disposables);
-            MoveVector = new ReactiveProperty<Vector3>().AddTo(_disposables);
-            CurrentStance = new ReactiveProperty<StanceType>().AddTo(_disposables);
+            // フィールドの初期化
+            _damageSituation = new List<HitSituation>();
+            _actHistory = new List<ActionState>();
 
-            // 各システムの購読設定
-            SubscribeSystems();
+            // nullチェック
+            if (_actionSetting == null)
+            {
+                Debug.LogError($"[{nameof(StateSystem)}] ActionSettingが設定されていません！");
+            }
+
+            // リアクティブプロパティの初期化と破棄登録
+            CurrentState = new ReactiveProperty<ActionState>(ActionState.ガード).AddTo(this);
+            MoveVector = new ReactiveProperty<Vector3>(Vector3.zero).AddTo(this);
+            CurrentStance = new ReactiveProperty<StanceType>(StanceType.Up).AddTo(this);
         }
 
         /// <summary>
@@ -567,34 +613,32 @@ namespace LearningAIGame.CombatSystem.Core
         /// </summary>
         private void SubscribeSystems()
         {
-            // 攻撃システムの購読
-            _attackSystem.Observable.Subscribe(attackInfo =>
+            // 各システムの購読設定
+            if (_attackSystem != null)
             {
-                // 攻撃情報をStateSystemに渡す処理
-                OnAttack(attackInfo);
-            }).AddTo(this);
+                _attackSystem.Observable.Subscribe(OnAttack).AddTo(this);
+            }
 
-            // 防御システムの購読
-            _defenseSystem.Observable.Subscribe(defenseInfo =>
+            if (_defenseSystem != null)
             {
-                // 防御情報をStateSystemに渡す処理
-                OnDefense(defenseInfo);
-            }).AddTo(this);
+                _defenseSystem.Observable.Subscribe(OnDefense).AddTo(this);
+            }
 
-            // 移動システムの購読
-            _movementSystem.Observable.Subscribe(moveInfo =>
+            if (_movementSystem != null)
             {
-                // 移動情報をStateSystemに渡す処理
-                OnMovement(moveInfo);
-            }).AddTo(this);
-        }
+                _movementSystem.Observable.Subscribe(OnMovement).AddTo(this);
+            }
 
-        /// <summary>
-        /// リアクティブプロパティを破棄しておく。
-        /// </summary>
-        private void OnDestroy()
-        {
-            _disposables.Dispose();
+            if (_hitSystem != null)
+            {
+                _hitSystem.Observable.Subscribe(OnHit).AddTo(this);
+            }
+
+            if (_damageSystem != null)
+            {
+                _damageSystem.Observable.Subscribe(OnDamage).AddTo(this);
+            }
+
         }
 
         #endregion

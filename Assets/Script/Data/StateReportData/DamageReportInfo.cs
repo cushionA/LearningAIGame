@@ -41,19 +41,44 @@ namespace LearningAIGame.CombatSystem.Data
     {
         /// <summary>
         /// 受けたダメージ
-        /// 0以外であれば防御失敗
         /// </summary>
-        public int damage;
+        private int _damage;
 
         /// <summary>
-        /// 実行した防御の種類
+        /// ヒット時の自分の行動
         /// </summary>
-        public DefenseType defenseType;
+        private ActionState _defenseAction;
 
         /// <summary>
         /// 受けた攻撃の種類
         /// </summary>
-        public AttackType attackType;
+        private AttackType _attackType;
+
+        /// <summary>
+        /// 受けたダメージ
+        /// 0以外であれば防御失敗
+        /// </summary>
+        public int Damage => _damage;
+
+        /// <summary>
+        /// 実行した防御の種類
+        /// </summary>
+        public ActionState DefenseAction => _defenseAction;
+
+        /// <summary>
+        /// 受けた攻撃の種類
+        /// </summary>
+        public AttackType AttackType => _attackType;
+
+        /// <summary>
+        /// 報告用の被弾データをセットする
+        /// </summary>
+        public void SetInfo(in HitReportInfo hitReport, ActionState defenseAction)
+        {
+            _damage = hitReport.hitResultType == HitResultType.Hit ? hitReport.damage : 0;
+            _attackType = hitReport.attackType;
+            _defenseAction = defenseAction;
+        }
     }
 
     /// <summary>
@@ -87,6 +112,11 @@ namespace LearningAIGame.CombatSystem.Data
         /// 現在の防御状態の判定が継続する時間
         /// </summary>
         private float _defenseDuration;
+
+        /// <summary>
+        /// 現在の防御状態を取得するための読み取り専用プロパティ
+        /// </summary>
+        public DefenseType CurrentDefense { get; }
 
         /// <summary>
         /// 報告内容に従い現在の攻撃情報を作成する
