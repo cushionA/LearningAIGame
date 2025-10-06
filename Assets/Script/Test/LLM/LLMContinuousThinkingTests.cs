@@ -9,13 +9,21 @@ using System.Linq;
 using System.Text;
 using UnityEngine;
 using static LLMDataArchitect.ActionTable;
-using static LLMDataArchitect.ActionTableEnglish;
-
 
 namespace LLMDataArchitect.Test
 {
     /// <summary>
-    /// LLM for Unityを使用した連続的な思考テスト用コンポーネント（最適化版）
+    /// プロンプト生成タイプ
+    /// </summary>
+    public enum PromptGeneratorType
+    {
+        Japanese,
+        English,
+        Experimental
+    }
+
+    /// <summary>
+    /// LLM for Unityを使用した連続的な思考テスト用コンポーネント（RAG統合版）
     /// </summary>
     public class LLMContinuousThinkingTest : MonoBehaviour
     {
@@ -25,8 +33,8 @@ namespace LLMDataArchitect.Test
         [SerializeField] private bool _autoStartOnPlay = true;
         [SerializeField] private bool _generateRandomDataEachIteration = true;
 
-        [Header("言語設定")]
-        [SerializeField] private bool _isUseEnglish = false;
+        [Header("プロンプト生成設定")]
+        [SerializeField] private PromptGeneratorType _generatorType = PromptGeneratorType.Japanese;
 
         [Header("ファイル出力設定")]
         [SerializeField] private string _outputDirectoryPath = "Assets/LLMTestResults";
@@ -36,17 +44,19 @@ namespace LLMDataArchitect.Test
         [SerializeField] private LLMCharacter _llmCharacter;
         [SerializeField] private float _timeoutSeconds = 50f;
 
+        [Header("RAG設定")]
+        [SerializeField] private RAG _rag;
+        [SerializeField] private bool _useRAG = true;
+        [SerializeField] private int _ragTopK = 3;
+        [SerializeField] private float _ragDistanceThreshold = 0.8f;
+        [SerializeField] private bool _showRAGResults = true;
+
         [Header("LLM最適化設定")]
         [SerializeField] private bool _autoConfigureLLM = true;
         [SerializeField] private bool _useGrammar = true;
-        [SerializeField] private int _optimalThreads = 6;
-        [SerializeField] private int _optimalGpuLayers = 33;
-        [SerializeField] private int _optimalContextSize = 2048;
-        [SerializeField] private int _optimalBatchSize = 512;
 
         [Header("戦況設定")]
         [SerializeField] private TestSituationType _situationType = TestSituationType.拮抗;
-        [SerializeField] private TestSituationTypeEnglish _situationTypeEnglish = TestSituationTypeEnglish.Even;
         [SerializeField] private bool _useMixedSituations = true;
 
         [Header("デバッグ表示")]
@@ -56,16 +66,11 @@ namespace LLMDataArchitect.Test
         [SerializeField] private bool _validateResponses = true;
         [SerializeField] private bool _showPerformanceMetrics = true;
 
-        [Header("キャッシング設定")]
-        [SerializeField] private bool _enableResponseCache = true;
-        [SerializeField] private int _maxCacheSize = 20;
-
-        // 最新版のSystemPromptGenerator
-        private SystemPromptGenerator _promptGenerator;
+        // プロンプト生成インターフェイス
+        private PromptGeneratorBase _promptGenerator;
 
         // テストデータ保持
         private Dictionary<TestSituationType, LLMInputData> _baseTestData;
-        private Dictionary<TestSituationTypeEnglish, LLMInputDataEnglish> _baseTestDataEnglish;
 
         // 共通フィールド
         private List<TestResult> _testResults;
@@ -75,30 +80,30 @@ namespace LLMDataArchitect.Test
         private StringBuilder _logBuilder;
         private string _currentSessionId;
 
-        // 最適化関連
-        private Dictionary<string, CachedResponse> _responseCache;
+        // パフォーマンスメトリクス
         private PerformanceMetrics _performanceMetrics;
-        private string _currentGrammar;
 
-        // キャッシュ用クラス
-        private class CachedResponse
-        {
-            public string Response;
-            public DateTime CachedAt;
-            public int HitCount;
-        }
+        // 現在のテストデータ（LastStrategyを更新していく）
+        private LLMInputData _currentTestData;
+
+        // RAG統計
+        private RAGStatistics _ragStatistics;
 
         // パフォーマンスメトリクス
         private class PerformanceMetrics
         {
             public double TotalTokensGenerated;
-            public double AverageTokensPerSecond;
             public List<double> TokensPerSecondHistory = new List<double>();
-            public int CacheHits;
-            public int CacheMisses;
-            public double CacheHitRate => (CacheHits + CacheMisses) > 0
-                ? (double)CacheHits / (CacheHits + CacheMisses)
-                : 0;
+        }
+
+        // RAG統計
+        private class RAGStatistics
+        {
+            public int TotalSearches;
+            public int SuccessfulSearches;
+            public List<double> SearchTimes = new List<double>();
+            public Dictionary<string, int> CategoryUsage = new Dictionary<string, int>();
+            public List<int> ResultCounts = new List<int>();
         }
 
         // テスト結果格納用クラス
@@ -111,17 +116,22 @@ namespace LLMDataArchitect.Test
             public string prompt;
             public string systemPrompt;
             public string response;
-            public string grammer;
+            public string grammar;
             public string error;
             public DateTime timestamp;
             public bool isSuccessful;
             public bool isValidJson;
             public string calculationSummary;
             public string tacticsType;
-            public bool isEnglish;
             public double tokensPerSecond;
             public int responseTokenCount;
-            public bool wasCached;
+
+            // RAG関連
+            public bool usedRAG;
+            public int ragResultCount;
+            public double ragSearchTimeMs;
+            public string[] ragResults;
+            public float[] ragDistances;
 
             public TestResult()
             {
@@ -147,15 +157,18 @@ namespace LLMDataArchitect.Test
             public double minResponseTimeSeconds;
             public double maxResponseTimeSeconds;
             public double averageTokensPerSecond;
-            public int cacheHits;
-            public int cacheMisses;
-            public double cacheHitRate;
             public List<TestResult> testResults;
             public List<string> errors;
             public Dictionary<string, int> situationTypeCounts;
             public Dictionary<string, int> tacticTypeCounts;
-            public bool isEnglishTest;
-            public LLMConfiguration llmConfig;
+            public string promptGeneratorType;
+
+            // RAG統計
+            public bool ragEnabled;
+            public int totalRAGSearches;
+            public int successfulRAGSearches;
+            public double averageRAGSearchTimeMs;
+            public Dictionary<string, int> ragCategoryUsage;
 
             public IntegratedTestResults()
             {
@@ -163,19 +176,8 @@ namespace LLMDataArchitect.Test
                 errors = new List<string>();
                 situationTypeCounts = new Dictionary<string, int>();
                 tacticTypeCounts = new Dictionary<string, int>();
+                ragCategoryUsage = new Dictionary<string, int>();
             }
-        }
-
-        [System.Serializable]
-        private class LLMConfiguration
-        {
-            public int threads;
-            public int gpuLayers;
-            public int contextSize;
-            public int batchSize;
-            public string logLevel;
-            public bool grammarEnabled;
-            public bool cacheEnabled;
         }
 
         private void Start()
@@ -194,13 +196,20 @@ namespace LLMDataArchitect.Test
             _totalStopwatch = new Stopwatch();
             _logBuilder = new StringBuilder();
             _currentSessionId = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            _responseCache = new Dictionary<string, CachedResponse>();
             _performanceMetrics = new PerformanceMetrics();
+            _ragStatistics = new RAGStatistics();
 
             // 出力ディレクトリの作成
             if (!Directory.Exists(_outputDirectoryPath))
             {
                 Directory.CreateDirectory(_outputDirectoryPath);
+            }
+
+            // RAGの検証
+            if (_useRAG && _rag == null)
+            {
+                UnityEngine.Debug.LogWarning("RAGが有効ですが、RAGコンポーネントが設定されていません。RAG機能を無効化します。");
+                _useRAG = false;
             }
 
             // LLMの最適設定を適用
@@ -216,40 +225,59 @@ namespace LLMDataArchitect.Test
             }
 
             // システムプロンプトを設定
-            if (_isUseEnglish)
-            {
-                _llmCharacter.prompt = @"You are a tactical combat AI assistant. 
-Analyze battle data and provide strategic decisions in strict JSON format.
-Always respond with ONLY valid JSON, no markdown, no explanations.";
-            }
-            else
-            {
-                _llmCharacter.prompt = @"あなたは戦術的な戦闘AI分析アシスタントです。
-戦闘データを分析し、厳密なJSON形式で戦略的判断を提供してください。
-常に有効なJSONのみで応答し、マークダウンや説明文は含めないでください。";
-            }
+            SetupSystemPrompt();
 
-            // プレイヤーとAIの名前も設定可能
-            _llmCharacter.playerName = "User";
-            _llmCharacter.AIName = "TacticAI";
-
-            // 最新版のSystemPromptGeneratorを初期化
-            _promptGenerator = new SystemPromptGenerator();
+            // プロンプト生成器を初期化（依存性注入）
+            _promptGenerator = CreatePromptGenerator(_generatorType);
 
             // テストデータ生成
             GenerateTestData();
 
             if (_showProgressInConsole)
             {
-                string language = _isUseEnglish ? "英語" : "日本語";
-                UnityEngine.Debug.Log($"LLM連続思考テスト初期化完了 - セッションID: {_currentSessionId} ({language})");
-                UnityEngine.Debug.Log($"LLM設定: Threads={_optimalThreads}, GPU Layers={_optimalGpuLayers}, Context={_optimalContextSize}, Grammar={_useGrammar}");
-
-                if (_isUseEnglish)
-                    UnityEngine.Debug.Log($"基本テストデータ生成完了: {_baseTestDataEnglish.Count}種類の戦況");
-                else
-                    UnityEngine.Debug.Log($"基本テストデータ生成完了: {_baseTestData.Count}種類の戦況");
+                string generatorName = _generatorType.ToString();
+                UnityEngine.Debug.Log($"LLM連続思考テスト初期化完了 - セッションID: {_currentSessionId}");
+                UnityEngine.Debug.Log($"プロンプト生成器: {generatorName}");
+                UnityEngine.Debug.Log($"RAG機能: {(_useRAG ? "有効" : "無効")}");
+                UnityEngine.Debug.Log($"基本テストデータ生成完了: {_baseTestData.Count}種類の戦況");
             }
+        }
+
+        /// <summary>
+        /// プロンプト生成器を生成（依存性注入）
+        /// </summary>
+        private PromptGeneratorBase CreatePromptGenerator(PromptGeneratorType type)
+        {
+            return type switch
+            {
+                PromptGeneratorType.Japanese => new JapanesePromptGenerator(),
+                PromptGeneratorType.English => new EnglishPromptGenerator(),
+                _ => new JapanesePromptGenerator()
+            };
+        }
+
+        /// <summary>
+        /// システムプロンプトを設定（RAG対応）
+        /// </summary>
+        private void SetupSystemPrompt()
+        {
+            if (_generatorType == PromptGeneratorType.English)
+            {
+                _llmCharacter.prompt = @"You are a tactical combat AI assistant with access to a comprehensive game rules knowledge base.
+Analyze battle data and the provided game rules to make strategic decisions in strict JSON format.
+Always respond with ONLY valid JSON, no markdown, no explanations.
+Use the provided game rules context to inform your tactical decisions.";
+            }
+            else
+            {
+                _llmCharacter.prompt = @"あなたは包括的なゲームルール知識ベースにアクセスできる戦術的な戦闘AIアシスタントです。
+戦闘データと提供されたゲームルールを分析し、厳密なJSON形式で戦略的判断を提供してください。
+常に有効なJSONのみで応答し、マークダウンや説明文は含めないでください。
+提供されたゲームルールの文脈を使用して、戦術的判断を行ってください。";
+            }
+
+            _llmCharacter.playerName = "User";
+            _llmCharacter.AIName = "TacticAI";
         }
 
         /// <summary>
@@ -257,160 +285,208 @@ Always respond with ONLY valid JSON, no markdown, no explanations.";
         /// </summary>
         private void ConfigureLLMOptimal()
         {
-
-            // ストリーミング有効化
             _llmCharacter.stream = true;
-
-            // プロンプトキャッシング有効化
             _llmCharacter.cachePrompt = true;
 
             UnityEngine.Debug.Log("LLM最適設定を適用しました");
         }
 
         /// <summary>
-        /// Grammar設定（JSON Schema版 - 推奨）
+        /// Grammar設定（新プロンプト形式用JSON Schema）
         /// </summary>
         private void SetupGrammar()
         {
-            if (_isUseEnglish)
+            if (_generatorType == PromptGeneratorType.English)
             {
-                // 英語版JSON Schema
                 _llmCharacter.grammarJSONString = @"{
   ""type"": ""object"",
   ""properties"": {
-    ""conclusion"": {
-      ""type"": ""string""
-    },
-    ""reasoning"": {
+    ""analysis_result"": {
       ""type"": ""string""
     },
     ""basic_tactics"": {
       ""type"": ""string"",
-      ""enum"": [""defensive"", ""offensive"", ""adaptive"", ""disruptive""]
+      ""enum"": [""Aggressive"", ""Defensive"", ""Adaptive"", ""Disruptive"", ""Endurance""]
     },
-    ""action_table"": {
-      ""type"": ""object"",
-      ""properties"": {
-        ""enemy_attack_stance"": {
-          ""type"": ""string"",
-          ""enum"": [""guard"", ""backward_dodge"", ""side_dodge_attack"", ""side_dodge"", ""heavy_attack_parry"", ""light_attack_parry"", ""light_attack""]
-        },
-        ""enemy_waiting"": {
-          ""type"": ""string"",
-          ""enum"": [""light_attack"", ""heavy_attack"", ""heavy_attack_cancel"", ""light_attack_parry"", ""forward_dodge"", ""guard""]
-        },
-        ""slight_advantage"": {
-          ""type"": ""string"",
-          ""enum"": [""light_attack"", ""heavy_attack"", ""heavy_attack_cancel"", ""light_attack_parry"", ""forward_dodge"", ""guard""]
-        },
-        ""advantage"": {
-          ""type"": ""string"",
-          ""enum"": [""light_attack"", ""heavy_attack"", ""heavy_attack_cancel"", ""light_attack_parry"", ""forward_dodge"", ""guard""]
-        },
-        ""slight_disadvantage"": {
-          ""type"": ""string"",
-          ""enum"": [""guard"", ""backward_dodge"", ""side_dodge_attack"", ""side_dodge"", ""heavy_attack_parry"", ""light_attack_parry"", ""light_attack""]
-        },
-        ""disadvantage"": {
-          ""type"": ""string"",
-          ""enum"": [""guard"", ""backward_dodge"", ""side_dodge_attack"", ""side_dodge"", ""heavy_attack_parry"", ""light_attack_parry"", ""light_attack""]
-        },
-        ""strong_attack_hit"": {
-          ""type"": ""string"",
-          ""enum"": [""light_attack"", ""heavy_attack"", ""heavy_attack_cancel"", ""light_attack_parry"", ""forward_dodge"", ""guard""]
-        },
-        ""enemy_strong_attack_hit"": {
-          ""type"": ""string"",
-          ""enum"": [""guard"", ""backward_dodge"", ""side_dodge_attack"", ""side_dodge"", ""heavy_attack_parry"", ""light_attack_parry"", ""light_attack""]
-        }
-      },
-      ""required"": [""enemy_attack_stance"", ""enemy_waiting"", ""slight_advantage"", ""advantage"", ""slight_disadvantage"", ""disadvantage"", ""strong_attack_hit"", ""enemy_strong_attack_hit""]
+    ""attack_judgment_criteria"": {
+      ""type"": ""string"",
+      ""enum"": [""Cumulative Probability Focus"", ""Recent Pattern Focus"", ""Speed Focus"", ""Return Focus"", ""Feint Focus"", ""Distribution Focus"", ""Energy Efficiency Focus""]
+    },
+    ""continuous_attack_judgment_criteria"": {
+      ""type"": ""string"",
+      ""enum"": [""Cumulative Probability Focus"", ""Recent Pattern Focus"", ""Speed Focus"", ""Return Focus"", ""Feint Focus"", ""Distribution Focus"", ""Energy Efficiency Focus""]
+    },
+    ""defense_judgment_criteria"": {
+      ""type"": ""string"",
+      ""enum"": [""Cumulative Probability Focus"", ""Recent Pattern Focus"", ""Counterattack Focus"", ""Return Focus"", ""Risk Avoidance Focus"", ""Counter Focus"", ""Distribution Focus""]
+    },
+    ""continuous_defense_judgment_criteria"": {
+      ""type"": ""string"",
+      ""enum"": [""Cumulative Probability Focus"", ""Recent Pattern Focus"", ""Counterattack Focus"", ""Return Focus"", ""Risk Avoidance Focus"", ""Counter Focus"", ""Distribution Focus""]
     }
   },
-  ""required"": [""conclusion"", ""reasoning"", ""basic_tactics"", ""action_table""]
+  ""required"": [""analysis_result"", ""basic_tactics"", ""attack_judgment_criteria"", ""continuous_attack_judgment_criteria"", ""defense_judgment_criteria"", ""continuous_defense_judgment_criteria""]
 }";
             }
             else
             {
-                // 日本語版JSON Schema
                 _llmCharacter.grammarJSONString = @"{
   ""type"": ""object"",
   ""properties"": {
-    ""結論"": {
-      ""type"": ""string""
-    },
-    ""理由"": {
+    ""分析結果"": {
       ""type"": ""string""
     },
     ""基本戦術"": {
       ""type"": ""string"",
-      ""enum"": [""防御型"", ""攻撃型"", ""対応型"", ""攪乱型""]
+      ""enum"": [""攻撃型"", ""防御型"", ""対応型"", ""攪乱型"", ""持久型""]
     },
-    ""行動テーブル"": {
-      ""type"": ""object"",
-      ""properties"": {
-        ""敵攻撃体勢"": {
-          ""type"": ""string"",
-          ""enum"": [""ガード"", ""後ろ回避"", ""横回避攻撃"", ""横回避"", ""強攻撃ブロッキング"", ""弱攻撃ブロッキング"", ""弱攻撃""]
-        },
-        ""敵待機状態"": {
-          ""type"": ""string"",
-          ""enum"": [""弱攻撃"", ""強攻撃"", ""強攻撃キャンセル"", ""弱攻撃ブロッキング"", ""前回避"", ""ガード""]
-        },
-        ""自分微有利状況"": {
-          ""type"": ""string"",
-          ""enum"": [""弱攻撃"", ""強攻撃"", ""強攻撃キャンセル"", ""弱攻撃ブロッキング"", ""前回避"", ""ガード""]
-        },
-        ""自分有利状況"": {
-          ""type"": ""string"",
-          ""enum"": [""弱攻撃"", ""強攻撃"", ""強攻撃キャンセル"", ""弱攻撃ブロッキング"", ""前回避"", ""ガード""]
-        },
-        ""自分微不利状況"": {
-          ""type"": ""string"",
-          ""enum"": [""ガード"", ""後ろ回避"", ""横回避攻撃"", ""横回避"", ""強攻撃ブロッキング"", ""弱攻撃ブロッキング"", ""弱攻撃""]
-        },
-        ""自分不利状況"": {
-          ""type"": ""string"",
-          ""enum"": [""ガード"", ""後ろ回避"", ""横回避攻撃"", ""横回避"", ""強攻撃ブロッキング"", ""弱攻撃ブロッキング"", ""弱攻撃""]
-        },
-        ""自分強攻撃ヒット"": {
-          ""type"": ""string"",
-          ""enum"": [""弱攻撃"", ""強攻撃"", ""強攻撃キャンセル"", ""弱攻撃ブロッキング"", ""前回避"", ""ガード""]
-        },
-        ""敵強攻撃ヒット"": {
-          ""type"": ""string"",
-          ""enum"": [""ガード"", ""後ろ回避"", ""横回避攻撃"", ""横回避"", ""強攻撃ブロッキング"", ""弱攻撃ブロッキング"", ""弱攻撃""]
-        }
-      },
-      ""required"": [""敵攻撃体勢"", ""敵待機状態"", ""自分微有利状況"", ""自分有利状況"", ""自分微不利状況"", ""自分不利状況"", ""自分強攻撃ヒット"", ""敵強攻撃ヒット""]
+    ""攻撃時判断基準"": {
+      ""type"": ""string"",
+      ""enum"": [""累積確率重視"", ""直近パターン重視"", ""速度重視"", ""リターン重視"", ""フェイント重視"", ""分散重視"", ""エネルギー効率重視""]
+    },
+    ""連続攻撃時判断基準"": {
+      ""type"": ""string"",
+      ""enum"": [""累積確率重視"", ""直近パターン重視"", ""速度重視"", ""リターン重視"", ""フェイント重視"", ""分散重視"", ""エネルギー効率重視""]
+    },
+    ""防御時判断基準"": {
+      ""type"": ""string"",
+      ""enum"": [""累積確率重視"", ""直近パターン重視"", ""反撃重視"", ""リターン重視"", ""リスク回避重視"", ""カウンター重視"", ""分散重視""]
+    },
+    ""連続防御時判断基準"": {
+      ""type"": ""string"",
+      ""enum"": [""累積確率重視"", ""直近パターン重視"", ""反撃重視"", ""リターン重視"", ""リスク回避重視"", ""カウンター重視"", ""分散重視""]
     }
   },
-  ""required"": [""結論"", ""理由"", ""基本戦術"", ""行動テーブル""]
+  ""required"": [""分析結果"", ""基本戦術"", ""攻撃時判断基準"", ""連続攻撃時判断基準"", ""防御時判断基準"", ""連続防御時判断基準""]
 }";
             }
 
-            UnityEngine.Debug.Log($"JSON Schema Grammar設定完了 ({(_isUseEnglish ? "English" : "Japanese")})");
-            UnityEngine.Debug.Log(_llmCharacter.grammarJSONString);
+            UnityEngine.Debug.Log($"JSON Schema Grammar設定完了 ({_generatorType})");
         }
 
         private void GenerateTestData()
         {
-            if (_isUseEnglish)
+            _baseTestData = new Dictionary<TestSituationType, LLMInputData>();
+            foreach (TestSituationType situationType in Enum.GetValues(typeof(TestSituationType)))
             {
-                _baseTestDataEnglish = new Dictionary<TestSituationTypeEnglish, LLMInputDataEnglish>();
-                foreach (TestSituationTypeEnglish situationType in Enum.GetValues(typeof(TestSituationTypeEnglish)))
+                _baseTestData[situationType] = LLMInputData.CreateForTestSituation(situationType);
+            }
+
+            // 初回テストデータを設定
+            _currentTestData = _baseTestData[_situationType];
+        }
+
+        /// <summary>
+        /// RAGで関連ルールを検索
+        /// </summary>
+        private async System.Threading.Tasks.Task<(string[] results, float[] distances, double searchTimeMs)> SearchRAGKnowledge(string query, string category = null)
+        {
+            if (!_useRAG || _rag == null)
+            {
+                return (new string[0], new float[0], 0);
+            }
+
+            var searchStopwatch = Stopwatch.StartNew();
+
+            try
+            {
+                _ragStatistics.TotalSearches++;
+
+                // カテゴリ指定がある場合とない場合で検索
+                (string[] results, float[] distances) = category != null
+                    ? await _rag.Search(query, _ragTopK, category)
+                    : await _rag.Search(query, _ragTopK);
+
+                searchStopwatch.Stop();
+                double searchTimeMs = searchStopwatch.ElapsedMilliseconds;
+
+                // 距離閾値でフィルタリング
+                List<string> filteredResults = new List<string>();
+                List<float> filteredDistances = new List<float>();
+
+                for (int i = 0; i < results.Length && i < distances.Length; i++)
                 {
-                    _baseTestDataEnglish[situationType] = LLMInputDataEnglish.CreateForTestSituation(situationType);
+                    if (distances[i] < _ragDistanceThreshold)
+                    {
+                        filteredResults.Add(results[i]);
+                        filteredDistances.Add(distances[i]);
+                    }
                 }
+
+                if (filteredResults.Count > 0)
+                {
+                    _ragStatistics.SuccessfulSearches++;
+                }
+
+                _ragStatistics.SearchTimes.Add(searchTimeMs);
+                _ragStatistics.ResultCounts.Add(filteredResults.Count);
+
+                if (!string.IsNullOrEmpty(category) && filteredResults.Count > 0)
+                {
+                    if (!_ragStatistics.CategoryUsage.ContainsKey(category))
+                    {
+                        _ragStatistics.CategoryUsage[category] = 0;
+                    }
+                    _ragStatistics.CategoryUsage[category]++;
+                }
+
+                if (_showRAGResults && filteredResults.Count > 0)
+                {
+                    UnityEngine.Debug.Log($"RAG検索完了: {filteredResults.Count}件の関連ルールを発見 ({searchTimeMs:F2}ms)");
+                    for (int i = 0; i < filteredResults.Count; i++)
+                    {
+                        UnityEngine.Debug.Log($"  [{i + 1}] 距離: {filteredDistances[i]:F3} - {filteredResults[i].Substring(0, Math.Min(100, filteredResults[i].Length))}...");
+                    }
+                }
+
+                return (filteredResults.ToArray(), filteredDistances.ToArray(), searchTimeMs);
+            }
+            catch (Exception ex)
+            {
+                searchStopwatch.Stop();
+                UnityEngine.Debug.LogError($"RAG検索エラー: {ex.Message}");
+                return (new string[0], new float[0], searchStopwatch.ElapsedMilliseconds);
+            }
+        }
+
+        /// <summary>
+        /// RAG結果をプロンプトに統合
+        /// </summary>
+        private string IntegrateRAGContext(string basePrompt, string[] ragResults)
+        {
+            if (ragResults == null || ragResults.Length == 0)
+            {
+                return basePrompt;
+            }
+
+            StringBuilder contextBuilder = new StringBuilder();
+
+            if (_generatorType == PromptGeneratorType.English)
+            {
+                contextBuilder.AppendLine("=== RELEVANT GAME RULES ===");
+                for (int i = 0; i < ragResults.Length; i++)
+                {
+                    contextBuilder.AppendLine($"\n[Rule {i + 1}]");
+                    contextBuilder.AppendLine(ragResults[i]);
+                }
+                contextBuilder.AppendLine("\n=== END OF GAME RULES ===\n");
+                contextBuilder.AppendLine("Based on the above game rules and the battle data below, provide your tactical judgment:\n");
             }
             else
             {
-                _baseTestData = new Dictionary<TestSituationType, LLMInputData>();
-                foreach (TestSituationType situationType in Enum.GetValues(typeof(TestSituationType)))
+                contextBuilder.AppendLine("=== 関連ゲームルール ===");
+                for (int i = 0; i < ragResults.Length; i++)
                 {
-                    _baseTestData[situationType] = LLMInputData.CreateForTestSituation(situationType);
+                    contextBuilder.AppendLine($"\n[ルール{i + 1}]");
+                    contextBuilder.AppendLine(ragResults[i]);
                 }
+                contextBuilder.AppendLine("\n=== ゲームルール終了 ===\n");
+                contextBuilder.AppendLine("上記のゲームルールと以下の戦闘データに基づいて、戦術的判断を提供してください:\n");
             }
+
+            contextBuilder.Append(basePrompt);
+
+            return contextBuilder.ToString();
         }
 
         [ContextMenu("テスト開始")]
@@ -436,47 +512,33 @@ Always respond with ONLY valid JSON, no markdown, no explanations.";
         [ContextMenu("サンプルプロンプト表示")]
         public void ShowSamplePrompt()
         {
-            if (_promptGenerator == null)
-            {
-                _promptGenerator = new SystemPromptGenerator();
-            }
-
-            if (_isUseEnglish)
-            {
-                var sampleData = LLMInputDataEnglish.CreateForTestSituation(_situationTypeEnglish);
-                var samplePrompt = _promptGenerator.GenerateFullPromptEnglish(sampleData);
-                UnityEngine.Debug.Log($"Sample Prompt ({_situationTypeEnglish}):\n{samplePrompt}");
-            }
-            else
-            {
-                var sampleData = LLMInputData.CreateForTestSituation(_situationType);
-                var samplePrompt = _promptGenerator.GenerateFullPromptJapanese(sampleData);
-                UnityEngine.Debug.Log($"サンプルプロンプト ({_situationType}):\n{samplePrompt}");
-            }
+            var sampleData = LLMInputData.CreateForTestSituation(_situationType);
+            var samplePrompt = _promptGenerator.GeneratePromptByData(sampleData);
+            UnityEngine.Debug.Log($"Sample Prompt ({_situationType}):\n{samplePrompt}");
         }
 
-        [ContextMenu("LLM設定を表示")]
-        public void ShowLLMConfiguration()
+        [ContextMenu("RAG検索テスト")]
+        public async void TestRAGSearch()
         {
-            if (_llmCharacter == null)
+            if (!_useRAG || _rag == null)
             {
-                UnityEngine.Debug.LogWarning("LLMCharacterが設定されていません");
+                UnityEngine.Debug.LogWarning("RAGが有効ではありません");
                 return;
             }
 
-            var config = new StringBuilder();
-            config.AppendLine("=== LLM Configuration ===");
-            config.AppendLine($"Stream: {_llmCharacter.stream}");
-            config.AppendLine($"Cache Prompt: {_llmCharacter.cachePrompt}");
-            config.AppendLine($"Grammar Enabled: {!string.IsNullOrEmpty(_llmCharacter.grammar)}");
-            UnityEngine.Debug.Log(config.ToString());
-        }
+            string testQuery = _generatorType == PromptGeneratorType.English
+                ? "What should I do when attacking consecutively?"
+                : "連続で攻撃している時はどうすればいいですか？";
 
-        [ContextMenu("キャッシュをクリア")]
-        public void ClearCache()
-        {
-            _responseCache?.Clear();
-            UnityEngine.Debug.Log("レスポンスキャッシュをクリアしました");
+            UnityEngine.Debug.Log($"RAG検索テスト実行: {testQuery}");
+
+            var (results, distances, searchTime) = await SearchRAGKnowledge(testQuery);
+
+            UnityEngine.Debug.Log($"検索完了: {results.Length}件 ({searchTime:F2}ms)");
+            for (int i = 0; i < results.Length; i++)
+            {
+                UnityEngine.Debug.Log($"結果{i + 1} (距離: {distances[i]:F3}):\n{results[i]}\n");
+            }
         }
 
         private IEnumerator RunContinuousTest()
@@ -487,8 +549,7 @@ Always respond with ONLY valid JSON, no markdown, no explanations.";
 
             if (_showProgressInConsole)
             {
-                string language = _isUseEnglish ? "English" : "日本語";
-                UnityEngine.Debug.Log($"連続思考テスト開始 - {_testIterations}回実行予定 ({language})");
+                UnityEngine.Debug.Log($"連続思考テスト開始 - {_testIterations}回実行予定 ({_generatorType}, RAG: {(_useRAG ? "有効" : "無効")})");
             }
 
             for (int i = 0; i < _testIterations && _isTestRunning; i++)
@@ -503,7 +564,11 @@ Always respond with ONLY valid JSON, no markdown, no explanations.";
                 // 新しいデータを生成するか既存データを使用するかの判定
                 if (_generateRandomDataEachIteration && i > 0)
                 {
-                    GenerateTestData();
+                    // 新しい戦況データを生成するが、LastStrategyは保持
+                    var newSituation = GetCurrentSituationType(i);
+                    var newData = LLMInputData.CreateForTestSituation(newSituation);
+                    newData.LastStrategy = _currentTestData.LastStrategy;
+                    _currentTestData = newData;
                 }
 
                 yield return StartCoroutine(ExecuteSingleTest(i));
@@ -530,71 +595,63 @@ Always respond with ONLY valid JSON, no markdown, no explanations.";
             var testResult = new TestResult
             {
                 iteration = iteration + 1,
-                isEnglish = _isUseEnglish
+                usedRAG = _useRAG
             };
 
             var stopwatch = Stopwatch.StartNew();
 
-            string fullPrompt;
-            string calculationSummary;
-            string tacticsType;
-            string situationType;
-            string userPrompt;
+            // 基本プロンプト生成
+            string basePrompt = _promptGenerator.GeneratePromptByData(_currentTestData);
 
-            if (_isUseEnglish)
+            // RAG検索（非同期処理を同期的に待つ）
+            string[] ragResults = new string[0];
+            float[] ragDistances = new float[0];
+            double ragSearchTimeMs = 0;
+
+            if (_useRAG && _rag != null)
             {
-                var inputData = GetTestDataForIterationEnglish(iteration);
-                userPrompt = _promptGenerator.GenerateDynamicSectionEnglish(inputData);
-                string fixedSection = _promptGenerator.GenerateFixedSectionEnglish();
-                fullPrompt = userPrompt + fixedSection;
+                // 戦況に応じた検索クエリを生成
+                string searchQuery = GenerateRAGSearchQuery(_currentTestData);
 
-                var analysis = BattleAnalysisResultEnglish.AnalyzeFromInputData(inputData);
-                calculationSummary = analysis.CalculationSummary;
-                tacticsType = analysis.TacticType;
-                situationType = GetCurrentSituationTypeEnglish(iteration).ToString();
+                var ragTask = SearchRAGKnowledge(searchQuery);
+                yield return new WaitUntil(() => ragTask.IsCompleted);
 
-                testResult.systemPrompt = fixedSection;
-            }
-            else
-            {
-                var inputData = GetTestDataForIteration(iteration);
-                userPrompt = _promptGenerator.GenerateDynamicSectionJapanese(inputData);
-                string fixedSection = _promptGenerator.GenerateFixedSectionJapanese();
-                fullPrompt = fixedSection + userPrompt;
+                var ragResult = ragTask.Result;
+                ragResults = ragResult.results;
+                ragDistances = ragResult.distances;
+                ragSearchTimeMs = ragResult.searchTimeMs;
 
-                var analysis = BattleAnalysisResult.AnalyzeFromInputData(inputData);
-                calculationSummary = analysis.CalculationSummary;
-                tacticsType = analysis.TacticType;
-                situationType = GetCurrentSituationType(iteration).ToString();
-
-                testResult.systemPrompt = fixedSection;
+                testResult.ragResultCount = ragResults.Length;
+                testResult.ragSearchTimeMs = ragSearchTimeMs;
+                testResult.ragResults = ragResults;
+                testResult.ragDistances = ragDistances;
             }
 
-            testResult.prompt = userPrompt;
-            testResult.calculationSummary = calculationSummary;
-            testResult.tacticsType = tacticsType;
-            testResult.situationType = situationType;
+            // RAG結果をプロンプトに統合
+            string fullPrompt = IntegrateRAGContext(basePrompt, ragResults);
 
-            //_llmCharacter.prompt = testResult.systemPrompt;
+            testResult.prompt = fullPrompt;
+            testResult.situationType = GetCurrentSituationType(iteration).ToString();
 
             if (_showDetailedTiming)
             {
                 UnityEngine.Debug.Log($"プロンプト生成完了: {fullPrompt.Length}文字 {EstimateTokenCount(fullPrompt)}トークン");
-            }
-
-            if (_showPromptSummary)
-            {
-                UnityEngine.Debug.Log($"計算結果: {calculationSummary}, 戦術: {tacticsType}");
+                if (_useRAG)
+                {
+                    UnityEngine.Debug.Log($"RAG: {ragResults.Length}件の関連ルール追加 ({ragSearchTimeMs:F2}ms)");
+                }
             }
 
             // LLMに完全なプロンプトを送信
             yield return StartCoroutine(SendToLLM(fullPrompt, testResult));
-            _performanceMetrics.CacheMisses++;
 
             // 応答の検証
             if (_validateResponses && !string.IsNullOrEmpty(testResult.response))
             {
                 ValidateResponse(testResult);
+
+                // LLMの応答からLastStrategyを更新
+                UpdateLastStrategyFromResponse(testResult.response);
             }
 
             stopwatch.Stop();
@@ -605,23 +662,17 @@ Always respond with ONLY valid JSON, no markdown, no explanations.";
             if (testResult.isSuccessful)
             {
                 testResult.responseTokenCount = EstimateTokenCount(testResult.response);
-                testResult.tokensPerSecond = testResult.wasCached
-                    ? 0 // キャッシュヒットの場合はトークン生成なし
-                    : testResult.responseTokenCount / testResult.responseTimeSeconds;
+                testResult.tokensPerSecond = testResult.responseTokenCount / testResult.responseTimeSeconds;
 
-                if (!testResult.wasCached)
-                {
-                    _performanceMetrics.TokensPerSecondHistory.Add(testResult.tokensPerSecond);
-                    _performanceMetrics.TotalTokensGenerated += testResult.responseTokenCount;
-                }
+                _performanceMetrics.TokensPerSecondHistory.Add(testResult.tokensPerSecond);
+                _performanceMetrics.TotalTokensGenerated += testResult.responseTokenCount;
             }
 
             if (_showDetailedTiming)
             {
-                string cacheStatus = testResult.wasCached ? " (キャッシュ)" : "";
-                UnityEngine.Debug.Log($"テスト {testResult.iteration} 完了: {testResult.responseTimeSeconds:F2}秒{cacheStatus}");
+                UnityEngine.Debug.Log($"テスト {testResult.iteration} 完了: {testResult.responseTimeSeconds:F2}秒");
 
-                if (_showPerformanceMetrics && !testResult.wasCached)
+                if (_showPerformanceMetrics)
                 {
                     UnityEngine.Debug.Log($"  トークン数: {testResult.responseTokenCount}, 速度: {testResult.tokensPerSecond:F1} tokens/秒");
                 }
@@ -630,38 +681,104 @@ Always respond with ONLY valid JSON, no markdown, no explanations.";
             _testResults.Add(testResult);
         }
 
-        private string GetCacheKey(string prompt)
+        /// <summary>
+        /// RAG検索用のクエリを生成
+        /// </summary>
+        private string GenerateRAGSearchQuery(LLMInputData data)
         {
-            // プロンプトのハッシュをキーとして使用
-            using (var sha256 = System.Security.Cryptography.SHA256.Create())
+            // 戦況データから適切な検索クエリを生成
+            StringBuilder queryBuilder = new StringBuilder();
+
+            // 前回の戦術があれば参照
+            if (data.LastStrategy != null)
             {
-                var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(prompt));
-                return Convert.ToBase64String(hash);
+                if (_generatorType == PromptGeneratorType.English)
+                {
+                    queryBuilder.Append($"Previous tactics: {data.LastStrategy.基本戦術}. ");
+                }
+                else
+                {
+                    queryBuilder.Append($"前回の戦術: {data.LastStrategy.基本戦術}。");
+                }
             }
+
+            // 体力・エネルギー状況に応じたクエリ
+            float healthRatio = data.MyData.Hp / 100f;
+            float energyRatio = data.MyData.Energy / 100f;
+
+            if (_generatorType == PromptGeneratorType.English)
+            {
+                if (healthRatio < 0.3f)
+                {
+                    queryBuilder.Append("Low health defensive tactics. ");
+                }
+                if (energyRatio < 0.3f)
+                {
+                    queryBuilder.Append("Energy efficiency tactics. ");
+                }
+                if (healthRatio > 0.7f && energyRatio > 0.7f)
+                {
+                    queryBuilder.Append("Aggressive attack tactics. ");
+                }
+
+                queryBuilder.Append("Tactical judgment criteria.");
+            }
+            else
+            {
+                if (healthRatio < 0.3f)
+                {
+                    queryBuilder.Append("体力が少ない時の防御戦術。");
+                }
+                if (energyRatio < 0.3f)
+                {
+                    queryBuilder.Append("エネルギー効率を重視した戦術。");
+                }
+                if (healthRatio > 0.7f && energyRatio > 0.7f)
+                {
+                    queryBuilder.Append("攻撃的な戦術。");
+                }
+
+                queryBuilder.Append("戦術判断基準。");
+            }
+
+            return queryBuilder.ToString();
         }
 
-        private void SaveToCache(string key, string response)
+        /// <summary>
+        /// LLMの応答からLastStrategyを更新
+        /// </summary>
+        private void UpdateLastStrategyFromResponse(string jsonResponse)
         {
-            // キャッシュサイズ制限
-            if (_responseCache.Count >= _maxCacheSize)
+            try
             {
-                // 最も古いエントリを削除
-                var oldest = _responseCache.OrderBy(kvp => kvp.Value.CachedAt).First();
-                _responseCache.Remove(oldest.Key);
-            }
+                StrategyData strategy;
 
-            _responseCache[key] = new CachedResponse
+                if (_generatorType == PromptGeneratorType.English)
+                {
+                    strategy = StrategyData.FromJsonEnglish(jsonResponse);
+                }
+                else
+                {
+                    strategy = StrategyData.FromJson(jsonResponse);
+                }
+
+                // LastStrategyを更新（次のイテレーションで使用）
+                _currentTestData.LastStrategy = strategy;
+
+                if (_showProgressInConsole)
+                {
+                    UnityEngine.Debug.Log($"LastStrategy更新: 基本戦術={strategy.基本戦術}");
+                }
+            }
+            catch (Exception ex)
             {
-                Response = response,
-                CachedAt = DateTime.Now,
-                HitCount = 0
-            };
+                UnityEngine.Debug.LogWarning($"LastStrategy更新失敗: {ex.Message}");
+            }
         }
 
         private int EstimateTokenCount(string text)
         {
-            // 簡易的なトークン数推定（英語: 単語数 × 1.3、日本語: 文字数 / 2）
-            if (_isUseEnglish)
+            if (_generatorType == PromptGeneratorType.English)
             {
                 return (int)(text.Split(new[] { ' ', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).Length * 1.3);
             }
@@ -682,8 +799,6 @@ Always respond with ONLY valid JSON, no markdown, no explanations.";
             bool responseReceived = false;
             string response = "";
 
-            // 最もシンプルで互換性の高い形式
-            // 完全な応答を受け取るコールバックのみ使用
             _llmCharacter.Chat(prompt, (receivedResponse) =>
             {
                 response = receivedResponse;
@@ -706,38 +821,38 @@ Always respond with ONLY valid JSON, no markdown, no explanations.";
             {
                 testResult.response = response;
             }
-            UnityEngine.Debug.Log($"LLMプロンプト: {prompt}");
 
             UnityEngine.Debug.Log($"LLM応答: {response}");
-
         }
 
         private void ValidateResponse(TestResult testResult)
         {
             try
             {
-                // JSONとして正しくパースできるかチェック
                 var parsedResponse = JsonConvert.DeserializeObject<Dictionary<string, object>>(testResult.response);
                 testResult.isValidJson = true;
 
-                // 必要なフィールドが含まれているかチェック
                 bool hasRequiredFields;
 
-                if (_isUseEnglish)
+                if (_generatorType == PromptGeneratorType.English)
                 {
                     hasRequiredFields =
-                        parsedResponse.ContainsKey("conclusion") &&
-                        parsedResponse.ContainsKey("reasoning") &&
+                        parsedResponse.ContainsKey("analysis_result") &&
                         parsedResponse.ContainsKey("basic_tactics") &&
-                        parsedResponse.ContainsKey("action_table");
+                        parsedResponse.ContainsKey("attack_judgment_criteria") &&
+                        parsedResponse.ContainsKey("continuous_attack_judgment_criteria") &&
+                        parsedResponse.ContainsKey("defense_judgment_criteria") &&
+                        parsedResponse.ContainsKey("continuous_defense_judgment_criteria");
                 }
                 else
                 {
                     hasRequiredFields =
-                        parsedResponse.ContainsKey("結論") &&
-parsedResponse.ContainsKey("理由") &&
+                        parsedResponse.ContainsKey("分析結果") &&
                         parsedResponse.ContainsKey("基本戦術") &&
-                        parsedResponse.ContainsKey("行動テーブル");
+                        parsedResponse.ContainsKey("攻撃時判断基準") &&
+                        parsedResponse.ContainsKey("連続攻撃時判断基準") &&
+                        parsedResponse.ContainsKey("防御時判断基準") &&
+                        parsedResponse.ContainsKey("連続防御時判断基準");
                 }
 
                 if (!hasRequiredFields)
@@ -764,30 +879,8 @@ parsedResponse.ContainsKey("理由") &&
 
         private LLMInputData GetTestDataForIteration(int iteration)
         {
-            if (_useMixedSituations)
-            {
-                var situations = new List<TestSituationType>(_baseTestData.Keys);
-                var situationType = situations[iteration % situations.Count];
-                return _baseTestData[situationType];
-            }
-            else
-            {
-                return _baseTestData[_situationType];
-            }
-        }
-
-        private LLMInputDataEnglish GetTestDataForIterationEnglish(int iteration)
-        {
-            if (_useMixedSituations)
-            {
-                var situations = new List<TestSituationTypeEnglish>(_baseTestDataEnglish.Keys);
-                var situationType = situations[iteration % situations.Count];
-                return _baseTestDataEnglish[situationType];
-            }
-            else
-            {
-                return _baseTestDataEnglish[_situationTypeEnglish];
-            }
+            // 現在のテストデータを返す（LastStrategyが更新されている）
+            return _currentTestData;
         }
 
         private TestSituationType GetCurrentSituationType(int iteration)
@@ -803,42 +896,29 @@ parsedResponse.ContainsKey("理由") &&
             }
         }
 
-        private TestSituationTypeEnglish GetCurrentSituationTypeEnglish(int iteration)
-        {
-            if (_useMixedSituations)
-            {
-                var situations = Enum.GetValues(typeof(TestSituationTypeEnglish));
-                return (TestSituationTypeEnglish)situations.GetValue(iteration % situations.Length);
-            }
-            else
-            {
-                return _situationTypeEnglish;
-            }
-        }
-
         private void SaveIntegratedResults()
         {
             try
             {
                 var integratedResults = CreateIntegratedResults();
 
-                // ファイル名に言語識別子を追加
-                string languageTag = _isUseEnglish ? "EN" : "JP";
+                string generatorTag = _generatorType.ToString();
+                string ragTag = _useRAG ? "_RAG" : "_NoRAG";
 
                 // JSONファイルとして保存
-                string jsonFileName = $"{_filePrefix}_{languageTag}_AllResults_{_currentSessionId}.json";
+                string jsonFileName = $"{_filePrefix}_{generatorTag}{ragTag}_AllResults_{_currentSessionId}.json";
                 string jsonFilePath = Path.Combine(_outputDirectoryPath, jsonFileName);
                 string json = JsonConvert.SerializeObject(integratedResults, Formatting.Indented);
                 File.WriteAllText(jsonFilePath, json, Encoding.UTF8);
 
                 // 人間が読みやすいテキスト形式でも保存
-                string txtFileName = $"{_filePrefix}_{languageTag}_Report_{_currentSessionId}.txt";
+                string txtFileName = $"{_filePrefix}_{generatorTag}{ragTag}_Report_{_currentSessionId}.txt";
                 string txtFilePath = Path.Combine(_outputDirectoryPath, txtFileName);
                 string textReport = CreateReadableReport(integratedResults);
                 File.WriteAllText(txtFilePath, textReport, Encoding.UTF8);
 
                 // CSV形式での統計データ保存
-                string csvFileName = $"{_filePrefix}_{languageTag}_Stats_{_currentSessionId}.csv";
+                string csvFileName = $"{_filePrefix}_{generatorTag}{ragTag}_Stats_{_currentSessionId}.csv";
                 string csvFilePath = Path.Combine(_outputDirectoryPath, csvFileName);
                 string csvData = CreateCsvReport(integratedResults);
                 File.WriteAllText(csvFilePath, csvData, Encoding.UTF8);
@@ -848,7 +928,6 @@ parsedResponse.ContainsKey("理由") &&
                     UnityEngine.Debug.Log($"テスト結果を保存しました:\n- JSON: {jsonFileName}\n- レポート: {txtFileName}\n- CSV: {csvFileName}");
                 }
 
-                // コンソールにサマリー表示
                 DisplaySummaryInConsole(integratedResults);
             }
             catch (Exception ex)
@@ -867,22 +946,18 @@ parsedResponse.ContainsKey("理由") &&
                 totalTimeSeconds = _totalStopwatch.ElapsedMilliseconds / 1000.0,
                 totalTests = _testResults.Count,
                 testResults = _testResults,
-                isEnglishTest = _isUseEnglish,
-                cacheHits = _performanceMetrics.CacheHits,
-                cacheMisses = _performanceMetrics.CacheMisses,
-                cacheHitRate = _performanceMetrics.CacheHitRate,
-                llmConfig = new LLMConfiguration
-                {
-                    threads = _optimalThreads,
-                    gpuLayers = _optimalGpuLayers,
-                    contextSize = _optimalContextSize,
-                    batchSize = _optimalBatchSize,
-                    grammarEnabled = _useGrammar,
-                    cacheEnabled = _enableResponseCache
-                }
+                promptGeneratorType = _generatorType.ToString(),
+                ragEnabled = _useRAG,
+                totalRAGSearches = _ragStatistics.TotalSearches,
+                successfulRAGSearches = _ragStatistics.SuccessfulSearches,
+                ragCategoryUsage = _ragStatistics.CategoryUsage
             };
 
-            // 成功/失敗の集計
+            if (_ragStatistics.SearchTimes.Count > 0)
+            {
+                results.averageRAGSearchTimeMs = _ragStatistics.SearchTimes.Average();
+            }
+
             foreach (var result in _testResults)
             {
                 if (result.isSuccessful)
@@ -903,12 +978,10 @@ parsedResponse.ContainsKey("理由") &&
                     results.validJsonResponses++;
                 }
 
-                // 戦況タイプの集計
                 if (!results.situationTypeCounts.ContainsKey(result.situationType))
                     results.situationTypeCounts[result.situationType] = 0;
                 results.situationTypeCounts[result.situationType]++;
 
-                // 戦術タイプの集計
                 if (!string.IsNullOrEmpty(result.tacticsType))
                 {
                     if (!results.tacticTypeCounts.ContainsKey(result.tacticsType))
@@ -917,14 +990,12 @@ parsedResponse.ContainsKey("理由") &&
                 }
             }
 
-            // 成功率とJSON有効率の計算
             if (results.totalTests > 0)
             {
                 results.successRate = (double)results.successfulTests / results.totalTests;
                 results.jsonValidRate = (double)results.validJsonResponses / results.totalTests;
             }
 
-            // 応答時間の統計計算
             var successfulResults = _testResults.FindAll(r => r.isSuccessful);
             if (successfulResults.Count > 0)
             {
@@ -934,7 +1005,6 @@ parsedResponse.ContainsKey("理由") &&
                 results.maxResponseTimeSeconds = responseTimes.Max();
             }
 
-            // トークン/秒の平均計算
             if (_performanceMetrics.TokensPerSecondHistory.Count > 0)
             {
                 results.averageTokensPerSecond = _performanceMetrics.TokensPerSecondHistory.Average();
@@ -946,28 +1016,17 @@ parsedResponse.ContainsKey("理由") &&
         private string CreateReadableReport(IntegratedTestResults results)
         {
             var report = new StringBuilder();
-            string title = results.isEnglishTest ? "LLM Continuous Thinking Test Report (Optimized)" : "LLM連続思考テスト詳細レポート（最適化版）";
 
             report.AppendLine("================================================================================");
-            report.AppendLine($"                        {title}");
+            report.AppendLine($"        LLM連続思考テスト詳細レポート（{results.promptGeneratorType}）");
             report.AppendLine("================================================================================");
             report.AppendLine();
             report.AppendLine($"セッションID: {results.sessionId}");
-            report.AppendLine($"言語: {(results.isEnglishTest ? "English" : "日本語")}");
+            report.AppendLine($"プロンプト生成器: {results.promptGeneratorType}");
+            report.AppendLine($"RAG機能: {(results.ragEnabled ? "有効" : "無効")}");
             report.AppendLine($"開始時刻: {results.startTime:yyyy/MM/dd HH:mm:ss}");
             report.AppendLine($"終了時刻: {results.endTime:yyyy/MM/dd HH:mm:ss}");
             report.AppendLine($"総実行時間: {results.totalTimeSeconds:F2}秒");
-            report.AppendLine();
-
-            // LLM設定情報
-            report.AppendLine("【LLM設定】");
-            report.AppendLine($"Threads: {results.llmConfig.threads}");
-            report.AppendLine($"GPU Layers: {results.llmConfig.gpuLayers}");
-            report.AppendLine($"Context Size: {results.llmConfig.contextSize}");
-            report.AppendLine($"Batch Size: {results.llmConfig.batchSize}");
-            report.AppendLine($"Log Level: {results.llmConfig.logLevel}");
-            report.AppendLine($"Grammar: {(results.llmConfig.grammarEnabled ? "有効" : "無効")}");
-            report.AppendLine($"Response Cache: {(results.llmConfig.cacheEnabled ? "有効" : "無効")}");
             report.AppendLine();
 
             report.AppendLine("【テスト結果サマリー】");
@@ -979,6 +1038,24 @@ parsedResponse.ContainsKey("理由") &&
             report.AppendLine($"JSON有効率: {results.jsonValidRate:P1}");
             report.AppendLine();
 
+            if (results.ragEnabled)
+            {
+                report.AppendLine("【RAG統計】");
+                report.AppendLine($"総検索回数: {results.totalRAGSearches}");
+                report.AppendLine($"成功検索回数: {results.successfulRAGSearches}");
+                report.AppendLine($"平均検索時間: {results.averageRAGSearchTimeMs:F2}ms");
+
+                if (results.ragCategoryUsage.Count > 0)
+                {
+                    report.AppendLine("カテゴリ別使用回数:");
+                    foreach (var kvp in results.ragCategoryUsage)
+                    {
+                        report.AppendLine($"  {kvp.Key}: {kvp.Value}回");
+                    }
+                }
+                report.AppendLine();
+            }
+
             if (results.successfulTests > 0)
             {
                 report.AppendLine("【応答時間統計】");
@@ -988,18 +1065,13 @@ parsedResponse.ContainsKey("理由") &&
                 report.AppendLine();
             }
 
-            // パフォーマンスメトリクス
             if (results.averageTokensPerSecond > 0)
             {
                 report.AppendLine("【パフォーマンスメトリクス】");
                 report.AppendLine($"平均生成速度: {results.averageTokensPerSecond:F1} tokens/秒");
-                report.AppendLine($"キャッシュヒット数: {results.cacheHits}");
-                report.AppendLine($"キャッシュミス数: {results.cacheMisses}");
-                report.AppendLine($"キャッシュヒット率: {results.cacheHitRate:P1}");
                 report.AppendLine();
             }
 
-            // 戦況タイプ分布
             if (results.situationTypeCounts.Count > 0)
             {
                 report.AppendLine("【戦況タイプ分布】");
@@ -1010,7 +1082,6 @@ parsedResponse.ContainsKey("理由") &&
                 report.AppendLine();
             }
 
-            // 戦術タイプ分布
             if (results.tacticTypeCounts.Count > 0)
             {
                 report.AppendLine("【戦術タイプ分布】");
@@ -1035,17 +1106,19 @@ parsedResponse.ContainsKey("理由") &&
             report.AppendLine("--------------------------------------------------------------------------------");
             foreach (var result in results.testResults)
             {
-                report.AppendLine($"■ テスト {result.iteration} ({(result.isEnglish ? "EN" : "JP")})");
+                report.AppendLine($"■ テスト {result.iteration}");
                 report.AppendLine($"  時刻: {result.timestamp:HH:mm:ss}");
                 report.AppendLine($"  状況: {result.situationType}");
-                report.AppendLine($"  計算結果: {result.calculationSummary}");
-                report.AppendLine($"  戦術: {result.tacticsType}");
                 report.AppendLine($"  結果: {(result.isSuccessful ? "成功" : "失敗")}");
                 report.AppendLine($"  JSON有効: {(result.isValidJson ? "有効" : "無効")}");
                 report.AppendLine($"  応答時間: {result.responseTimeSeconds:F2}秒");
-                report.AppendLine($"  キャッシュ: {(result.wasCached ? "ヒット" : "ミス")}");
 
-                if (!result.wasCached && result.tokensPerSecond > 0)
+                if (result.usedRAG)
+                {
+                    report.AppendLine($"  RAG検索: {result.ragResultCount}件 ({result.ragSearchTimeMs:F2}ms)");
+                }
+
+                if (result.tokensPerSecond > 0)
                 {
                     report.AppendLine($"  生成速度: {result.tokensPerSecond:F1} tokens/秒");
                     report.AppendLine($"  トークン数: {result.responseTokenCount}");
@@ -1064,10 +1137,7 @@ parsedResponse.ContainsKey("理由") &&
                 if (!string.IsNullOrEmpty(result.response))
                 {
                     report.AppendLine($"  レスポンス文字数: {result.response.Length}文字");
-
-                    // 応答の最初の100文字をサンプルとして表示
-                    var sampleResponse = result.response;
-                    report.AppendLine($"  レスポンス: {sampleResponse}");
+                    report.AppendLine($"  レスポンス: {result.response}");
                 }
 
                 report.AppendLine("--------------------------------------------------------------------------------");
@@ -1079,24 +1149,23 @@ parsedResponse.ContainsKey("理由") &&
         private string CreateCsvReport(IntegratedTestResults results)
         {
             var csv = new StringBuilder();
-            csv.AppendLine("Iteration,Timestamp,SituationType,TacticsType,CalculationSummary,IsSuccessful,IsValidJson,ResponseTimeSeconds,TokensPerSecond,TokenCount,WasCached,PromptLength,ResponseLength,IsEnglish,Error");
+            csv.AppendLine("Iteration,Timestamp,SituationType,IsSuccessful,IsValidJson,ResponseTimeSeconds,TokensPerSecond,TokenCount,PromptLength,ResponseLength,UsedRAG,RAGResultCount,RAGSearchTimeMs,Error");
 
             foreach (var result in results.testResults)
             {
                 csv.AppendLine($"{result.iteration}," +
                               $"{result.timestamp:yyyy-MM-dd HH:mm:ss}," +
                               $"{result.situationType}," +
-                              $"{result.tacticsType ?? ""}," +
-                              $"\"{result.calculationSummary ?? ""}\"," +
                               $"{result.isSuccessful}," +
                               $"{result.isValidJson}," +
                               $"{result.responseTimeSeconds:F2}," +
                               $"{result.tokensPerSecond:F1}," +
                               $"{result.responseTokenCount}," +
-                              $"{result.wasCached}," +
                               $"{result.prompt?.Length ?? 0}," +
                               $"{result.response?.Length ?? 0}," +
-                              $"{result.isEnglish}," +
+                              $"{result.usedRAG}," +
+                              $"{result.ragResultCount}," +
+                              $"{result.ragSearchTimeMs:F2}," +
                               $"\"{result.error ?? ""}\"");
             }
 
@@ -1106,13 +1175,18 @@ parsedResponse.ContainsKey("理由") &&
         private void DisplaySummaryInConsole(IntegratedTestResults results)
         {
             var summary = new StringBuilder();
-            string languageTag = results.isEnglishTest ? "(English)" : "(日本語)";
 
-            summary.AppendLine($"=== LLMテスト完了（最適化版） {languageTag} ===");
+            summary.AppendLine($"=== LLMテスト完了（{results.promptGeneratorType}, RAG: {(results.ragEnabled ? "有効" : "無効")}） ===");
             summary.AppendLine($"総テスト数: {results.totalTests}");
             summary.AppendLine($"成功: {results.successfulTests} / 失敗: {results.failedTests}");
             summary.AppendLine($"成功率: {results.successRate:P1}");
             summary.AppendLine($"JSON有効率: {results.jsonValidRate:P1}");
+
+            if (results.ragEnabled)
+            {
+                summary.AppendLine($"RAG検索: {results.totalRAGSearches}回 (成功: {results.successfulRAGSearches}回)");
+                summary.AppendLine($"平均RAG検索時間: {results.averageRAGSearchTimeMs:F2}ms");
+            }
 
             if (results.successfulTests > 0)
             {
@@ -1125,18 +1199,7 @@ parsedResponse.ContainsKey("理由") &&
                 summary.AppendLine($"平均生成速度: {results.averageTokensPerSecond:F1} tokens/秒");
             }
 
-            if (results.cacheHits + results.cacheMisses > 0)
-            {
-                summary.AppendLine($"キャッシュ効率: {results.cacheHitRate:P1} ({results.cacheHits}ヒット / {results.cacheMisses}ミス)");
-            }
-
             summary.AppendLine($"総実行時間: {results.totalTimeSeconds:F2}秒");
-
-            summary.AppendLine();
-            summary.AppendLine("=== LLM設定 ===");
-            summary.AppendLine($"Threads: {results.llmConfig.threads}, GPU Layers: {results.llmConfig.gpuLayers}");
-            summary.AppendLine($"Context: {results.llmConfig.contextSize}, Batch: {results.llmConfig.batchSize}");
-            summary.AppendLine($"Grammar: {results.llmConfig.grammarEnabled}, Cache: {results.llmConfig.cacheEnabled}");
 
             UnityEngine.Debug.Log(summary.ToString());
         }
@@ -1150,6 +1213,76 @@ parsedResponse.ContainsKey("理由") &&
         }
 
         #region ユーティリティメソッド
+
+        /// <summary>
+        /// RAG統計をリセット
+        /// </summary>
+        [ContextMenu("RAG統計をリセット")]
+        public void ResetRAGStatistics()
+        {
+            _ragStatistics = new RAGStatistics();
+            UnityEngine.Debug.Log("RAG統計をリセットしました");
+        }
+
+        /// <summary>
+        /// RAG統計を表示
+        /// </summary>
+        [ContextMenu("RAG統計を表示")]
+        public void ShowRAGStatistics()
+        {
+            if (!_useRAG)
+            {
+                UnityEngine.Debug.Log("RAG機能は無効です");
+                return;
+            }
+
+            var stats = new StringBuilder();
+            stats.AppendLine("=== RAG統計 ===");
+            stats.AppendLine($"総検索回数: {_ragStatistics.TotalSearches}");
+            stats.AppendLine($"成功検索回数: {_ragStatistics.SuccessfulSearches}");
+
+            if (_ragStatistics.SearchTimes.Count > 0)
+            {
+                stats.AppendLine($"平均検索時間: {_ragStatistics.SearchTimes.Average():F2}ms");
+                stats.AppendLine($"最速: {_ragStatistics.SearchTimes.Min():F2}ms");
+                stats.AppendLine($"最遅: {_ragStatistics.SearchTimes.Max():F2}ms");
+            }
+
+            if (_ragStatistics.ResultCounts.Count > 0)
+            {
+                stats.AppendLine($"平均結果数: {_ragStatistics.ResultCounts.Average():F1}件");
+            }
+
+            if (_ragStatistics.CategoryUsage.Count > 0)
+            {
+                stats.AppendLine("カテゴリ別使用回数:");
+                foreach (var kvp in _ragStatistics.CategoryUsage)
+                {
+                    stats.AppendLine($"  {kvp.Key}: {kvp.Value}回");
+                }
+            }
+
+            UnityEngine.Debug.Log(stats.ToString());
+        }
+
+        /// <summary>
+        /// RAG機能の有効/無効を切り替え
+        /// </summary>
+        [ContextMenu("RAG機能を切り替え")]
+        public void ToggleRAG()
+        {
+            _useRAG = !_useRAG;
+
+            if (_useRAG && _rag == null)
+            {
+                UnityEngine.Debug.LogWarning("RAGコンポーネントが設定されていません");
+                _useRAG = false;
+            }
+            else
+            {
+                UnityEngine.Debug.Log($"RAG機能を{(_useRAG ? "有効" : "無効")}化しました");
+            }
+        }
 
         /// <summary>
         /// パフォーマンスメトリクスをリセット
@@ -1177,10 +1310,6 @@ parsedResponse.ContainsKey("理由") &&
                 metrics.AppendLine($"最速: {_performanceMetrics.TokensPerSecondHistory.Max():F1} tokens/秒");
                 metrics.AppendLine($"最遅: {_performanceMetrics.TokensPerSecondHistory.Min():F1} tokens/秒");
             }
-
-            metrics.AppendLine($"キャッシュヒット: {_performanceMetrics.CacheHits}");
-            metrics.AppendLine($"キャッシュミス: {_performanceMetrics.CacheMisses}");
-            metrics.AppendLine($"キャッシュヒット率: {_performanceMetrics.CacheHitRate:P1}");
 
             UnityEngine.Debug.Log(metrics.ToString());
         }
@@ -1223,6 +1352,23 @@ parsedResponse.ContainsKey("理由") &&
             {
                 UnityEngine.Debug.LogWarning("LLMCharacterが設定されていません");
             }
+        }
+
+        /// <summary>
+        /// プロンプト生成器を変更
+        /// </summary>
+        [ContextMenu("プロンプト生成器を変更")]
+        public void ChangePromptGenerator()
+        {
+            // 次のタイプに切り替え
+            int nextType = ((int)_generatorType + 1) % 3;
+            _generatorType = (PromptGeneratorType)nextType;
+
+            _promptGenerator = CreatePromptGenerator(_generatorType);
+            SetupSystemPrompt();
+            SetupGrammar();
+
+            UnityEngine.Debug.Log($"プロンプト生成器を {_generatorType} に変更しました");
         }
 
         #endregion

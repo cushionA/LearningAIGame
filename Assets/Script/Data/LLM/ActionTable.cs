@@ -190,45 +190,5 @@ namespace LLMDataArchitect
             }
         }
 
-        /// <summary>
-        /// 行動テーブルの統計情報を取得
-        /// </summary>
-        /// <returns>統計情報</returns>
-        public ActionTableStats GetStats()
-        {
-            var actions = new[] { 敵攻撃体勢, 敵待機状態, 自分微有利状況, 自分有利状況,
-                             自分微不利状況, 自分不利状況, 自分強攻撃ヒット, 敵強攻撃ヒット };
-
-            var stats = new ActionTableStats();
-
-            foreach (var action in actions.Where(a => !string.IsNullOrEmpty(a)))
-            {
-                switch (action)
-                {
-                    case "弱攻撃":
-                    case "強攻撃":
-                    case "強攻撃キャンセル":
-                    case "横回避攻撃":
-                    case "前回避攻撃":
-                    case "弱攻撃ブロッキング":
-                    case "強攻撃ブロッキング":
-                        stats.AttackActionsCount++;
-                        break;
-                    case "後ろ回避":
-                    case "横回避":
-                    case "前回避":
-                    case "ガード":
-                    case "ブロッキング":
-                        stats.DefenseActionsCount++;
-                        break;
-                }
-            }
-
-            stats.TotalActions = actions.Count(a => !string.IsNullOrEmpty(a));
-            stats.AttackRatio = stats.TotalActions > 0 ? (float)stats.AttackActionsCount / stats.TotalActions : 0f;
-            stats.DefenseRatio = stats.TotalActions > 0 ? (float)stats.DefenseActionsCount / stats.TotalActions : 0f;
-
-            return stats;
-        }
     }
 }

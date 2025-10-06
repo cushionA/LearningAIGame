@@ -1,4 +1,5 @@
 using LearningAIGame.CombatSystem.Data;
+using LearningAIGame.CombatSystem.Utilities;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -62,13 +63,10 @@ namespace LLMDataArchitect
 
     /// <summary>
     /// LLMに入力するデータの構造体
+    /// 最初にStateSystemからキャラデータとログデータの参照を取る
     /// </summary>
     public struct LLMInputData
     {
-        /// <summary>
-        /// 直近敵が実行したアクションの配列
-        /// </summary>
-        public ActionState[] RecentActionArray { get; set; }
 
         /// <summary>
         /// 自分のキャラクターデータ
@@ -78,7 +76,7 @@ namespace LLMDataArchitect
         /// <summary>
         /// 敵のキャラクターデータ
         /// </summary>
-        public CharacterData EnemyData { get; set; }
+        public CharacterData NPCData { get; set; }
 
         /// <summary>
         /// 行動ログの集積
@@ -88,17 +86,51 @@ namespace LLMDataArchitect
         /// <summary>
         /// 自分がダメージを与えることに成功した状況のログ
         /// </summary>
-        public HitSituation[] HitSituations { get; set; }
+        public Span<HitSituation> HitSituations
+        {
+            get => _hitSituations.AsSpan();
+            set
+            {
+                _hitSituations = new FixedLengthList<HitSituation>(value.ToArray());
+            }
+        }
 
         /// <summary>
         /// 自分がダメージを受けた状況のログ
         /// </summary>
-        public HitSituation[] EnemyHitSituations { get; set; }
+        public Span<HitSituation> EnemyHitSituations
+        {
+            get => _enemyHitSituations.AsSpan();
+            set
+            {
+                _enemyHitSituations = new FixedLengthList<HitSituation>(value.ToArray());
+            }
+        }
+
+        /// <summary>
+        /// プレイヤーの行動、与ダメージ/被ダメージログ
+        /// </summary>
+        private LLMLogData _playerLog;
+
+        /// <summary>
+        /// AIキャラクターの行動、与ダメージ/被ダメージログ
+        /// </summary>
+        private LLMLogData _npcLog;
+
+        /// <summary>
+        /// AIからの入力で戦術の記録を保存する
+        /// 各戦術の成否を出力する
+        /// </summary>
+        private StrategyResult _strategyResult;
 
         /// <summary>
         /// 前回の判断データ
         /// </summary>
         public StrategyData? LastStrategy { get; set; }
+
+        #region データ追加
+
+        #endregion
 
         /// <summary>
         /// この構造体をJSON形式の文字列に変換します。
@@ -136,6 +168,7 @@ namespace LLMDataArchitect
             return JsonConvert.SerializeObject(newPromptData, settings);
         }
 
+        #region テストデータ生成用
         /// <summary>
         /// 特定のテスト状況に応じたデータを生成
         /// </summary>
@@ -166,7 +199,7 @@ namespace LLMDataArchitect
             {
                 RecentActionArray = recentActions,
                 MyData = myData,
-                EnemyData = enemyData,
+                NPCData = enemyData,
                 ActionLog = actionLog,
                 HitSituations = hitSituations,
                 EnemyHitSituations = enemyHitSituations,
@@ -402,6 +435,7 @@ namespace LLMDataArchitect
             return CreateForTestSituation(situationType);
         }
 
+
         /// <summary>
         /// カスタムデータを生成（PromptGenerator用）
         /// </summary>
@@ -459,7 +493,7 @@ namespace LLMDataArchitect
                     Energy = myEnergy,
                     MaxEnergy = myMaxEnergy
                 },
-                EnemyData = new CharacterData
+                NPCData = new CharacterData
                 {
                     Hp = enemyHp,
                     MaxHp = enemyMaxHp,
@@ -613,75 +647,15 @@ namespace LLMDataArchitect
         {
             return new StrategyData
             {
-                結論 = "バランス重視で対応する。",
-                理由 = "現在の状況では安全第一の戦術が適している。",
                 基本戦術 = "対応型",
-                行動テーブル = new ActionTable
-                {
-                    敵攻撃体勢 = "ガード",
-                    敵待機状態 = "弱攻撃",
-                    自分微有利状況 = "弱攻撃",
-                    自分有利状況 = "強攻撃",
-                    自分微不利状況 = "ガード",
-                    自分不利状況 = "後ろ回避",
-                    自分強攻撃ヒット = "弱攻撃",
-                    敵強攻撃ヒット = "後ろ回避"
-                }
+                攻撃時判断基準 = "累積確率重視",
+                攻撃継続時判断基準 = "直近パターン重視",
+                防御時判断基準 = "累積確率重視",
+                連続防御時判断基準 = "反撃"
             };
         }
-    }
 
-    /// <summary>
-    /// 行動テーブルの統計情報
-    /// </summary>
-    public class ActionTableStats
-    {
-        /// <summary>
-        /// 攻撃系行動の数
-        /// </summary>
-        public int AttackActionsCount { get; set; }
-
-        /// <summary>
-        /// 防御系行動の数
-        /// </summary>
-        public int DefenseActionsCount { get; set; }
-
-        /// <summary>
-        /// 総行動数
-        /// </summary>
-        public int TotalActions { get; set; }
-
-        /// <summary>
-        /// 攻撃行動の割合
-        /// </summary>
-        public float AttackRatio { get; set; }
-
-        /// <summary>
-        /// 防御行動の割合
-        /// </summary>
-        public float DefenseRatio { get; set; }
-
-        /// <summary>
-        /// 戦術傾向の判定
-        /// </summary>
-        public string TacticTendency
-        {
-            get
-            {
-                if (AttackRatio > 0.6f)
-                    return "攻撃的";
-                if (DefenseRatio > 0.6f)
-                    return "守備的";
-                return "バランス型";
-            }
-        }
-
-        public override string ToString()
-        {
-            return $"攻撃:{AttackActionsCount} 防御:{DefenseActionsCount} " +
-                   $"攻撃率:{AttackRatio:P0} 防御率:{DefenseRatio:P0} " +
-                   $"傾向:{TacticTendency}";
-        }
+        #endregion
     }
 
     /// <summary>
@@ -744,7 +718,7 @@ namespace LLMDataArchitect
 
             // HP割合計算
             result.MyHpPercentage = (float)inputData.MyData.Hp / inputData.MyData.MaxHp * 100f;
-            result.EnemyHpPercentage = (float)inputData.EnemyData.Hp / inputData.EnemyData.MaxHp * 100f;
+            result.EnemyHpPercentage = (float)inputData.NPCData.Hp / inputData.NPCData.MaxHp * 100f;
             result.HpDifference = result.MyHpPercentage - result.EnemyHpPercentage;
 
             // エネルギー割合計算
