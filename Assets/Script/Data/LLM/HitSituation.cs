@@ -23,10 +23,10 @@ namespace LLMDataArchitect
         /// 与えた/受けたダメージ
         /// </summary>
         // 2. GetDamage の型を float に修正し、より正確なダメージ計算に対応
-        public float GetDamage { get; set; }
+        public int GetDamage { get; set; }
 
         // 3. コンストラクタを完成させる
-        public HitSituation(ActionState hitState, ActionState attackType, float damage)
+        public HitSituation(ActionState hitState, ActionState attackType, int damage)
         {
             // プロパティに引数を代入
             HitState = hitState;
