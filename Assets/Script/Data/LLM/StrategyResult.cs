@@ -9,7 +9,7 @@
 // [StrategyResult]
 // - 戦略結果を管理するクラス
 // - 攻撃・防御の各判断基準における成功/失敗のカウントを記録
-// - 成功率とダメージ量から戦略の有効性を評価
+// - 成功と失敗の回数差から戦略の有効性を評価
 // 
 // [ConditionType enum]
 // - Attack: 攻撃時判断基準
@@ -21,22 +21,18 @@
 // - AddResult: 指定した条件タイプの成功/失敗カウントを追加
 // - GetResult: 指定した条件タイプのカウントを取得
 // - GetSuccessRate: 指定した条件タイプの成功率を計算
+// - GetSuccessDifference: 成功と失敗の回数差を取得
 // - GetConditionEvaluationJapanese: 日本語フォーマットで評価を取得
 // - GetConditionEvaluationEnglish: 英語フォーマットで評価を取得
-// - SetTestData: テスト用に優勢/劣勢/膠着の状態データを設定
+// - SetTestData: テスト用に優勢/劣勢/拮抗/エネルギー不足/体力危険の状態データを設定
 // 
-// 評価基準:
-// [攻撃系]
-// - 非常に効果的: 成功率70%以上 かつ ダメージ100以上
-// - 効果的: 成功率50%以上 かつ ダメージ50以上
-// - 効果薄い: 成功率30%以上 または ダメージ30以上
-// - 変更必須: 上記以外
-// 
-// [防御系]
-// - 非常に効果的: 成功率70%以上 かつ ダメージ20以下
-// - 効果的: 成功率50%以上 かつ ダメージ40以下
-// - 許容範囲: 成功率30%以上 または ダメージ60以下
-// - 変更必須: 上記以外
+// 評価基準（成功-失敗の差分）:
+// [攻撃系・防御系共通]
+// - 非常に効果的: +3以上の差
+// - 効果的: +2以上の差
+// - 許容範囲: +1以上の差
+// - 効果薄い: ±0（同数）
+// - 変更必須: マイナス（失敗の方が多い）
 // 
 // 入力元クラス: ルールベースAI
 // 出力先クラス: LLMプロンプト生成用データ
@@ -55,6 +51,23 @@ namespace LLMDataArchitect
     /// </summary>
     public class StrategyResult
     {
+        // ===== 評価基準定数 =====
+
+        /// <summary>
+        /// 「非常に効果的」と判定する最小差分
+        /// </summary>
+        private const int k_HIGHLY_EFFECTIVE_THRESHOLD = 3;
+
+        /// <summary>
+        /// 「効果的」と判定する最小差分
+        /// </summary>
+        private const int k_EFFECTIVE_THRESHOLD = 2;
+
+        /// <summary>
+        /// 「許容範囲」と判定する最小差分
+        /// </summary>
+        private const int k_ACCEPTABLE_THRESHOLD = 1;
+
         /// <summary>
         /// 判断基準の種類
         /// </summary>
@@ -76,25 +89,6 @@ namespace LLMDataArchitect
             /// 連続防御時判断基準
             /// </summary>
             SequentialDefense
-        }
-
-        /// <summary>
-        /// テスト用の戦況パターン
-        /// </summary>
-        public enum TestBattleState
-        {
-            /// <summary>
-            /// 優勢状態：高い成功率、有利なダメージ比率
-            /// </summary>
-            Advantage,
-            /// <summary>
-            /// 劣勢状態：低い成功率、不利なダメージ比率
-            /// </summary>
-            Disadvantage,
-            /// <summary>
-            /// 膠着状態：中程度の成功率、拮抗したダメージ比率
-            /// </summary>
-            Stalemate
         }
 
         // ===== プライベートフィールド =====
@@ -226,6 +220,18 @@ namespace LLMDataArchitect
         }
 
         /// <summary>
+        /// 成功と失敗の回数差を取得（成功 - 失敗）
+        /// </summary>
+        /// <param name="conditionType">条件の種類</param>
+        /// <returns>成功と失敗の差分。正の値なら成功が多く、負の値なら失敗が多い</returns>
+        public int GetSuccessDifference(ConditionType conditionType)
+        {
+            int success = GetResult(conditionType, true);
+            int fail = GetResult(conditionType, false);
+            return success - fail;
+        }
+
+        /// <summary>
         /// 指定した条件タイプの合計試行回数を取得
         /// </summary>
         /// <param name="conditionType">条件の種類</param>
@@ -255,22 +261,38 @@ namespace LLMDataArchitect
         // ===== 日本語フォーマット =====
 
         /// <summary>
+        /// 全ての条件タイプの評価を日本語でまとめて取得
+        /// </summary>
+        /// <returns>全評価をまとめたフォーマット済み文字列</returns>
+        public string GetAllConditionEvaluationsJapanese()
+        {
+            var sb = new System.Text.StringBuilder();
+
+            sb.AppendLine(GetConditionEvaluationJapanese(ConditionType.Attack));
+            sb.AppendLine(GetConditionEvaluationJapanese(ConditionType.SequentialAttack));
+            sb.AppendLine(GetConditionEvaluationJapanese(ConditionType.Defense));
+            sb.Append(GetConditionEvaluationJapanese(ConditionType.SequentialDefense));
+
+            return sb.ToString();
+        }
+
+        /// <summary>
         /// 条件タイプの評価を日本語でフォーマットして取得
-        /// 例: 【攻撃時判断基準】成功:5 失敗:3 与ダメージ120 → 効果的
+        /// 例: 【攻撃時判断基準】成功:15 失敗:5 (差分:+10) → 非常に効果的
         /// </summary>
         /// <param name="conditionType">条件の種類</param>
-        /// <param name="damage">ダメージ量</param>
         /// <returns>フォーマットされた評価文字列</returns>
-        public string GetConditionEvaluationJapanese(ConditionType conditionType, int damage)
+        public string GetConditionEvaluationJapanese(ConditionType conditionType)
         {
             int success = GetResult(conditionType, true);
             int fail = GetResult(conditionType, false);
+            int difference = GetSuccessDifference(conditionType);
 
             string conditionName = GetConditionNameJapanese(conditionType);
-            string damageLabel = IsAttackCondition(conditionType) ? "与ダメージ" : "被ダメージ";
-            string evaluation = EvaluateConditionJapanese(conditionType, success, fail, damage);
+            string differenceStr = difference >= 0 ? $"+{difference}" : difference.ToString();
+            string evaluation = EvaluateConditionByDifference(difference);
 
-            return $"【{conditionName}】成功:{success} 失敗:{fail} {damageLabel}{damage} → {evaluation}";
+            return $"【{conditionName}】成功:{success} 失敗:{fail} (差分:{differenceStr}) → {evaluation}";
         }
 
         /// <summary>
@@ -294,66 +316,71 @@ namespace LLMDataArchitect
         }
 
         /// <summary>
-        /// 条件の評価を日本語で取得
+        /// 成功と失敗の差分から評価を取得
         /// </summary>
-        private string EvaluateConditionJapanese(ConditionType conditionType, int success, int fail, int damage)
+        /// <param name="difference">成功 - 失敗の差分</param>
+        /// <returns>評価文字列</returns>
+        private string EvaluateConditionByDifference(int difference)
         {
-            int total = success + fail;
-
-            // データが不足している場合
-            if (total == 0)
-                return "データ不足";
-
-            float successRate = (float)success / total;
-
-            // 攻撃系の評価
-            if (IsAttackCondition(conditionType))
-            {
-                if (successRate >= 0.7f && damage >= 100)
-                    return "非常に効果的";
-                else if (successRate >= 0.5f && damage >= 50)
-                    return "効果的";
-                else if (successRate >= 0.3f || damage >= 30)
-                    return "効果薄い";
-                else
-                    return "変更必須";
-            }
-            // 防御系の評価
+            if (difference >= k_HIGHLY_EFFECTIVE_THRESHOLD)
+                return "非常に効果的";
+            else if (difference >= k_EFFECTIVE_THRESHOLD)
+                return "効果的";
+            else if (difference >= k_ACCEPTABLE_THRESHOLD)
+                return "許容範囲";
+            else if (difference == 0)
+                return "効果薄い";
             else
-            {
-                if (successRate >= 0.7f && damage <= 20)
-                    return "非常に効果的";
-                else if (successRate >= 0.5f && damage <= 40)
-                    return "効果的";
-                else if (successRate >= 0.3f || damage <= 60)
-                    return "許容範囲";
-                else
-                    return "変更必須";
-            }
+                return "変更必須";
         }
 
         // ===== 英語フォーマット =====
 
         /// <summary>
+        /// 全ての条件タイプの評価を英語でまとめて取得
+        /// </summary>
+        /// <param name="attackCriteria">攻撃時判断基準のテキスト(任意)</param>
+        /// <param name="sequentialAttackCriteria">連続攻撃時判断基準のテキスト(任意)</param>
+        /// <param name="defenseCriteria">防御時判断基準のテキスト(任意)</param>
+        /// <param name="sequentialDefenseCriteria">連続防御時判断基準のテキスト(任意)</param>
+        /// <returns>全評価をまとめたフォーマット済み文字列</returns>
+        public string GetAllConditionEvaluationsEnglish(
+            string attackCriteria = "",
+            string sequentialAttackCriteria = "",
+            string defenseCriteria = "",
+            string sequentialDefenseCriteria = "")
+        {
+            var sb = new System.Text.StringBuilder();
+
+            sb.AppendLine(GetConditionEvaluationEnglish(ConditionType.Attack, attackCriteria));
+            sb.AppendLine(GetConditionEvaluationEnglish(ConditionType.SequentialAttack, sequentialAttackCriteria));
+            sb.AppendLine(GetConditionEvaluationEnglish(ConditionType.Defense, defenseCriteria));
+            sb.Append(GetConditionEvaluationEnglish(ConditionType.SequentialDefense, sequentialDefenseCriteria));
+
+            return sb.ToString();
+        }
+
+
+        /// <summary>
         /// 条件タイプの評価を英語でフォーマットして取得
-        /// 例: **Attack Criteria** Success:5 Fail:3 Damage:120 → Effective
+        /// 例: **Attack Criteria** Success:15 Fail:5 (Diff:+10) → Highly Effective
         /// </summary>
         /// <param name="conditionType">条件の種類</param>
-        /// <param name="damage">ダメージ量</param>
         /// <param name="criteriaText">判断基準のテキスト(任意)</param>
         /// <returns>フォーマットされた評価文字列</returns>
-        public string GetConditionEvaluationEnglish(ConditionType conditionType, int damage, string criteriaText = "")
+        public string GetConditionEvaluationEnglish(ConditionType conditionType, string criteriaText = "")
         {
             int success = GetResult(conditionType, true);
             int fail = GetResult(conditionType, false);
+            int difference = GetSuccessDifference(conditionType);
 
             string conditionName = GetConditionNameEnglish(conditionType);
-            string damageLabel = IsAttackCondition(conditionType) ? "Dealt" : "Taken";
-            string evaluation = EvaluateConditionEnglish(conditionType, success, fail, damage);
+            string differenceStr = difference >= 0 ? $"+{difference}" : difference.ToString();
+            string evaluation = EvaluateConditionByDifferenceEnglish(difference);
 
             string criteriaDisplay = string.IsNullOrEmpty(criteriaText) ? "" : $" \"{criteriaText}\"";
 
-            return $"- **{conditionName}**{criteriaDisplay} Success:{success} Fail:{fail} {damageLabel} Damage:{damage} → {evaluation}";
+            return $"- **{conditionName}**{criteriaDisplay} Success:{success} Fail:{fail} (Diff:{differenceStr}) → {evaluation}";
         }
 
         /// <summary>
@@ -377,136 +404,171 @@ namespace LLMDataArchitect
         }
 
         /// <summary>
-        /// 条件の評価を英語で取得
+        /// 成功と失敗の差分から評価を取得（英語）
         /// </summary>
-        private string EvaluateConditionEnglish(ConditionType conditionType, int success, int fail, int damage)
+        /// <param name="difference">成功 - 失敗の差分</param>
+        /// <returns>評価文字列</returns>
+        private string EvaluateConditionByDifferenceEnglish(int difference)
         {
-            int total = success + fail;
-
-            // データが不足している場合
-            if (total == 0)
-                return "Insufficient Data";
-
-            float successRate = (float)success / total;
-
-            // 攻撃系の評価
-            if (IsAttackCondition(conditionType))
-            {
-                if (successRate >= 0.7f && damage >= 100)
-                    return "Highly Effective";
-                else if (successRate >= 0.5f && damage >= 50)
-                    return "Effective";
-                else if (successRate >= 0.3f || damage >= 30)
-                    return "Weak Effect";
-                else
-                    return "Must Change";
-            }
-            // 防御系の評価
+            if (difference >= k_HIGHLY_EFFECTIVE_THRESHOLD)
+                return "Highly Effective";
+            else if (difference >= k_EFFECTIVE_THRESHOLD)
+                return "Effective";
+            else if (difference >= k_ACCEPTABLE_THRESHOLD)
+                return "Acceptable";
+            else if (difference == 0)
+                return "Weak Effect";
             else
-            {
-                if (successRate >= 0.7f && damage <= 20)
-                    return "Highly Effective";
-                else if (successRate >= 0.5f && damage <= 40)
-                    return "Effective";
-                else if (successRate >= 0.3f || damage <= 60)
-                    return "Acceptable";
-                else
-                    return "Must Change";
-            }
+                return "Must Change";
         }
 
         // ===== テスト用メソッド =====
 
         /// <summary>
         /// テスト用に戦況パターンに応じたデータを設定
+        /// TestSituationType列挙型に基づいて各状況のデータを生成
         /// </summary>
-        /// <param name="battleState">戦況パターン(優勢/劣勢/膠着)</param>
-        public void SetTestData(TestBattleState battleState)
+        /// <param name="situationType">テスト戦況の種類</param>
+        public void SetTestData(TestSituationType situationType)
         {
             Clear();
 
-            switch (battleState)
+            switch (situationType)
             {
-                case TestBattleState.Advantage:
+                case TestSituationType.優勢:
                     SetAdvantageData();
                     break;
 
-                case TestBattleState.Disadvantage:
+                case TestSituationType.拮抗:
+                    SetBalanceData();
+                    break;
+
+                case TestSituationType.劣勢:
                     SetDisadvantageData();
                     break;
 
-                case TestBattleState.Stalemate:
-                    SetStalemateData();
+                case TestSituationType.エネルギー不足:
+                    SetEnergyShortageData();
+                    break;
+
+                case TestSituationType.体力危険:
+                    SetHealthCriticalData();
                     break;
             }
         }
 
         /// <summary>
         /// 優勢状態のテストデータを設定
-        /// 攻撃: 高成功率・高ダメージ、防御: 高成功率・低被ダメージ
+        /// 攻撃: 高成功率、防御: 高成功率
         /// </summary>
         private void SetAdvantageData()
         {
-            // 攻撃時判断基準: 成功率75% (15成功/5失敗)
-            AttackConditionSuccess = 15;
+            // 攻撃時判断基準: 差分+5 (10成功/5失敗)
+            AttackConditionSuccess = 10;
             AttackConditionFail = 5;
 
-            // 連続攻撃時判断基準: 成功率80% (16成功/4失敗)
-            SequentialAttackConditionSuccess = 16;
-            SequentialAttackConditionFail = 4;
+            // 連続攻撃時判断基準: 差分+6 (11成功/5失敗)
+            SequentialAttackConditionSuccess = 11;
+            SequentialAttackConditionFail = 5;
 
-            // 防御時判断基準: 成功率80% (16成功/4失敗)
-            DefenseConditionSuccess = 16;
-            DefenseConditionFail = 4;
+            // 防御時判断基準: 差分+6 (11成功/5失敗)
+            DefenseConditionSuccess = 11;
+            DefenseConditionFail = 5;
 
-            // 連続防御時判断基準: 成功率85% (17成功/3失敗)
-            SequentialDefenseConditionSuccess = 17;
-            SequentialDefenseConditionFail = 3;
+            // 連続防御時判断基準: 差分+7 (12成功/5失敗)
+            SequentialDefenseConditionSuccess = 12;
+            SequentialDefenseConditionFail = 5;
+        }
+
+        /// <summary>
+        /// 拮抗状態のテストデータを設定
+        /// 攻撃: 中成功率、防御: 中成功率
+        /// </summary>
+        private void SetBalanceData()
+        {
+            // 攻撃時判断基準: 差分±0 (10成功/10失敗)
+            AttackConditionSuccess = 10;
+            AttackConditionFail = 10;
+
+            // 連続攻撃時判断基準: 差分-1 (9成功/10失敗)
+            SequentialAttackConditionSuccess = 9;
+            SequentialAttackConditionFail = 10;
+
+            // 防御時判断基準: 差分+1 (11成功/10失敗)
+            DefenseConditionSuccess = 11;
+            DefenseConditionFail = 10;
+
+            // 連続防御時判断基準: 差分±0 (10成功/10失敗)
+            SequentialDefenseConditionSuccess = 10;
+            SequentialDefenseConditionFail = 10;
         }
 
         /// <summary>
         /// 劣勢状態のテストデータを設定
-        /// 攻撃: 低成功率・低ダメージ、防御: 低成功率・高被ダメージ
+        /// 攻撃: 低成功率、防御: 低成功率
         /// </summary>
         private void SetDisadvantageData()
         {
-            // 攻撃時判断基準: 成功率20% (4成功/16失敗)
+            // 攻撃時判断基準: 差分-6 (4成功/10失敗)
             AttackConditionSuccess = 4;
-            AttackConditionFail = 16;
+            AttackConditionFail = 10;
 
-            // 連続攻撃時判断基準: 成功率15% (3成功/17失敗)
+            // 連続攻撃時判断基準: 差分-7 (3成功/10失敗)
             SequentialAttackConditionSuccess = 3;
-            SequentialAttackConditionFail = 17;
+            SequentialAttackConditionFail = 10;
 
-            // 防御時判断基準: 成功率25% (5成功/15失敗)
+            // 防御時判断基準: 差分-5 (5成功/10失敗)
             DefenseConditionSuccess = 5;
-            DefenseConditionFail = 15;
+            DefenseConditionFail = 10;
 
-            // 連続防御時判断基準: 成功率10% (2成功/18失敗)
+            // 連続防御時判断基準: 差分-8 (2成功/10失敗)
             SequentialDefenseConditionSuccess = 2;
-            SequentialDefenseConditionFail = 18;
+            SequentialDefenseConditionFail = 10;
         }
 
         /// <summary>
-        /// 膠着状態のテストデータを設定
-        /// 攻撃: 中成功率・中ダメージ、防御: 中成功率・中被ダメージ
+        /// エネルギー不足状態のテストデータを設定
+        /// 攻撃: 低リスク重視、防御: 標準的な成功率
         /// </summary>
-        private void SetStalemateData()
+        private void SetEnergyShortageData()
         {
-            // 攻撃時判断基準: 成功率50% (10成功/10失敗)
-            AttackConditionSuccess = 10;
+            // 攻撃時判断基準: 差分-2 (8成功/10失敗) - 慎重な攻撃
+            AttackConditionSuccess = 8;
             AttackConditionFail = 10;
 
-            // 連続攻撃時判断基準: 成功率45% (9成功/11失敗)
-            SequentialAttackConditionSuccess = 9;
-            SequentialAttackConditionFail = 11;
+            // 連続攻撃時判断基準: 差分-4 (6成功/10失敗) - 連続攻撃はさらに控えめ
+            SequentialAttackConditionSuccess = 6;
+            SequentialAttackConditionFail = 10;
 
-            // 防御時判断基準: 成功率55% (11成功/9失敗)
-            DefenseConditionSuccess = 11;
-            DefenseConditionFail = 9;
+            // 防御時判断基準: 差分+2 (12成功/10失敗) - 防御に注力
+            DefenseConditionSuccess = 12;
+            DefenseConditionFail = 10;
 
-            // 連続防御時判断基準: 成功率50% (10成功/10失敗)
-            SequentialDefenseConditionSuccess = 10;
+            // 連続防御時判断基準: 差分+3 (13成功/10失敗)
+            SequentialDefenseConditionSuccess = 13;
+            SequentialDefenseConditionFail = 10;
+        }
+
+        /// <summary>
+        /// 体力危険状態のテストデータを設定
+        /// 攻撃: 慎重な攻撃、防御: 高成功率重視
+        /// </summary>
+        private void SetHealthCriticalData()
+        {
+            // 攻撃時判断基準: 差分-3 (7成功/10失敗) - 非常に慎重
+            AttackConditionSuccess = 7;
+            AttackConditionFail = 10;
+
+            // 連続攻撃時判断基準: 差分-5 (5成功/10失敗) - 連続攻撃はほぼ避ける
+            SequentialAttackConditionSuccess = 5;
+            SequentialAttackConditionFail = 10;
+
+            // 防御時判断基準: 差分+5 (15成功/10失敗) - 防御最優先
+            DefenseConditionSuccess = 15;
+            DefenseConditionFail = 10;
+
+            // 連続防御時判断基準: 差分+6 (16成功/10失敗)
+            SequentialDefenseConditionSuccess = 16;
             SequentialDefenseConditionFail = 10;
         }
 
@@ -526,10 +588,10 @@ namespace LLMDataArchitect
         public void DebugLogResultsJapanese()
         {
             Debug.Log("=== 戦略結果 ===");
-            Debug.Log(GetConditionEvaluationJapanese(ConditionType.Attack, 0));
-            Debug.Log(GetConditionEvaluationJapanese(ConditionType.SequentialAttack, 0));
-            Debug.Log(GetConditionEvaluationJapanese(ConditionType.Defense, 0));
-            Debug.Log(GetConditionEvaluationJapanese(ConditionType.SequentialDefense, 0));
+            Debug.Log(GetConditionEvaluationJapanese(ConditionType.Attack));
+            Debug.Log(GetConditionEvaluationJapanese(ConditionType.SequentialAttack));
+            Debug.Log(GetConditionEvaluationJapanese(ConditionType.Defense));
+            Debug.Log(GetConditionEvaluationJapanese(ConditionType.SequentialDefense));
         }
 
         /// <summary>
@@ -538,10 +600,10 @@ namespace LLMDataArchitect
         public void DebugLogResultsEnglish()
         {
             Debug.Log("=== Strategy Results ===");
-            Debug.Log(GetConditionEvaluationEnglish(ConditionType.Attack, 0));
-            Debug.Log(GetConditionEvaluationEnglish(ConditionType.SequentialAttack, 0));
-            Debug.Log(GetConditionEvaluationEnglish(ConditionType.Defense, 0));
-            Debug.Log(GetConditionEvaluationEnglish(ConditionType.SequentialDefense, 0));
+            Debug.Log(GetConditionEvaluationEnglish(ConditionType.Attack));
+            Debug.Log(GetConditionEvaluationEnglish(ConditionType.SequentialAttack));
+            Debug.Log(GetConditionEvaluationEnglish(ConditionType.Defense));
+            Debug.Log(GetConditionEvaluationEnglish(ConditionType.SequentialDefense));
         }
     }
 }

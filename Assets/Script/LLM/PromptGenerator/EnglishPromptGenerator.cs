@@ -37,17 +37,32 @@ namespace LLMDataArchitect.Test
             // === 敵攻撃パターン ===
             prompt.AppendLine("## Enemy Attack Patterns");
 
-            // 直近パターン（RecentActionArrayから攻撃のみ抽出）
-            if (inputData.RecentActionArray != null && inputData.RecentActionArray.Length > 0)
+            // 直近攻撃パターン
+            if (inputData.PlayerLog.HitSituations != null && inputData.PlayerLog.HitSituations.Count > 0)
             {
-                var attackActions = new[] { ActionState.弱攻撃, ActionState.強攻撃, ActionState.強攻撃キャンセル };
-                var recentAttacks = inputData.RecentActionArray.Where(a => attackActions.Contains(a)).ToList();
+                Span<HitSituation> hitSpan = inputData.PlayerLog.HitSituations.AsSpan();
 
-                var attackCounts = recentAttacks.GroupBy(a => a)
-                    .Select(g => $"{TranslateActionState(g.Key)}: {g.Count()} times")
-                    .ToList();
+                int lightAttackCount = 0;
+                int strongAttackCount = 0;
+                int strongAttackCancelCount = 0;
 
-                prompt.AppendLine($"**Recent:** {string.Join(", ", attackCounts)}");
+                foreach (var situation in hitSpan)
+                {
+                    switch (situation.HitState)
+                    {
+                        case ActionState.弱攻撃:
+                            lightAttackCount++;
+                            break;
+                        case ActionState.強攻撃:
+                            strongAttackCount++;
+                            break;
+                        case ActionState.強攻撃キャンセル:
+                            strongAttackCancelCount++;
+                            break;
+                    }
+                }
+
+                prompt.AppendLine($"**Recent Attack Pattern** Light Attack: {lightAttackCount} times, Heavy Attack: {strongAttackCount} times, Feint: {strongAttackCancelCount} times");
             }
             else
             {
@@ -71,19 +86,35 @@ namespace LLMDataArchitect.Test
             prompt.AppendLine("## Enemy Defense Patterns");
 
             // 直近防御パターン
-            if (inputData.RecentActionArray != null && inputData.RecentActionArray.Length > 0)
+            if (inputData.PlayerLog.DamageSituations != null && inputData.PlayerLog.DamageSituations.Count > 0)
             {
-                var defenseActions = new[] {
-                    ActionState.ガード, ActionState.弱攻撃ブロッキング, ActionState.強攻撃ブロッキング,
-                    ActionState.後ろ回避, ActionState.横回避, ActionState.前回避
-                };
-                var recentDefenses = inputData.RecentActionArray.Where(a => defenseActions.Contains(a)).ToList();
+                Span<HitSituation> damageSpan = inputData.PlayerLog.DamageSituations.AsSpan();
 
-                var defenseCounts = recentDefenses.GroupBy(a => a)
-                    .Select(g => $"{TranslateActionState(g.Key)}: {g.Count()} times")
-                    .ToList();
+                int horizontalDodgeCount = 0; // 横回避
+                int backwardDodgeCount = 0;   // 後ろ回避
+                int blockingCount = 0;        // ブロッキング成功
+                int guardCount = 0;           // ガード成功
 
-                prompt.AppendLine($"**Recent:** {string.Join(", ", defenseCounts)}");
+                foreach (var situation in damageSpan)
+                {
+                    switch (situation.DamageState)
+                    {
+                        case ActionState.横回避:
+                            horizontalDodgeCount++;
+                            break;
+                        case ActionState.後ろ回避:
+                            backwardDodgeCount++;
+                            break;
+                        case ActionState.ブロッキング成功:
+                            blockingCount++;
+                            break;
+                        case ActionState.ガード成功:
+                            guardCount++;
+                            break;
+                    }
+                }
+
+                prompt.AppendLine($"**Recent Defense Pattern** SideDodge: {horizontalDodgeCount},BackDodge: {backwardDodgeCount}, Parry: {blockingCount} times, Guard: {guardCount} times");
             }
             else
             {
@@ -93,7 +124,7 @@ namespace LLMDataArchitect.Test
             // 累積防御パターン
             if (inputData.ActionLog != null)
             {
-                prompt.AppendLine($"**Cumulative:** Guard:{inputData.ActionLog.GuardPercentage * 100:F0}%, " +
+                prompt.AppendLine($"**Cumulative:** Counter:{inputData.ActionLog.HorizontalDodgeAttackPercentage * 100:F0}%, " +
                                  $"Parry:{inputData.ActionLog.BlockingPercentage * 100:F0}%, " +
                                  $"Dodge:{(inputData.ActionLog.BackwardDodgePercentage + inputData.ActionLog.HorizontalDodgePercentage) * 100:F0}%");
             }
@@ -106,8 +137,8 @@ namespace LLMDataArchitect.Test
             // === 前回判断後の戦闘結果 ===
             prompt.AppendLine("## Combat Results Since Last Decision");
 
-            float dealtDmg = inputData.HitSituations?.Sum(h => h.GetDamage) ?? 0;
-            float takenDmg = inputData.EnemyHitSituations?.Sum(h => h.GetDamage) ?? 0;
+            float dealtDmg = inputData.NPCLog.HitDamage;
+            float takenDmg = inputData.NPCLog.TakeDamage;
             float balance = dealtDmg - takenDmg;
 
             prompt.AppendLine($"- **Damage** Dealt: {dealtDmg:F0} Taken: {takenDmg:F0} Balance: {balance:+0;-0;0}");
@@ -118,22 +149,13 @@ namespace LLMDataArchitect.Test
 
             if (inputData.LastStrategy != null)
             {
-                // 各判断基準の評価（実際のデータがあれば使用、なければプレースホルダー）
-                // 攻撃時判断基準
-                string attackEval = EvaluateAttackCriteria(dealtDmg, "{attack_success_count}", "{attack_fail_count}", "{attack_damage}");
-                prompt.AppendLine($"- **Attack Criteria** \"{inputData.LastStrategy.攻撃時判断基準}\" {attackEval}");
-
-                // 連続攻撃時判断基準
-                string continuousAttackEval = EvaluateAttackCriteria(dealtDmg, "{continuous_attack_success}", "{continuous_attack_fail}", "{continuous_attack_damage}");
-                prompt.AppendLine($"- **Continuous Attack Criteria** \"{inputData.LastStrategy.攻撃継続時判断基準}\" {continuousAttackEval}");
-
-                // 防御時判断基準
-                string defenseEval = EvaluateDefenseCriteria(takenDmg, "{defense_success_count}", "{defense_fail_count}", "{defense_damage}");
-                prompt.AppendLine($"- **Defense Criteria** \"{inputData.LastStrategy.防御時判断基準}\" {defenseEval}");
-
-                // 連続防御時判断基準
-                string continuousDefenseEval = EvaluateDefenseCriteria(takenDmg, "{continuous_defense_success}", "{continuous_defense_fail}", "{continuous_defense_damage}");
-                prompt.AppendLine($"- **Continuous Defense Criteria** \"{inputData.LastStrategy.連続防御時判断基準}\" {continuousDefenseEval}");
+                // StrategyResultから全評価を取得
+                prompt.AppendLine(inputData.StrategyResult.GetAllConditionEvaluationsEnglish(
+                    inputData.LastStrategy.攻撃時判断基準,
+                    inputData.LastStrategy.攻撃継続時判断基準,
+                    inputData.LastStrategy.防御時判断基準,
+                    inputData.LastStrategy.連続防御時判断基準
+                ));
             }
             else
             {
@@ -233,56 +255,6 @@ namespace LLMDataArchitect.Test
         }
 
         /// <summary>
-        /// 攻撃判断基準の評価テキストを生成
-        /// </summary>
-        private string EvaluateAttackCriteria(float totalDamage, string successCount, string failCount, string damage)
-        {
-            string evaluation;
-
-            // プレースホルダーとして実装（実データがあれば条件分岐）
-            if (damage == "{attack_damage}" || damage == "{continuous_attack_damage}")
-            {
-                // データがない場合はプレースホルダーのまま
-                return $"Success:{successCount} Fail:{failCount} Damage:{damage} → {{evaluation}}";
-            }
-
-            float dmg = float.Parse(damage);
-            if (dmg > 20)
-                evaluation = "Effective";
-            else if (dmg > 10)
-                evaluation = "Standard";
-            else
-                evaluation = "Ineffective";
-
-            return $"Success:{successCount} Fail:{failCount} Damage:{dmg:F0} → {evaluation}";
-        }
-
-        /// <summary>
-        /// 防御判断基準の評価テキストを生成
-        /// </summary>
-        private string EvaluateDefenseCriteria(float totalDamage, string successCount, string failCount, string damage)
-        {
-            string evaluation;
-
-            // プレースホルダーとして実装（実データがあれば条件分岐）
-            if (damage == "{defense_damage}" || damage == "{continuous_defense_damage}")
-            {
-                // データがない場合はプレースホルダーのまま
-                return $"Success:{successCount} Fail:{failCount} Damage:{damage} → {{evaluation}}";
-            }
-
-            float dmg = float.Parse(damage);
-            if (dmg > 30)
-                evaluation = "Must Change";
-            else if (dmg > 15)
-                evaluation = "Room for Improvement";
-            else
-                evaluation = "Acceptable";
-
-            return $"Success:{successCount} Fail:{failCount} Damage:{dmg:F0} → {evaluation}";
-        }
-
-        /// <summary>
         /// ActionStateを英語に変換
         /// </summary>
         private string TranslateActionState(ActionState state)
@@ -301,5 +273,34 @@ namespace LLMDataArchitect.Test
                 _ => state.ToString()
             };
         }
+
+        /// <summary>
+        /// グラマーを作成する(英語版)
+        /// </summary>
+        /// <returns></returns>
+        public override string GenerateGrammar()
+        {
+            return @"
+root ::= object
+object ::= ""{"" 
+  ws ""\"" ""AnalysisResult"" ""\"" "":"" ws string "",""
+  ws ""\"" ""BasicTactic"" ""\"" "":"" ws basic_tactic_value "",""
+  ws ""\"" ""AttackCriteria"" ""\"" "":"" ws attack_criteria_value "",""
+  ws ""\"" ""ContinuousAttackCriteria"" ""\"" "":"" ws attack_criteria_value "",""
+  ws ""\"" ""DefenseCriteria"" ""\"" "":"" ws defense_criteria_value "",""
+  ws ""\"" ""ContinuousDefenseCriteria"" ""\"" "":"" ws defense_criteria_value
+  ws ""}""
+
+basic_tactic_value ::= ""\"" (""Aggressive"" | ""Defensive"" | ""Adaptive"" | ""Disruptive"" | ""Endurance"") ""\""
+
+attack_criteria_value ::= ""\"" (""Cumulative Probability"" | ""Recent Pattern Focus"" | ""Speed Priority"" | ""Return Priority"" | ""Feint Focus"" | ""Dispersion Focus"" | ""Energy Efficiency"") ""\""
+
+defense_criteria_value ::= ""\"" (""Cumulative Probability"" | ""Recent Pattern Focus"" | ""Counterattack Focus"" | ""Return Priority"" | ""Risk Avoidance"" | ""Counter Priority"" | ""Dispersion Focus"") ""\""
+
+string ::= ""\"" ([^""\\\x00-\x1f] | ""\\"" ([""\\/bfnrt] | ""u"" [0-9a-fA-F]{4})) * ""\""
+ws ::= [ \t\n\r]*
+";
+        }
+
     }
 }

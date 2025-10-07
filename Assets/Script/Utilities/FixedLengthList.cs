@@ -97,7 +97,7 @@ namespace LearningAIGame.CombatSystem.Utilities
         {
             if (source.Length <= 0)
             {
-                throw new ArgumentException("容量は1以上である必要があります", nameof(capacity));
+                throw new ArgumentException("容量は1以上である必要があります", nameof(source));
             }
 
             Capacity = source.Length;
