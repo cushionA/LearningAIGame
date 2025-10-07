@@ -19,6 +19,8 @@ namespace LLMDataArchitect.Test
     {
         Japanese,
         English,
+        Jap_Rag,
+        Eng_Rag,
         Experimental
     }
 
@@ -51,6 +53,23 @@ namespace LLMDataArchitect.Test
         [SerializeField] private float _ragDistanceThreshold = 0.8f;
         [SerializeField] private bool _showRAGResults = true;
 
+        [Header("RAG初期化設定")]
+        [SerializeField] private bool _autoInitializeRAG = true;
+        [SerializeField] private bool _loadFromResources = true;
+        [SerializeField] private string _resourcesPath = "GameRules";
+        [SerializeField] private TextAsset[] _manualRuleFiles;
+        [SerializeField] private string _ragFolderPath = "Assets/Resources/GameRules";
+
+        private string[] _defaultRuleNames = new string[]
+        {
+            "tactical_types",
+            "attack_criteria",
+            "defense_criteria",
+            "continuous_actions",
+            "analysis_format",
+            "faq"
+        };
+
         [Header("LLM最適化設定")]
         [SerializeField] private bool _autoConfigureLLM = true;
         [SerializeField] private bool _useGrammar = true;
@@ -65,6 +84,7 @@ namespace LLMDataArchitect.Test
         [SerializeField] private bool _showPromptSummary = true;
         [SerializeField] private bool _validateResponses = true;
         [SerializeField] private bool _showPerformanceMetrics = true;
+        [SerializeField] private bool _verboseRAGLogging = false;
 
         // プロンプト生成インターフェイス
         private PromptGeneratorBase _promptGenerator;
@@ -184,10 +204,152 @@ namespace LLMDataArchitect.Test
         {
             InitializeTest();
 
+            if (_autoInitializeRAG && _useRAG && _rag != null)
+            {
+                StartCoroutine(InitializeRAGCoroutine());
+            }
+
             if (_autoStartOnPlay)
             {
                 StartCoroutine(RunContinuousTest());
             }
+        }
+
+        /// <summary>
+        /// RAGを初期化（非同期処理をコルーチンでラップ）
+        /// </summary>
+        private IEnumerator InitializeRAGCoroutine()
+        {
+            var initTask = InitializeRAG();
+            yield return new WaitUntil(() => initTask.IsCompleted);
+
+            if (initTask.Exception != null)
+            {
+                UnityEngine.Debug.LogError($"RAG初期化エラー: {initTask.Exception.Message}");
+            }
+        }
+
+        /// <summary>
+        /// RAGデータベースを初期化
+        /// </summary>
+        private async System.Threading.Tasks.Task InitializeRAG()
+        {
+            if (_rag == null)
+            {
+                UnityEngine.Debug.LogWarning("RAGコンポーネントが設定されていません");
+                return;
+            }
+
+            // 既存データベースの確認
+            string dbPath = System.IO.Path.Combine(Application.streamingAssetsPath, "tactical_knowledge.zip");
+
+            if (System.IO.File.Exists(dbPath))
+            {
+                UnityEngine.Debug.Log("既存のRAGデータベースをロード中...");
+                try
+                {
+                    await _rag.Load("tactical_knowledge.zip");
+                    UnityEngine.Debug.Log("✅ RAGデータベースロード完了");
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    UnityEngine.Debug.LogWarning($"既存データベースのロードに失敗: {ex.Message}");
+                    UnityEngine.Debug.Log("新規データベースを作成します...");
+                }
+            }
+
+            // 新規作成
+            UnityEngine.Debug.Log("新規RAGデータベースを作成中...");
+
+            int loadedCount = 0;
+
+            if (_loadFromResources)
+            {
+                loadedCount = await LoadRulesFromResources();
+            }
+            else if (_manualRuleFiles != null && _manualRuleFiles.Length > 0)
+            {
+                loadedCount = await LoadRulesFromTextAssets();
+            }
+            else
+            {
+                UnityEngine.Debug.LogError("ルールファイルが設定されていません");
+                return;
+            }
+
+            if (loadedCount > 0)
+            {
+                // 保存
+                _rag.Save("tactical_knowledge.zip");
+                UnityEngine.Debug.Log($"✅ RAGデータベース作成・保存完了 ({loadedCount}ファイル)");
+            }
+            else
+            {
+                UnityEngine.Debug.LogError("ルールファイルの読み込みに失敗しました");
+            }
+        }
+
+        /// <summary>
+        /// Resourcesフォルダからルールを読み込み
+        /// </summary>
+        private async System.Threading.Tasks.Task<int> LoadRulesFromResources()
+        {
+            int loadedCount = 0;
+
+            foreach (string ruleName in _defaultRuleNames)
+            {
+                TextAsset asset = Resources.Load<TextAsset>($"{_resourcesPath}/{ruleName}");
+
+                if (asset != null)
+                {
+                    try
+                    {
+                        await _rag.Add(asset.text, ruleName);
+                        loadedCount++;
+                        UnityEngine.Debug.Log($"✅ {ruleName} を追加");
+                    }
+                    catch (Exception ex)
+                    {
+                        UnityEngine.Debug.LogError($"❌ {ruleName} の追加に失敗: {ex.Message}");
+                    }
+                }
+                else
+                {
+                    UnityEngine.Debug.LogWarning($"⚠️ Resources/{_resourcesPath}/{ruleName}.txt が見つかりません");
+                }
+            }
+
+            UnityEngine.Debug.Log($"{loadedCount}/{_defaultRuleNames.Length} 個のルールファイルを読み込みました");
+            return loadedCount;
+        }
+
+        /// <summary>
+        /// 手動設定のTextAssetからルールを読み込み
+        /// </summary>
+        private async System.Threading.Tasks.Task<int> LoadRulesFromTextAssets()
+        {
+            int loadedCount = 0;
+
+            foreach (var file in _manualRuleFiles)
+            {
+                if (file != null)
+                {
+                    try
+                    {
+                        await _rag.Add(file.text, file.name);
+                        loadedCount++;
+                        UnityEngine.Debug.Log($"✅ {file.name} を追加");
+                    }
+                    catch (Exception ex)
+                    {
+                        UnityEngine.Debug.LogError($"❌ {file.name} の追加に失敗: {ex.Message}");
+                    }
+                }
+            }
+
+            UnityEngine.Debug.Log($"{loadedCount}/{_manualRuleFiles.Length} 個のルールファイルを読み込みました");
+            return loadedCount;
         }
 
         private void InitializeTest()
@@ -252,6 +414,7 @@ namespace LLMDataArchitect.Test
             {
                 PromptGeneratorType.Japanese => new JapanesePromptGenerator(),
                 PromptGeneratorType.English => new EnglishPromptGenerator(),
+                PromptGeneratorType.Jap_Rag => new JapRagPromptGenerator(),
                 _ => new JapanesePromptGenerator()
             };
         }
@@ -296,70 +459,9 @@ Use the provided game rules context to inform your tactical decisions.";
         /// </summary>
         private void SetupGrammar()
         {
-            if (_generatorType == PromptGeneratorType.English)
-            {
-                _llmCharacter.grammarJSONString = @"{
-  ""type"": ""object"",
-  ""properties"": {
-    ""analysis_result"": {
-      ""type"": ""string""
-    },
-    ""basic_tactics"": {
-      ""type"": ""string"",
-      ""enum"": [""Aggressive"", ""Defensive"", ""Adaptive"", ""Disruptive"", ""Endurance""]
-    },
-    ""attack_judgment_criteria"": {
-      ""type"": ""string"",
-      ""enum"": [""Cumulative Probability Focus"", ""Recent Pattern Focus"", ""Speed Focus"", ""Return Focus"", ""Feint Focus"", ""Distribution Focus"", ""Energy Efficiency Focus""]
-    },
-    ""continuous_attack_judgment_criteria"": {
-      ""type"": ""string"",
-      ""enum"": [""Cumulative Probability Focus"", ""Recent Pattern Focus"", ""Speed Focus"", ""Return Focus"", ""Feint Focus"", ""Distribution Focus"", ""Energy Efficiency Focus""]
-    },
-    ""defense_judgment_criteria"": {
-      ""type"": ""string"",
-      ""enum"": [""Cumulative Probability Focus"", ""Recent Pattern Focus"", ""Counterattack Focus"", ""Return Focus"", ""Risk Avoidance Focus"", ""Counter Focus"", ""Distribution Focus""]
-    },
-    ""continuous_defense_judgment_criteria"": {
-      ""type"": ""string"",
-      ""enum"": [""Cumulative Probability Focus"", ""Recent Pattern Focus"", ""Counterattack Focus"", ""Return Focus"", ""Risk Avoidance Focus"", ""Counter Focus"", ""Distribution Focus""]
-    }
-  },
-  ""required"": [""analysis_result"", ""basic_tactics"", ""attack_judgment_criteria"", ""continuous_attack_judgment_criteria"", ""defense_judgment_criteria"", ""continuous_defense_judgment_criteria""]
-}";
-            }
-            else
-            {
-                _llmCharacter.grammarJSONString = @"{
-  ""type"": ""object"",
-  ""properties"": {
-    ""分析結果"": {
-      ""type"": ""string""
-    },
-    ""基本戦術"": {
-      ""type"": ""string"",
-      ""enum"": [""攻撃型"", ""防御型"", ""対応型"", ""攪乱型"", ""持久型""]
-    },
-    ""攻撃時判断基準"": {
-      ""type"": ""string"",
-      ""enum"": [""累積確率重視"", ""直近パターン重視"", ""速度重視"", ""リターン重視"", ""フェイント重視"", ""分散重視"", ""エネルギー効率重視""]
-    },
-    ""連続攻撃時判断基準"": {
-      ""type"": ""string"",
-      ""enum"": [""累積確率重視"", ""直近パターン重視"", ""速度重視"", ""リターン重視"", ""フェイント重視"", ""分散重視"", ""エネルギー効率重視""]
-    },
-    ""防御時判断基準"": {
-      ""type"": ""string"",
-      ""enum"": [""累積確率重視"", ""直近パターン重視"", ""反撃重視"", ""リターン重視"", ""リスク回避重視"", ""カウンター重視"", ""分散重視""]
-    },
-    ""連続防御時判断基準"": {
-      ""type"": ""string"",
-      ""enum"": [""累積確率重視"", ""直近パターン重視"", ""反撃重視"", ""リターン重視"", ""リスク回避重視"", ""カウンター重視"", ""分散重視""]
-    }
-  },
-  ""required"": [""分析結果"", ""基本戦術"", ""攻撃時判断基準"", ""連続攻撃時判断基準"", ""防御時判断基準"", ""連続防御時判断基準""]
-}";
-            }
+
+            _llmCharacter.grammarJSONString = _promptGenerator.GenerateGrammar();
+
 
             UnityEngine.Debug.Log($"JSON Schema Grammar設定完了 ({_generatorType})");
         }
@@ -1213,6 +1315,319 @@ Use the provided game rules context to inform your tactical decisions.";
         }
 
         #region ユーティリティメソッド
+
+        /// <summary>
+        /// 指定フォルダのすべてのtxtファイルを読み込んでRAGを構築（エディター専用）
+        /// </summary>
+        [ContextMenu("指定フォルダからRAG構築")]
+        public void BuildRAGFromFolder()
+        {
+            if (_rag == null)
+            {
+                UnityEngine.Debug.LogError("RAGコンポーネントが設定されていません");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(_ragFolderPath))
+            {
+                UnityEngine.Debug.LogError("RAGフォルダパスが設定されていません");
+                return;
+            }
+
+            if (!System.IO.Directory.Exists(_ragFolderPath))
+            {
+                UnityEngine.Debug.LogError($"フォルダが存在しません: {_ragFolderPath}");
+                return;
+            }
+
+            StartCoroutine(BuildRAGFromFolderCoroutine());
+        }
+
+        private IEnumerator BuildRAGFromFolderCoroutine()
+        {
+            UnityEngine.Debug.Log($"RAG構築開始: {_ragFolderPath}");
+
+            var buildTask = BuildRAGFromFolderAsync();
+            yield return new WaitUntil(() => buildTask.IsCompleted);
+
+            if (buildTask.Exception != null)
+            {
+                UnityEngine.Debug.LogError($"RAG構築エラー: {buildTask.Exception.Message}");
+            }
+            else
+            {
+                int loadedCount = buildTask.Result;
+                UnityEngine.Debug.Log($"✅ RAG構築完了: {loadedCount}ファイル");
+            }
+        }
+
+        /// <summary>
+        /// フォルダ内のすべてのtxtファイルを非同期で読み込み
+        /// </summary>
+        private async System.Threading.Tasks.Task<int> BuildRAGFromFolderAsync()
+        {
+            var totalStopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            // すべての.txtファイルを取得
+            string[] txtFiles = System.IO.Directory.GetFiles(_ragFolderPath, "*.txt", System.IO.SearchOption.AllDirectories);
+
+            if (txtFiles.Length == 0)
+            {
+                UnityEngine.Debug.LogWarning($"txtファイルが見つかりません: {_ragFolderPath}");
+                return 0;
+            }
+
+            UnityEngine.Debug.Log($"📂 {txtFiles.Length}個のtxtファイルを発見");
+
+            int loadedCount = 0;
+            int errorCount = 0;
+            int totalChunks = 0;
+
+            for (int fileIndex = 0; fileIndex < txtFiles.Length; fileIndex++)
+            {
+                string filePath = txtFiles[fileIndex];
+                var fileStopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+                try
+                {
+                    // ファイル名を取得（拡張子なし）
+                    string fileName = System.IO.Path.GetFileNameWithoutExtension(filePath);
+
+                    UnityEngine.Debug.Log($"⏳ [{fileIndex + 1}/{txtFiles.Length}] {fileName} を処理中...");
+
+                    // ファイル内容を読み込み
+                    string content = System.IO.File.ReadAllText(filePath, System.Text.Encoding.UTF8);
+
+                    if (string.IsNullOrEmpty(content))
+                    {
+                        UnityEngine.Debug.LogWarning($"⚠️ 空のファイル: {fileName}");
+                        continue;
+                    }
+
+                    // チャンク数を推定
+                    int estimatedChunks = EstimateChunkCount(content);
+                    UnityEngine.Debug.Log($"  📄 ファイルサイズ: {content.Length}文字 (推定{estimatedChunks}チャンク)");
+
+                    // RAGに追加（カテゴリ名はファイル名）
+                    UnityEngine.Debug.Log($"  🔄 埋め込み生成中... (これには時間がかかります)");
+                    await _rag.Add(content, fileName);
+
+                    fileStopwatch.Stop();
+                    totalChunks += estimatedChunks;
+                    loadedCount++;
+
+                    UnityEngine.Debug.Log($"  ✅ 完了 ({fileStopwatch.ElapsedMilliseconds / 1000.0:F1}秒)");
+
+                    // 進捗サマリー
+                    float progress = (float)(fileIndex + 1) / txtFiles.Length * 100f;
+                    float elapsedMinutes = totalStopwatch.ElapsedMilliseconds / 60000.0f;
+                    float estimatedTotalMinutes = elapsedMinutes / progress * 100f;
+                    float remainingMinutes = estimatedTotalMinutes - elapsedMinutes;
+
+                    UnityEngine.Debug.Log($"📊 進捗: {progress:F1}% ({fileIndex + 1}/{txtFiles.Length}) - 経過: {elapsedMinutes:F1}分 / 残り約: {remainingMinutes:F1}分");
+                }
+                catch (System.Exception ex)
+                {
+                    errorCount++;
+                    UnityEngine.Debug.LogError($"❌ {System.IO.Path.GetFileName(filePath)} の読み込みに失敗: {ex.Message}");
+                }
+            }
+
+            totalStopwatch.Stop();
+
+            if (loadedCount > 0)
+            {
+                // データベースを保存
+                try
+                {
+                    UnityEngine.Debug.Log($"💾 RAGデータベースを保存中...");
+                    _rag.Save("tactical_knowledge.zip");
+                    UnityEngine.Debug.Log($"✅ データベース保存完了: tactical_knowledge.zip");
+                }
+                catch (System.Exception ex)
+                {
+                    UnityEngine.Debug.LogError($"データベース保存エラー: {ex.Message}");
+                }
+            }
+
+            UnityEngine.Debug.Log($"\n{'='} RAG構築完了 {'='}\n");
+            UnityEngine.Debug.Log($"⏱️  総処理時間: {totalStopwatch.ElapsedMilliseconds / 60000.0:F2}分 ({totalStopwatch.ElapsedMilliseconds / 1000.0:F1}秒)");
+            UnityEngine.Debug.Log($"✅ 成功: {loadedCount}ファイル");
+            UnityEngine.Debug.Log($"❌ 失敗: {errorCount}ファイル");
+            UnityEngine.Debug.Log($"📦 推定総チャンク数: {totalChunks}");
+            UnityEngine.Debug.Log($"⚡ 平均処理時間: {(totalStopwatch.ElapsedMilliseconds / 1000.0) / loadedCount:F1}秒/ファイル");
+
+            return loadedCount;
+        }
+
+        /// <summary>
+        /// テキストから推定チャンク数を計算
+        /// </summary>
+        private int EstimateChunkCount(string text)
+        {
+            // SentenceSplitterのデフォルト設定を想定
+            // 512トークン/チャンク、オーバーラップ100として推定
+            int estimatedTokens = text.Length / 2; // 日本語は約2文字/トークン
+            int chunkSize = 512;
+            int overlap = 100;
+
+            if (estimatedTokens <= chunkSize)
+            {
+                return 1;
+            }
+
+            // オーバーラップを考慮したチャンク数
+            int effectiveChunkSize = chunkSize - overlap;
+            return (int)Math.Ceiling((double)(estimatedTokens - chunkSize) / effectiveChunkSize) + 1;
+        }
+
+        /// <summary>
+        /// RAGデータベースの内容を確認（エディター専用）
+        /// </summary>
+        [ContextMenu("RAGデータベース内容を確認")]
+        public void InspectRAGDatabase()
+        {
+            if (_rag == null)
+            {
+                UnityEngine.Debug.LogError("RAGコンポーネントが設定されていません");
+                return;
+            }
+
+            StartCoroutine(InspectRAGCoroutine());
+        }
+
+        private IEnumerator InspectRAGCoroutine()
+        {
+            string dbPath = System.IO.Path.Combine(Application.streamingAssetsPath, "tactical_knowledge.zip");
+
+            if (!System.IO.File.Exists(dbPath))
+            {
+                UnityEngine.Debug.LogWarning("RAGデータベースが存在しません。先に構築してください。");
+                yield break;
+            }
+
+            UnityEngine.Debug.Log($"=== RAGデータベース情報 ===");
+            UnityEngine.Debug.Log($"パス: {dbPath}");
+
+            System.IO.FileInfo fileInfo = new System.IO.FileInfo(dbPath);
+            UnityEngine.Debug.Log($"サイズ: {fileInfo.Length / 1024.0:F2} KB");
+            UnityEngine.Debug.Log($"作成日時: {fileInfo.CreationTime:yyyy/MM/dd HH:mm:ss}");
+            UnityEngine.Debug.Log($"最終更新: {fileInfo.LastWriteTime:yyyy/MM/dd HH:mm:ss}");
+
+            // テスト検索
+            string[] testQueries = new string[]
+            {
+                "攻撃型",
+                "防御",
+                "エネルギー",
+                "連続攻撃"
+            };
+
+            UnityEngine.Debug.Log($"\n=== テスト検索実行 ===");
+
+            foreach (string query in testQueries)
+            {
+                var searchTask = _rag.Search(query, 2);
+                yield return new WaitUntil(() => searchTask.IsCompleted);
+
+                var (results, distances) = searchTask.Result;
+
+                UnityEngine.Debug.Log($"\nクエリ: 「{query}」");
+                UnityEngine.Debug.Log($"結果数: {results.Length}件");
+
+                for (int i = 0; i < results.Length; i++)
+                {
+                    string preview = results[i].Length > 100
+                        ? results[i].Substring(0, 100) + "..."
+                        : results[i];
+                    UnityEngine.Debug.Log($"  [{i + 1}] 距離: {distances[i]:F3} - {preview}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// 指定フォルダ内のtxtファイル一覧を表示（エディター専用）
+        /// </summary>
+        [ContextMenu("フォルダ内のtxtファイル一覧を表示")]
+        public void ShowTxtFilesInFolder()
+        {
+            if (string.IsNullOrEmpty(_ragFolderPath))
+            {
+                UnityEngine.Debug.LogError("RAGフォルダパスが設定されていません");
+                return;
+            }
+
+            if (!System.IO.Directory.Exists(_ragFolderPath))
+            {
+                UnityEngine.Debug.LogError($"フォルダが存在しません: {_ragFolderPath}");
+                return;
+            }
+
+            string[] txtFiles = System.IO.Directory.GetFiles(_ragFolderPath, "*.txt", System.IO.SearchOption.AllDirectories);
+
+            UnityEngine.Debug.Log($"=== {_ragFolderPath} 内のtxtファイル ===");
+            UnityEngine.Debug.Log($"合計: {txtFiles.Length}ファイル\n");
+
+            if (txtFiles.Length == 0)
+            {
+                UnityEngine.Debug.LogWarning("txtファイルが見つかりません");
+                return;
+            }
+
+            long totalSize = 0;
+
+            for (int i = 0; i < txtFiles.Length; i++)
+            {
+                System.IO.FileInfo fileInfo = new System.IO.FileInfo(txtFiles[i]);
+                totalSize += fileInfo.Length;
+
+                string relativePath = txtFiles[i].Replace(_ragFolderPath, "").TrimStart('\\', '/');
+                UnityEngine.Debug.Log($"[{i + 1}] {relativePath} ({fileInfo.Length / 1024.0:F2} KB)");
+            }
+
+            UnityEngine.Debug.Log($"\n合計サイズ: {totalSize / 1024.0:F2} KB");
+        }
+
+        /// <summary>
+        /// RAGデータベースを手動で再構築
+        /// </summary>
+        [ContextMenu("RAGデータベースを再構築")]
+        public void RebuildRAGDatabase()
+        {
+            if (_rag == null)
+            {
+                UnityEngine.Debug.LogError("RAGコンポーネントが設定されていません");
+                return;
+            }
+
+            StartCoroutine(RebuildRAGCoroutine());
+        }
+
+        private IEnumerator RebuildRAGCoroutine()
+        {
+            UnityEngine.Debug.Log("RAGデータベースを再構築中...");
+
+            // 既存データベースを削除
+            string dbPath = System.IO.Path.Combine(Application.streamingAssetsPath, "tactical_knowledge.zip");
+            if (System.IO.File.Exists(dbPath))
+            {
+                System.IO.File.Delete(dbPath);
+                UnityEngine.Debug.Log("既存データベースを削除しました");
+            }
+
+            // 再初期化
+            var initTask = InitializeRAG();
+            yield return new WaitUntil(() => initTask.IsCompleted);
+
+            if (initTask.Exception != null)
+            {
+                UnityEngine.Debug.LogError($"RAG再構築エラー: {initTask.Exception.Message}");
+            }
+            else
+            {
+                UnityEngine.Debug.Log("✅ RAGデータベース再構築完了");
+            }
+        }
 
         /// <summary>
         /// RAG統計をリセット

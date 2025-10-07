@@ -17,5 +17,11 @@ namespace LLMDataArchitect.Test
         /// 指定されたデータからプロンプトを生成
         /// </summary>
         public abstract string GeneratePromptByData(LLMInputData inputData);
+
+        /// <summary>
+        /// グラマーを生成する
+        /// </summary>
+        /// <returns></returns>
+        public abstract string GenerateGrammar();
     }
 }

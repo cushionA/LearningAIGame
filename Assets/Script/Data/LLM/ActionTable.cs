@@ -141,18 +141,6 @@ namespace LLMDataArchitect
         }
 
         /// <summary>
-        /// TestSituationType列挙型
-        /// </summary>
-        public enum TestSituationType
-        {
-            優勢,      // 自分有利
-            拮抗,      // 互角
-            劣勢,      // 敵有利
-            エネルギー不足, // エネルギー危機
-            体力危険    // 体力危機
-        }
-
-        /// <summary>
         /// 行動テーブルを検証（全ての行動が有効な選択肢かチェック）
         /// </summary>
         /// <returns>検証結果のメッセージ</returns>

@@ -8,7 +8,7 @@ using static LLMDataArchitect.ActionTable;
 
 namespace LLMDataArchitect.Test
 {
-    public class JapanesePromptGenerator : PromptGeneratorBase
+    public class JapRagPromptGenerator : PromptGeneratorBase
     {
         public override string GeneratePromptByData(LLMInputData inputData)
         {
@@ -200,31 +200,6 @@ namespace LLMDataArchitect.Test
             prompt.AppendLine("- すべての文字列値は適切にエスケープし、クォートで囲んでください");
             prompt.AppendLine("- 出力するJsonのプロパティに有効な値が入っていなければエラーとみなします");
             prompt.AppendLine();
-            prompt.AppendLine("### 基本戦術タイプ");
-            prompt.AppendLine("- **攻撃型**: 高リスク高リターン、攻撃頻度が高い");
-            prompt.AppendLine("- **防御型**: 低リスク低リターン、生存重視、ヒット確定の状況でのみ攻撃");
-            prompt.AppendLine("- **対応型**: バランス重視、状況判断で柔軟に");
-            prompt.AppendLine("- **攪乱型**: 意表を突く動き、守備的な相手を崩す作戦");
-            prompt.AppendLine("- **持久型**: エネルギー管理が最優先、長期戦を見据えた省エネ行動");
-            prompt.AppendLine();
-            prompt.AppendLine("## 攻撃時判断基準(攻撃時判断指標)");
-            prompt.AppendLine("- 累積確率重視: 全ての行動履歴から最も成功率の高い攻撃");
-            prompt.AppendLine("- 直近パターン重視: 敵の直近の攻撃パターンから成功確率の高い攻撃を選択");
-            prompt.AppendLine("- 速度重視: 低リスク、低リターン、回転率が高い、フェイントに有効");
-            prompt.AppendLine("- リターン重視: 高リターン、高リスク");
-            prompt.AppendLine("- フェイント重視: リスク最小、リターン無し、敵の反応を見る");
-            prompt.AppendLine("- 分散重視: パターンを読まれないよう行動を散らす");
-            prompt.AppendLine("- エネルギー効率重視: エネルギー回復を優先して行動しない");
-            prompt.AppendLine();
-            prompt.AppendLine("## 防御時判断基準(防御時判断指標)");
-            prompt.AppendLine("- 累積確率重視: 全ての行動履歴から最も成功率の高い防御");
-            prompt.AppendLine("- 直近パターン重視: 敵の直近の攻撃パターンから成功確率の高い行動を選択");
-            prompt.AppendLine("- 反撃重視: 中リスク、中リターン、攻撃の主導権を奪う");
-            prompt.AppendLine("- リターン重視: 成功時のリターンを重視");
-            prompt.AppendLine("- リスク回避重視: 敵の最も攻撃力が大きい攻撃に重点的に対応");
-            prompt.AppendLine("- カウンター重視: 攻撃頻度が高い相手へのメタ、失敗時リスク高");
-            prompt.AppendLine("- 分散重視: 防御パターンを読まれないように散らす");
-            prompt.AppendLine();
             prompt.AppendLine("## 出力形式");
             prompt.AppendLine("以下の構造のJsonデータの全てのプロパティの値を埋めて、文字列として出力する。");
             prompt.AppendLine("各プロパティには、前述の基本戦術タイプまたは判断基準から、状況に最も適した一つを選択して記入する。");
@@ -238,13 +213,6 @@ namespace LLMDataArchitect.Test
             prompt.AppendLine("  \"防御時判断基準\": \"<防御時判断指標から選択>\",");
             prompt.AppendLine("  \"連続防御時判断基準\": \"<防御時判断指標から選択>\"");
             prompt.AppendLine("}");
-            prompt.AppendLine();
-            prompt.AppendLine("## キー説明");
-            prompt.AppendLine("- 分析結果: 判断理由、必要な対応、反映内容を30文字以内で簡潔に記載");
-            prompt.AppendLine("- 攻撃時判断基準: 攻撃の際の判断基準");
-            prompt.AppendLine("- 連続攻撃時判断基準: 攻撃が二回以上連続した際の判断基準");
-            prompt.AppendLine("- 防御時判断基準: 敵攻撃への防御の際の判断基準");
-            prompt.AppendLine("- 連続防御時判断基準: 敵攻撃が二回以上連続した際の防御の判断基準");
             prompt.AppendLine();
             return prompt.ToString();
         }
