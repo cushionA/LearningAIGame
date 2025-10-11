@@ -68,7 +68,7 @@ namespace LearningAIGame.CombatSystem.Core
 
         #region 初期化
 
-        private void Awake()
+        private void Start()
         {
             // nullチェック
             if (_stateSystem == null)

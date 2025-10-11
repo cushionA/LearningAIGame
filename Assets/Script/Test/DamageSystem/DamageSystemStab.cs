@@ -24,33 +24,21 @@ using static LearningAIGame.CombatSystem.Core.StateSystem;
 //=====================================================================================================================
 namespace LearningAIGame.CombatSystem.Systems
 {
-    public class DamageSystem : DamageSystemBase
+    public class DamageSystemStab : DamageSystemBase
     {
         #region フィールド
 
         /// <summary>
-        /// 防御情報取得のための参照
+        /// 設定したヒット結果
+        /// スタブのパラメータ
         /// </summary>
-        [SerializeField]
-        private StateSystem _stateSystem;
+        public HitResultType hitResult;
 
         /// <summary>
-        /// 攻撃を受けた瞬間の自分のアクション状態のスナップショット
-        /// ブロッキングやガードのタイミング判定に使用
+        /// 攻撃を受けた瞬間の自分のアクション状態
+        /// スタブのパラメータ
         /// </summary>
-        private ActionState _lastHitAction;
-
-        #endregion
-
-        #region 初期化
-
-        private void Awake()
-        {
-            if (_stateSystem == null)
-            {
-                Debug.LogError($"[{nameof(DamageSystem)}] StateSystemが設定されていません！");
-            }
-        }
+        public ActionState damageTimeAction;
 
         #endregion
 
@@ -63,11 +51,7 @@ namespace LearningAIGame.CombatSystem.Systems
         /// <returns>攻撃結果（ヒット、ガード、ブロッキング、回避など）</returns>
         public override HitResultType Damage(in AttackInfo attackInfo)
         {
-            // 攻撃を受けた瞬間の防御状態をスナップショット
-            _lastHitAction = _stateSystem.CurrentState.CurrentValue;
-
-            // StateSystemに攻撃結果を問い合わせる
-            return _stateSystem.GetAttackResult(attackInfo);
+            return hitResult;
         }
 
         /// <summary>
@@ -78,28 +62,11 @@ namespace LearningAIGame.CombatSystem.Systems
         public override void DamageReport(HitReportInfo hitReport)
         {
             // 被ダメージ情報を設定
-            _info.SetInfo(hitReport, _lastHitAction);
+            _info.SetInfo(hitReport, damageTimeAction);
 
             // StateSystemに通知
             NotifyObservers(_info);
         }
-
-        #endregion
-
-        #region デバッグ用
-
-#if UNITY_EDITOR
-        /// <summary>
-        /// 現在の被ダメージ状態をデバッグ表示
-        /// </summary>
-        [ContextMenu("被ダメージ状態を表示")]
-        private void DebugPrintState()
-        {
-            Debug.Log($"[{nameof(DamageSystem)}] " +
-                $"最後に受けた攻撃時の状態: {_lastHitAction}, " +
-                $"StateSystem参照: {(_stateSystem != null ? "OK" : "NULL")}");
-        }
-#endif
 
         #endregion
     }

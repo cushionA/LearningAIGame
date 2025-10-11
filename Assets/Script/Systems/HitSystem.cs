@@ -47,7 +47,7 @@ namespace LearningAIGame.CombatSystem.Systems
         /// 当たり判定にヒットしたら攻撃結果判定メソッドを呼ぶ
         /// </summary>
         [SerializeField]
-        private DamageSystem _enemyDamageSystem;
+        private DamageSystemBase _enemyDamageSystem;
 
         /// <summary>
         /// 自分の攻撃判定のコライダー

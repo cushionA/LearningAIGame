@@ -1,6 +1,7 @@
 using Newtonsoft.Json;
 using System;
-
+using System.Diagnostics;
+using UnityEngine;
 //==============================================ファイルヘッダ=========================================================
 // CharacterData
 // 
@@ -47,12 +48,12 @@ namespace LearningAIGame.CombatSystem.Data
         /// <summary>
         /// 現在のエネルギー
         /// </summary>
-        public int Energy { get; set; }
+        public float Energy { get; set; }
 
         /// <summary>
         /// 最大エネルギー
         /// </summary>
-        public int MaxEnergy { get; set; }
+        public float MaxEnergy { get; set; }
 
         /// <summary>
         /// エネルギー切れかどうかを返すプロパティ
@@ -114,8 +115,10 @@ namespace LearningAIGame.CombatSystem.Data
         /// </summary>
         public void RecoverEnergyByRate(float ratio)
         {
-            int recoverAmount = (int)(MaxEnergy * (ratio * 0.01));
+            float recoverAmount = MaxEnergy * ratio * 0.01f;
             Energy = Math.Min(MaxEnergy, Energy + recoverAmount);
+
+            // UnityEngine.Debug.Log($"エネルギー回復: ratio={ratio}, recoverAmount={recoverAmount},Max:{MaxEnergy}");
 
             // エネルギー枯渇時、最大まで回復すれば枯渇解除
             if (Energy >= MaxEnergy)

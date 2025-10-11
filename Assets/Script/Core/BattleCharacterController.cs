@@ -5,26 +5,29 @@ using LearningAIGame.CombatSystem.Systems;
 using R3;
 using System;
 using System.Threading.Tasks;
+using Unity.Burst;
 using UnityEngine;
 using static LearningAIGame.CombatSystem.Core.StateSystem;
 
 //==============================================ファイルヘッダ===========================================================
-// BattleCharacterController
+// StateSystemDebug
 // 
-// 概要: バトルキャラクターの行動制御を統括するコントローラークラス
+// 概要: StateSystemのデバッグ情報表示機能を提供するpartialクラス
 // 
 // 制作者: 小さな座布団
 // 
 // 機能説明:
-// プレイヤーまたはAIからの入力を受け付け、各種システム(攻撃/防御/移動)に処理を委譲する。
-// 状態管理システムと連携し、行動可否の判定やエネルギー管理を行う。
-// 攻撃時の踏み込み方向計算など、敵との位置関係に基づく処理も担当。
+// StateSystemのデバッグ情報をGUI表示およびログ出力する。
+// リアルタイムで状態遷移、エネルギー、行動可能フラグ、硬直時間などを可視化。
+// 回避攻撃の実行可否判定と詳細なバッファ受付状況を表示する。
+// エディタ上でのデバッグ作業を効率化するための開発支援ツール。
 // 
-// 入力元クラス:プレイヤーの入力コントローラー / キャラAI
-// 出力先クラス:AttackSystem, DefenseSystem, MovementSystem, StateSystem
+// 入力元クラス: StateSystem(自クラス)
+// 出力先クラス: なし(デバッグ表示専用)
 // 
 // その他:
-// UniTask使用(HeavyAttackFeint)
+// UNITY_EDITORディレクティブによりエディタ環境でのみ動作
+// ContextMenuによる手動デバッグ機能も提供
 //=====================================================================================================================
 namespace LearningAIGame.CombatSystem.Core
 {
@@ -77,6 +80,18 @@ namespace LearningAIGame.CombatSystem.Core
         private Transform _enemyTransform;
 
         /// <summary>
+        /// 回転速度（度/秒）
+        /// </summary>
+        [SerializeField]
+        private float _rotationSpeed = 360f;
+
+        /// <summary>
+        /// 回転を停止する角度の閾値（度）
+        /// </summary>
+        [SerializeField]
+        private float _rotationThreshold = 1f;
+
+        /// <summary>
         /// 自分の位置のキャッシュ
         /// </summary>
         [SerializeField]
@@ -87,7 +102,7 @@ namespace LearningAIGame.CombatSystem.Core
         /// </summary>
         private Vector3 _enemyPosition;
 
-        private void Awake()
+        private void Start()
         {
             // 被ダメージによる行動キャンセルイベント
             _stateSystem.CurrentState
@@ -103,15 +118,22 @@ namespace LearningAIGame.CombatSystem.Core
 
             // 敵の位置を毎フレームキャッシュ
             _enemyPosition = _enemyTransform.position;
+
+            // 敵方向に回転して向き直る。
+            RotateTowardsEnemy();
         }
 
         /// <summary>
         /// 弱攻撃実行
         /// </summary>
-        public async UniTaskVoid WeakAttackAct(StanceType stance)
+        public async UniTaskVoid LightAttackAct(StanceType stance)
         {
+
+            // デバッグログ
+            Debug.Log($"LightAttackAct called - CanAttack: {_stateSystem.CanAttack}, CanAvoidAttack: {_stateSystem.CanAvoidAttack}");
+
             // 攻撃可能な状態かを確認
-            if (!_stateSystem.CanAttack)
+            if (!_stateSystem.CanAttack && !_stateSystem.CanAvoidAttack)
             {
                 return;
             }
@@ -135,7 +157,7 @@ namespace LearningAIGame.CombatSystem.Core
             bool isCancel = await UniTask.DelayFrame(_actionSetting.WeakAttackStartFrame, cancellationToken: destroyCancellationToken).SuppressCancellationThrow();
 
             // 攻撃継続中であれば判定を出す
-            if (!isCancel && _stateSystem.CurrentState.CurrentValue == ActionState.弱攻撃)
+            if (!isCancel && (_stateSystem.CurrentState.CurrentValue & ActionState.弱攻撃系統) > 0)
             {
                 _hitSystem.DamageStart(_stateSystem.CurrentAttackInfo, _actionSetting.WeakAttackDurationFrame);
             }
@@ -268,11 +290,20 @@ namespace LearningAIGame.CombatSystem.Core
                 return;
             }
 
-            // コスト消費
-            _stateSystem.UseEnergy(_actionSetting.AvoidEnergyCost);
+            // エネルギーが0なら回避性能が落ちる
+            if (_stateSystem.Energy == 0)
+            {
+                // 回避実行
+                _movementSystem.Avoid(type, _actionSetting.AvoidSpeed * 0.7f, _actionSetting.AvoidDuration * 0.7f);
+            }
+            else
+            {
+                // 回避実行
+                _movementSystem.Avoid(type, _actionSetting.AvoidSpeed, _actionSetting.AvoidDuration);
 
-            // 回避実行
-            _movementSystem.Avoid(type, _actionSetting.AvoidSpeed, _actionSetting.AvoidDuration);
+                // コスト消費
+                _stateSystem.UseEnergy(_actionSetting.AvoidEnergyCost);
+            }
         }
 
         /// <summary>
@@ -319,6 +350,7 @@ namespace LearningAIGame.CombatSystem.Core
             }
 
             // 移動開始
+            // 敵基準の相対座標系に変換してから移動
             _movementSystem.Move(moveVector * _actionSetting.MoveSpeed);
         }
 
@@ -345,6 +377,7 @@ namespace LearningAIGame.CombatSystem.Core
         /// 敵への法線ベクトルを取得
         /// </summary>
         /// <returns>正規化された敵への方向ベクトル</returns>
+        [BurstCompile]
         private Vector3 GetNormalToEnemy()
         {
             if (_enemyTransform == null)
@@ -356,5 +389,38 @@ namespace LearningAIGame.CombatSystem.Core
             direction.y = 0f; // Y軸は無視
             return direction.normalized;
         }
+
+        /// <summary>
+        /// 敵の方向に向き直る処理
+        /// </summary>
+        private void RotateTowardsEnemy()
+        {
+            if (_enemyTransform == null)
+                return;
+
+            // 敵への方向ベクトル（Y軸無視）
+            Vector3 direction = _enemyPosition - _myPosition;
+            direction.y = 0f;
+
+            // ゼロベクトルチェック
+            if (direction.sqrMagnitude < 0.001f)
+                return;
+
+            // 目標角度
+            float targetAngle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
+            float currentAngle = transform.eulerAngles.y;
+
+            // 角度差（-180～180）
+            float delta = Mathf.DeltaAngle(currentAngle, targetAngle);
+
+            // 閾値チェック
+            if (Mathf.Abs(delta) < _rotationThreshold)
+                return;
+
+            // 回転（最大速度制限付き）
+            float rotation = Mathf.Clamp(delta, -_rotationSpeed * Time.deltaTime, _rotationSpeed * Time.deltaTime);
+            transform.Rotate(0f, rotation, 0f, Space.Self);
+        }
+
     }
 }
