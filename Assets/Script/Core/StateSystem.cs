@@ -1,4 +1,4 @@
-using LearningAIGame.CombatSystem.Data;
+ï»¿using LearningAIGame.CombatSystem.Data;
 using LearningAIGame.CombatSystem.Setting;
 using LearningAIGame.CombatSystem.Systems;
 using LLMDataArchitect;
@@ -10,334 +10,362 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-//==============================================ƒtƒ@ƒCƒ‹ƒwƒbƒ_=======================================================================
+//==============================================ãƒ•ã‚¡ã‚¤ãƒ«ãƒ˜ãƒƒãƒ€=======================================================================
 // StateSystem
 // 
-// ŠT—v: ŠeƒAƒNƒVƒ‡ƒ“‚©‚çî•ñ‚ğó‚¯æ‚èAó‘Ô‚ğŠÇ—‚µ‚ÄLLMƒvƒƒ“ƒvƒg—p‚Ìƒf[ƒ^‚ğì¬‚·‚éƒNƒ‰ƒX
+// æ¦‚è¦: å„ã‚¢ã‚¯ã‚·ãƒ§ãƒ³ã‹ã‚‰æƒ…å ±ã‚’å—ã‘å–ã‚Šã€çŠ¶æ…‹ã‚’ç®¡ç†ã—ã¦LLMãƒ—ãƒ­ãƒ³ãƒ—ãƒˆç”¨ã®ãƒ‡ãƒ¼ã‚¿ã‚’ä½œæˆã™ã‚‹ã‚¯ãƒ©ã‚¹
 // 
-// §ìÒ: ¬‚³‚ÈÀ•z’c
+// åˆ¶ä½œè€…: å°ã•ãªåº§å¸ƒå›£
 // 
-// ‹@”\à–¾:
-// Public‚Ìƒƒ“ƒo‚É‚ÍˆÈ‰º‚Ì‚à‚Ì‚ª‚ ‚éF
+// æ©Ÿèƒ½èª¬æ˜:
+// Publicã®ãƒ¡ãƒ³ãƒã«ã¯ä»¥ä¸‹ã®ã‚‚ã®ãŒã‚ã‚‹ï¼š
 // 
-// [ƒvƒƒpƒeƒB]
-// - Energy: Œ»İ‚ÌƒGƒlƒ‹ƒM[—ÊiŒÍŠ‰’†‚Í0‚ğ•Ô‚·j
-// - CurrentAttackInfo: Às’†‚ÌUŒ‚î•ñiƒ_ƒ[ƒWƒVƒXƒeƒ€‚ªQÆj
-// - CurrentState: Œ»İ‚Ìs“®ó‘ÔiƒŠƒAƒNƒeƒBƒuƒvƒƒpƒeƒBAƒAƒjƒ[ƒVƒ‡ƒ“§Œä—pj
-// - MoveVector: ˆÚ“®•ûŒüƒxƒNƒgƒ‹iƒŠƒAƒNƒeƒBƒuƒvƒƒpƒeƒBj
-// - CurrentStance: Œ»İ‚Ì\‚¦•ûŒüiƒŠƒAƒNƒeƒBƒuƒvƒƒpƒeƒBj
-// - CanAttack, CanChangeGuardDirection, CanBlock, CanAvoid, CanCancelHeavyAttack: Šes“®‚ÌÀs‰Â”Û
+// [ãƒ—ãƒ­ãƒ‘ãƒ†ã‚£]
+// - Energy: ç¾åœ¨ã®ã‚¨ãƒãƒ«ã‚®ãƒ¼é‡ï¼ˆæ¯æ¸‡ä¸­ã¯0ã‚’è¿”ã™ï¼‰
+// - CurrentAttackInfo: å®Ÿè¡Œä¸­ã®æ”»æ’ƒæƒ…å ±ï¼ˆãƒ€ãƒ¡ãƒ¼ã‚¸ã‚·ã‚¹ãƒ†ãƒ ãŒå‚ç…§ï¼‰
+// - CurrentState: ç¾åœ¨ã®è¡Œå‹•çŠ¶æ…‹ï¼ˆãƒªã‚¢ã‚¯ãƒ†ã‚£ãƒ–ãƒ—ãƒ­ãƒ‘ãƒ†ã‚£ã€ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³åˆ¶å¾¡ç”¨ï¼‰
+// - MoveVector: ç§»å‹•æ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«ï¼ˆãƒªã‚¢ã‚¯ãƒ†ã‚£ãƒ–ãƒ—ãƒ­ãƒ‘ãƒ†ã‚£ï¼‰
+// - CurrentStance: ç¾åœ¨ã®æ§‹ãˆæ–¹å‘ï¼ˆãƒªã‚¢ã‚¯ãƒ†ã‚£ãƒ–ãƒ—ãƒ­ãƒ‘ãƒ†ã‚£ï¼‰
+// - CanAttack,CanAvoidAttack, CanChangeGuardDirection, CanBlock, CanAvoid, CanCancelHeavyAttack: å„è¡Œå‹•ã®å®Ÿè¡Œå¯å¦
 // 
-// [ƒƒ\ƒbƒh]
-// - UseEnergy(int): ƒGƒlƒ‹ƒM[‚ğÁ”ï‚·‚é
-// - SetNeutral(): ƒjƒ…[ƒgƒ‰ƒ‹ó‘Ô‚É–ß‚·iƒAƒjƒ[ƒVƒ‡ƒ“Š®—¹‚ÉŒÄ‚Ôj
-// - GetAttackResult(AttackInfo): UŒ‚‚ÌŒ‹‰Ê”»’èiƒ_ƒ[ƒWƒVƒXƒeƒ€‚©‚çŒÄ‚Ôj
-// - OnDamage(DamageReportInfo): ”íƒ_ƒ[ƒW•ñ‚ğó‚¯•t‚¯‚é
-// - Deconstruct(...): LLMo—Í—p‚Ìƒf[ƒ^‚ğæ“¾‚·‚é
+// [ãƒ¡ã‚½ãƒƒãƒ‰]
+// - UseEnergy(int): ã‚¨ãƒãƒ«ã‚®ãƒ¼ã‚’æ¶ˆè²»ã™ã‚‹
+// - SetNeutral(): ãƒ‹ãƒ¥ãƒ¼ãƒˆãƒ©ãƒ«çŠ¶æ…‹ã«æˆ»ã™ï¼ˆã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³å®Œäº†æ™‚ã«å‘¼ã¶ï¼‰
+// - GetAttackResult(AttackInfo): æ”»æ’ƒã®çµæœåˆ¤å®šï¼ˆãƒ€ãƒ¡ãƒ¼ã‚¸ã‚·ã‚¹ãƒ†ãƒ ã‹ã‚‰å‘¼ã¶ï¼‰
+// - OnDamage(DamageReportInfo): è¢«ãƒ€ãƒ¡ãƒ¼ã‚¸å ±å‘Šã‚’å—ã‘ä»˜ã‘ã‚‹
+// - Deconstruct(...): LLMå‡ºåŠ›ç”¨ã®ãƒ‡ãƒ¼ã‚¿ã‚’å–å¾—ã™ã‚‹
 //
-// [w“Ç—pƒƒ\ƒbƒh‚ÆƒCƒxƒ“ƒg\‘¢‘Ì‚Ì‘Î‰]
-// 1. UŒ‚—p: OnAttack(AttackReportInfo)
-//    - stance: UŒ‚•ûŒüiã/¶/‰Ej
-//    - damage: ƒ_ƒ[ƒW’l
-//    - reportType: WeakAttackStart(ãUŒ‚ŠJn) / HeavyAttackStart(‹­UŒ‚ŠJn) / HeavyAttackCancel(‹­UŒ‚ƒLƒƒƒ“ƒZƒ‹)
+// [è³¼èª­ç”¨ãƒ¡ã‚½ãƒƒãƒ‰ã¨ã‚¤ãƒ™ãƒ³ãƒˆæ§‹é€ ä½“ã®å¯¾å¿œ]
+// 1. æ”»æ’ƒç”¨: OnAttack(AttackReportInfo)
+//    - stance: æ”»æ’ƒæ–¹å‘ï¼ˆä¸Š/å·¦/å³ï¼‰
+//    - damage: ãƒ€ãƒ¡ãƒ¼ã‚¸å€¤
+//    - reportType: WeakAttackStart(å¼±æ”»æ’ƒé–‹å§‹) / HeavyAttackStart(å¼·æ”»æ’ƒé–‹å§‹) / HeavyAttackCancel(å¼·æ”»æ’ƒã‚­ãƒ£ãƒ³ã‚»ãƒ«)
 //
-// 2. –hŒä—p: OnDefense(DefenseReportInfo)
-//    - stance: –hŒä•ûŒüiã/¶/‰Ej
-//    - reportType: StanceChange(ƒK[ƒh•ûŒü•ÏX) / BlockingStart(ƒuƒƒbƒLƒ“ƒOŠJn)
+// 2. é˜²å¾¡ç”¨: OnDefense(DefenseReportInfo)
+//    - stance: é˜²å¾¡æ–¹å‘ï¼ˆä¸Š/å·¦/å³ï¼‰
+//    - reportType: StanceChange(ã‚¬ãƒ¼ãƒ‰æ–¹å‘å¤‰æ›´) / BlockingStart(ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°é–‹å§‹)
 //
-// 3. ˆÚ“®ƒAƒNƒVƒ‡ƒ“—p: OnMovement(MoveReportInfo)
-//    - moveVector: ˆÚ“®ƒxƒNƒgƒ‹
-//    - reportType: NormalMove(’ÊíˆÚ“®) / FrontStep(‘O‰ñ”ğ) / LeftStep(¶‰ñ”ğ) / RightStep(‰E‰ñ”ğ) / BackStep(Œã‚ë‰ñ”ğ)
+// 3. ç§»å‹•ã‚¢ã‚¯ã‚·ãƒ§ãƒ³ç”¨: OnMovement(MoveReportInfo)
+//    - moveVector: ç§»å‹•ãƒ™ã‚¯ãƒˆãƒ«
+//    - reportType: NormalMove(é€šå¸¸ç§»å‹•) / FrontStep(å‰å›é¿) / LeftStep(å·¦å›é¿) / RightStep(å³å›é¿) / BackStep(å¾Œã‚å›é¿)
 //
-// 4. ”íƒ_ƒ[ƒW—p: OnDamage(DamageReportInfo)
-//    - damage: ó‚¯‚½ƒ_ƒ[ƒWi0ˆÈŠO‚È‚ç–hŒä¸”sj
-//    - defenseType: Guard(ƒK[ƒh) / Blocking(ƒuƒƒbƒLƒ“ƒO) / Avoid(‰ñ”ğ) / None(–hŒä•s”\)
-//    - attackType: WeakAttack(ãUŒ‚) / HeavyAttack(‹­UŒ‚)
+// 4. è¢«ãƒ€ãƒ¡ãƒ¼ã‚¸ç”¨: OnDamage(DamageReportInfo)
+//    - damage: å—ã‘ãŸãƒ€ãƒ¡ãƒ¼ã‚¸ï¼ˆ0ä»¥å¤–ãªã‚‰é˜²å¾¡å¤±æ•—ï¼‰
+//    - defenseType: Guard(ã‚¬ãƒ¼ãƒ‰) / Blocking(ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°) / Avoid(å›é¿) / None(é˜²å¾¡ä¸èƒ½)
+//    - attackType: WeakAttack(å¼±æ”»æ’ƒ) / HeavyAttack(å¼·æ”»æ’ƒ)
 //
-// 5. —^ƒ_ƒ[ƒW—p: OnHit(HitReportInfo)
-//    - damage: —^‚¦‚½ƒ_ƒ[ƒWi0‚È‚çUŒ‚¸”sj
-//    - attackType: WeakAttack(ãUŒ‚) / HeavyAttack(‹­UŒ‚)
-//    - hitResultType: Block(ƒuƒƒbƒLƒ“ƒO‚³‚ê‚½) / Guard(ƒK[ƒh‚³‚ê‚½) / Avoid(‰ñ”ğ‚³‚ê‚½) / Hit(–½’†) / Miss(‹óU‚è)
+// 5. ä¸ãƒ€ãƒ¡ãƒ¼ã‚¸ç”¨: OnHit(HitReportInfo)
+//    - damage: ä¸ãˆãŸãƒ€ãƒ¡ãƒ¼ã‚¸ï¼ˆ0ãªã‚‰æ”»æ’ƒå¤±æ•—ï¼‰
+//    - attackType: WeakAttack(å¼±æ”»æ’ƒ) / HeavyAttack(å¼·æ”»æ’ƒ)
+//    - hitResultType: Block(ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°ã•ã‚ŒãŸ) / Guard(ã‚¬ãƒ¼ãƒ‰ã•ã‚ŒãŸ) / Avoid(å›é¿ã•ã‚ŒãŸ) / Hit(å‘½ä¸­) / Miss(ç©ºæŒ¯ã‚Š)
 // 
-// “ü—ÍŒ³ƒNƒ‰ƒX:ŠeƒAƒNƒVƒ‡ƒ“‚ÌƒNƒ‰ƒX
-// o—ÍæƒNƒ‰ƒX:ƒLƒƒƒ‰ƒRƒ“ƒgƒ[ƒ‰[iå‚Éj
+// å…¥åŠ›å…ƒã‚¯ãƒ©ã‚¹:å„ã‚¢ã‚¯ã‚·ãƒ§ãƒ³ã®ã‚¯ãƒ©ã‚¹
+// å‡ºåŠ›å…ˆã‚¯ãƒ©ã‚¹:ã‚­ãƒ£ãƒ©ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ©ãƒ¼ï¼ˆä¸»ã«ï¼‰
 // 
-// ‚»‚Ì‘¼:
-// ŠeƒAƒNƒVƒ‡ƒ“À‘•‚Íu•ñ—pƒf[ƒ^’è‹`v‚âuw“Ç—pƒƒ\ƒbƒhv‚ÌRegion‚Å’è‹`Eg—p‚³‚ê‚Ä‚¢‚éƒf[ƒ^‚ğ“Š‚°‚Ä‚­‚¾‚³‚¢
+// ãã®ä»–:
+// å„ã‚¢ã‚¯ã‚·ãƒ§ãƒ³å®Ÿè£…æ™‚ã¯ã€Œå ±å‘Šç”¨ãƒ‡ãƒ¼ã‚¿å®šç¾©ã€ã‚„ã€Œè³¼èª­ç”¨ãƒ¡ã‚½ãƒƒãƒ‰ã€ã®Regionã§å®šç¾©ãƒ»ä½¿ç”¨ã•ã‚Œã¦ã„ã‚‹ãƒ‡ãƒ¼ã‚¿ã‚’æŠ•ã’ã¦ãã ã•ã„
 //
-// c‘Î‰‚É‚Â‚¢‚Ä
-// - w“Çˆ—‚ÍŒ‹‡‚És‚¤—\’è
-// - ŠeƒŠƒeƒ‰ƒ‹•”•ª‚Íİ’èƒf[ƒ^‚É’u‚«Š·‚¦—\’èiƒuƒƒbƒLƒ“ƒOEN‰ñ•œ—ÊE–ˆ•bEN‰ñ•œ—ÊEƒuƒƒbƒLƒ“ƒO‚Æ‰ñ”ğ”»’è‚Ì”­¶‚â‘±‚È‚Çj
+// æ®‹å¯¾å¿œã«ã¤ã„ã¦
+// - è³¼èª­å‡¦ç†ã¯çµåˆæ™‚ã«è¡Œã†äºˆå®š
+// - å„ãƒªãƒ†ãƒ©ãƒ«éƒ¨åˆ†ã¯è¨­å®šãƒ‡ãƒ¼ã‚¿ã«ç½®ãæ›ãˆäºˆå®šï¼ˆãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°æ™‚ENå›å¾©é‡ãƒ»æ¯ç§’ENå›å¾©é‡ãƒ»ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°ã¨å›é¿åˆ¤å®šã®ç™ºç”Ÿã‚„æŒç¶šãªã©ï¼‰
 //=====================================================================================================================
 
 namespace LearningAIGame.CombatSystem.Core
 {
-    public class StateSystem : MonoBehaviour
+    public partial class StateSystem : MonoBehaviour
     {
 
-        #region —ñ‹“Œ^’è‹`
+        #region åˆ—æŒ™å‹å®šç¾©
 
         /// <summary>
-        /// Œ»İ‚Ìs“®ó‹µ‚Æs“®—š—ğ‚ğŠÇ—‚·‚é‚½‚ß‚Ì—ñ‹“‘Ì
-        /// ŠeƒAƒNƒVƒ‡ƒ“‚Ìn“®EŒ‹‰Ê•ñ‚ğó‚¯‚ÄØ‚è‘Ö‚í‚é
-        /// ƒAƒjƒ[ƒVƒ‡ƒ“§Œä‚É‚àg—p‚·‚é
+        /// ç¾åœ¨ã®è¡Œå‹•çŠ¶æ³ã¨è¡Œå‹•å±¥æ­´ã‚’ç®¡ç†ã™ã‚‹ãŸã‚ã®åˆ—æŒ™ä½“
+        /// å„ã‚¢ã‚¯ã‚·ãƒ§ãƒ³ã®å§‹å‹•ãƒ»çµæœå ±å‘Šã‚’å—ã‘ã¦åˆ‡ã‚Šæ›¿ã‚ã‚‹
+        /// ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³åˆ¶å¾¡ã«ã‚‚ä½¿ç”¨ã™ã‚‹
         /// </summary>
         [System.Flags]
         [JsonConverter(typeof(StringEnumConverter))]
         public enum ActionState
         {
-            // --- ŒÅ—LƒAƒNƒVƒ‡ƒ“/ó‘Ô‚Ì’è‹` ---
-            ƒK[ƒh = 1 << 0,  // ƒfƒtƒHƒ‹ƒgó‘ÔB•às’†‚àƒK[ƒh
-            ƒuƒƒbƒLƒ“ƒO = 1 << 1,
-            ‘O‰ñ”ğ = 1 << 2,
-            ‰¡‰ñ”ğ = 1 << 3,
-            Œã‚ë‰ñ”ğ = 1 << 4,
-            ‘O‰ñ”ğUŒ‚ = 1 << 5,
-            ‰¡‰ñ”ğUŒ‚ = 1 << 6,
-            ãUŒ‚ = 1 << 7,
-            ‹­UŒ‚ = 1 << 8,
-            ƒuƒƒbƒLƒ“ƒO¬Œ÷ = 1 << 9,
-            ƒK[ƒh¬Œ÷ = 1 << 10,
-            ‹­UŒ‚ƒLƒƒƒ“ƒZƒ‹ = 1 << 11,
+            // --- å›ºæœ‰ã‚¢ã‚¯ã‚·ãƒ§ãƒ³/çŠ¶æ…‹ã®å®šç¾© ---
+            ã‚¬ãƒ¼ãƒ‰ = 1 << 0,  // ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆçŠ¶æ…‹ã€‚æ­©è¡Œä¸­ã‚‚ã‚¬ãƒ¼ãƒ‰
+            ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚° = 1 << 1,
+            å‰å›é¿ = 1 << 2,
+            æ¨ªå›é¿ = 1 << 3,
+            å¾Œã‚å›é¿ = 1 << 4,
+            å‰å›é¿æ”»æ’ƒ = 1 << 5,
+            æ¨ªå›é¿æ”»æ’ƒ = 1 << 6,
+            å¼±æ”»æ’ƒ = 1 << 7,
+            å¼·æ”»æ’ƒ = 1 << 8,
+            ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°æˆåŠŸ = 1 << 9,
+            ã‚¬ãƒ¼ãƒ‰æˆåŠŸ = 1 << 10,
+            å¼·æ”»æ’ƒã‚­ãƒ£ãƒ³ã‚»ãƒ« = 1 << 11,
 
-            // --- U–hŠÖ˜A‚Ìó‘Ôiƒ‚[ƒVƒ‡ƒ“·•ª‚Ís“®•s”\ŠÔ‚Ì’·‚³j ---
-            ¬‹¯‚İ = 1 << 12, // ãUŒ‚”í’eƒ‚[ƒVƒ‡ƒ“
-            ‘å‹¯‚İ = 1 << 13,// ‹­UŒ‚”í’eƒ‚[ƒVƒ‡ƒ“
-            ãUŒ‚ƒuƒƒbƒLƒ“ƒO = 1 << 14,// ãUŒ‚‚ğƒuƒƒbƒLƒ“ƒO‚³‚ê‚½‚Ìƒ‚[ƒVƒ‡ƒ“B
-            ‹­UŒ‚ƒuƒƒbƒLƒ“ƒO = 1 << 15,// ‹­UŒ‚‚ğƒuƒƒbƒLƒ“ƒO‚³‚ê‚½‚Ìƒ‚[ƒVƒ‡ƒ“
-            ãUŒ‚ƒK[ƒh = 1 << 16,// ãUŒ‚‚ğƒK[ƒh‚³‚ê‚½‚Ìƒ‚[ƒVƒ‡ƒ“B
+            // --- æ”»é˜²é–¢é€£æ™‚ã®çŠ¶æ…‹ï¼ˆãƒ¢ãƒ¼ã‚·ãƒ§ãƒ³å·®åˆ†ã¯è¡Œå‹•ä¸èƒ½æ™‚é–“ã®é•·ã•ï¼‰ ---
+            å°æ€¯ã¿ = 1 << 12, // å¼±æ”»æ’ƒè¢«å¼¾ãƒ¢ãƒ¼ã‚·ãƒ§ãƒ³
+            å¤§æ€¯ã¿ = 1 << 13,// å¼·æ”»æ’ƒè¢«å¼¾ãƒ¢ãƒ¼ã‚·ãƒ§ãƒ³
+            å¼±æ”»æ’ƒãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚° = 1 << 14,// å¼±æ”»æ’ƒã‚’ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°ã•ã‚ŒãŸæ™‚ã®ãƒ¢ãƒ¼ã‚·ãƒ§ãƒ³ã€‚
+            å¼·æ”»æ’ƒãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚° = 1 << 15,// å¼·æ”»æ’ƒã‚’ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°ã•ã‚ŒãŸæ™‚ã®ãƒ¢ãƒ¼ã‚·ãƒ§ãƒ³
+            å¼±æ”»æ’ƒã‚¬ãƒ¼ãƒ‰ = 1 << 16,// å¼±æ”»æ’ƒã‚’ã‚¬ãƒ¼ãƒ‰ã•ã‚ŒãŸæ™‚ã®ãƒ¢ãƒ¼ã‚·ãƒ§ãƒ³ã€‚
 
-            // --- “Áêó‘Ôƒtƒ‰ƒO ---
-            €–S = 1 << 17,
+            // --- ç‰¹æ®ŠçŠ¶æ…‹ãƒ•ãƒ©ã‚° ---
+            æ­»äº¡ = 1 << 17,
 
-            // --- •¡‡ƒtƒ‰ƒOi˜_—˜a '|' ‚ğg—pj ---
-            ƒK[ƒh•ûŒüØ‚è‘Ö‚¦‰Â”\ = ƒK[ƒh | ƒuƒƒbƒLƒ“ƒO¬Œ÷ | ƒK[ƒh¬Œ÷,
-            ƒuƒƒbƒLƒ“ƒO‰Â”\ = ƒK[ƒh | ƒuƒƒbƒLƒ“ƒO¬Œ÷ | ƒK[ƒh¬Œ÷,
-            ‰ñ”ğ‰Â”\ = ƒK[ƒh | ƒuƒƒbƒLƒ“ƒO¬Œ÷ | ƒK[ƒh¬Œ÷,
-            UŒ‚‰Â”\ = ƒK[ƒh | ƒuƒƒbƒLƒ“ƒO¬Œ÷ | ƒK[ƒh¬Œ÷,
-            ‹­UŒ‚ƒLƒƒƒ“ƒZƒ‹‰Â”\ = ‹­UŒ‚,
-            ˆÚ“®‰Â”\ = ƒK[ƒh | ƒuƒƒbƒLƒ“ƒO¬Œ÷ | ƒK[ƒh¬Œ÷,
-            UŒ‚ = ‹­UŒ‚ | ãUŒ‚,
-            ‰ñ”ğ = ‘O‰ñ”ğ | ‰¡‰ñ”ğ | Œã‚ë‰ñ”ğ,
-            –hŒä = ‰ñ”ğ | ƒK[ƒh | ƒuƒƒbƒLƒ“ƒO,
-            ‹­§s“®ƒLƒƒƒ“ƒZƒ‹ = ¬‹¯‚İ | ‘å‹¯‚İ | ãUŒ‚ƒuƒƒbƒLƒ“ƒO | ‹­UŒ‚ƒuƒƒbƒLƒ“ƒO | €–S,
-            s“®—š—ğ‚É‹L˜^‚µ‚È‚¢ = ƒuƒƒbƒLƒ“ƒO¬Œ÷ | ƒK[ƒh¬Œ÷ | ¬‹¯‚İ | ‘å‹¯‚İ | ãUŒ‚ƒuƒƒbƒLƒ“ƒO | ‹­UŒ‚ƒuƒƒbƒLƒ“ƒO | ãUŒ‚ƒK[ƒh | €–S
+            // --- è¤‡åˆãƒ•ãƒ©ã‚°ï¼ˆè«–ç†å’Œ '|' ã‚’ä½¿ç”¨ï¼‰ ---
+            ã‚¬ãƒ¼ãƒ‰æ–¹å‘åˆ‡ã‚Šæ›¿ãˆå¯èƒ½ = ã‚¬ãƒ¼ãƒ‰ | ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°æˆåŠŸ | ã‚¬ãƒ¼ãƒ‰æˆåŠŸ,
+            ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°å¯èƒ½ = ã‚¬ãƒ¼ãƒ‰ | ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°æˆåŠŸ | ã‚¬ãƒ¼ãƒ‰æˆåŠŸ,
+            å›é¿å¯èƒ½ = ã‚¬ãƒ¼ãƒ‰ | ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°æˆåŠŸ | ã‚¬ãƒ¼ãƒ‰æˆåŠŸ,
+            æ”»æ’ƒå¯èƒ½ = ã‚¬ãƒ¼ãƒ‰ | ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°æˆåŠŸ | ã‚¬ãƒ¼ãƒ‰æˆåŠŸ,
+            å›é¿æ”»æ’ƒå¯èƒ½ = å‰å›é¿ | æ¨ªå›é¿,
+            å¼·æ”»æ’ƒã‚­ãƒ£ãƒ³ã‚»ãƒ«å¯èƒ½ = å¼·æ”»æ’ƒ,
+            ç§»å‹•å¯èƒ½ = ã‚¬ãƒ¼ãƒ‰ | ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°æˆåŠŸ | ã‚¬ãƒ¼ãƒ‰æˆåŠŸ,
+            å¼±æ”»æ’ƒç³»çµ± = å¼±æ”»æ’ƒ | ActionState.å‰å›é¿æ”»æ’ƒ | ActionState.æ¨ªå›é¿æ”»æ’ƒ,
+            æ”»æ’ƒ = å¼·æ”»æ’ƒ | å¼±æ”»æ’ƒ | ActionState.å‰å›é¿æ”»æ’ƒ | ActionState.æ¨ªå›é¿æ”»æ’ƒ,
+            å›é¿ = å‰å›é¿ | æ¨ªå›é¿ | å¾Œã‚å›é¿,
+            é˜²å¾¡ = å›é¿ | ã‚¬ãƒ¼ãƒ‰ | ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°,
+            å¼·åˆ¶è¡Œå‹•ã‚­ãƒ£ãƒ³ã‚»ãƒ« = å°æ€¯ã¿ | å¤§æ€¯ã¿ | å¼±æ”»æ’ƒãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚° | å¼·æ”»æ’ƒãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚° | æ­»äº¡,
+            è¡Œå‹•å±¥æ­´ã«è¨˜éŒ²ã—ãªã„ = ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°æˆåŠŸ | ã‚¬ãƒ¼ãƒ‰æˆåŠŸ | å°æ€¯ã¿ | å¤§æ€¯ã¿ | å¼±æ”»æ’ƒãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚° | å¼·æ”»æ’ƒãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚° | å¼±æ”»æ’ƒã‚¬ãƒ¼ãƒ‰ | æ­»äº¡,
+            ã‚¹ã‚¿ãƒŸãƒŠå›å¾©å¯èƒ½ = ã‚¬ãƒ¼ãƒ‰ | ã‚¬ãƒ¼ãƒ‰æˆåŠŸ | ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°æˆåŠŸ
         }
 
         /// <summary>
-        /// UŒ‚/–hŒä‚Ì•ûŒü
+        /// æ”»æ’ƒ/é˜²å¾¡ã®æ–¹å‘
         /// </summary>
         public enum StanceType : byte
         {
-            Up,     // ã
-            Left,   // ¶
-            Right,  // ‰E
-            None    // ƒK[ƒh–³‚µ
+            Up,     // ä¸Š
+            Left,   // å·¦
+            Right,  // å³
+            None    // ã‚¬ãƒ¼ãƒ‰ç„¡ã—
         }
 
         #endregion
 
-        #region ƒtƒB[ƒ‹ƒh
+        #region ãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰
 
         /// <summary>
-        /// ƒAƒNƒVƒ‡ƒ“İ’èƒf[ƒ^
+        /// ã‚¢ã‚¯ã‚·ãƒ§ãƒ³è¨­å®šãƒ‡ãƒ¼ã‚¿
         /// </summary>
         [SerializeField]
         private ActionSetting _actionSetting;
 
         /// <summary>
-        /// ƒLƒƒƒ‰‚ÌŠî‘bƒf[ƒ^
-        /// LLM‚Ö‚Ì•ñ—p
+        /// ã‚­ãƒ£ãƒ©ã®åŸºç¤ãƒ‡ãƒ¼ã‚¿
+        /// LLMã¸ã®å ±å‘Šç”¨
         /// </summary>
         private CharacterData _characterData;
 
         /// <summary>
-        /// UŒ‚‚ğó‚¯‚½Û‚Ìó‹µ‚ğ‹L˜^‚·‚é
-        /// LLM‚Ö‚Ì•ñ—p
+        /// æ”»æ’ƒã‚’å—ã‘ãŸéš›ã®çŠ¶æ³ã‚’è¨˜éŒ²ã™ã‚‹
+        /// LLMã¸ã®å ±å‘Šç”¨
         /// </summary>
         private List<HitSituation> _damageSituation;
 
         /// <summary>
-        /// ©•ª‚Ìs“®‚ğ‹L˜^‚·‚éƒŠƒXƒg
-        /// LLM‚Ö‚Ì•ñ—p
+        /// è‡ªåˆ†ã®è¡Œå‹•ã‚’è¨˜éŒ²ã™ã‚‹ãƒªã‚¹ãƒˆ
+        /// LLMã¸ã®å ±å‘Šç”¨
         /// </summary>
         private List<ActionState> _actHistory;
 
         /// <summary>
-        /// UŒ‚‚ÌÀsî•ñ
-        /// ƒR[ƒ‹ƒoƒbƒN‚ÆƒvƒƒpƒeƒB‚ğ’Ê‚¶‚ÄƒAƒNƒZƒX
+        /// æ”»æ’ƒã®å®Ÿè¡Œæƒ…å ±
+        /// ã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯ã¨ãƒ—ãƒ­ãƒ‘ãƒ†ã‚£ã‚’é€šã˜ã¦ã‚¢ã‚¯ã‚»ã‚¹
         /// </summary>
         private AttackInfo _attackInfo;
 
         /// <summary>
-        /// –hŒä‚ÌÀsî•ñ
-        /// ƒR[ƒ‹ƒoƒbƒN‚Æƒƒ\ƒbƒh‚ğ’Ê‚¶‚Ä‚Ì‚İƒAƒNƒZƒX
+        /// é˜²å¾¡ã®å®Ÿè¡Œæƒ…å ±
+        /// ã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯ã¨ãƒ¡ã‚½ãƒƒãƒ‰ã‚’é€šã˜ã¦ã®ã¿ã‚¢ã‚¯ã‚»ã‚¹
         /// </summary>
         private DefenseInfo _defenseInfo;
 
         /// <summary>
-        /// s“®d’¼‚ğ‹L˜^‚·‚é•Ï”
-        /// ‚ ‚és“®‚Ì‚ ‚ÆAd’¼‚ğŒo‚ÄŸ‚És“®‚Å‚«‚é‚æ‚¤‚É‚È‚éŠÔ‚ğİ’è‚·‚é
+        /// è¡Œå‹•ç¡¬ç›´ã‚’è¨˜éŒ²ã™ã‚‹å¤‰æ•°
+        /// ã‚ã‚‹è¡Œå‹•ã®ã‚ã¨ã€ç¡¬ç›´ã‚’çµŒã¦æ¬¡ã«è¡Œå‹•ã§ãã‚‹ã‚ˆã†ã«ãªã‚‹æ™‚é–“ã‚’è¨­å®šã™ã‚‹
         /// </summary>
         private float _moveStunTime = -1f;
 
-        #region w“Ç‘ÎÛ
+        /// <summary>
+        /// å›é¿æ”»æ’ƒã®å—ä»˜å¯èƒ½æ™‚é–“
+        /// </summary>
+        private float _avoidAttackBufferLimit = -1f;
+
+        #region è³¼èª­å¯¾è±¡
 
         /// <summary>
-        /// UŒ‚ÀsƒNƒ‰ƒX
+        /// æ”»æ’ƒå®Ÿè¡Œã‚¯ãƒ©ã‚¹
         /// </summary>
         [SerializeField]
         private AttackSystem _attackSystem;
 
         /// <summary>
-        /// –hŒäÀsƒNƒ‰ƒX
+        /// é˜²å¾¡å®Ÿè¡Œã‚¯ãƒ©ã‚¹
         /// </summary>
         [SerializeField]
         private DefenseSystem _defenseSystem;
 
         /// <summary>
-        /// ˆÚ“®ÀsƒNƒ‰ƒX
+        /// ç§»å‹•å®Ÿè¡Œã‚¯ãƒ©ã‚¹
         /// </summary>
         [SerializeField]
         private MovementSystem _movementSystem;
 
         /// <summary>
-        /// —^ƒ_ƒ[ƒWŠÇ—ƒNƒ‰ƒX
+        /// ä¸ãƒ€ãƒ¡ãƒ¼ã‚¸ç®¡ç†ã‚¯ãƒ©ã‚¹
         /// </summary>
         [SerializeField]
         private HitSystem _hitSystem;
 
         /// <summary>
-        /// ”í’eŠÇ—ƒNƒ‰ƒX
+        /// è¢«å¼¾ç®¡ç†ã‚¯ãƒ©ã‚¹
         /// </summary>
         [SerializeField]
-        private DamageSystem _damageSystem;
+        private DamageSystemBase _damageSystem;
 
         #endregion
 
         #endregion
 
-        #region PublicƒvƒƒpƒeƒB
+        #region Publicãƒ—ãƒ­ãƒ‘ãƒ†ã‚£
 
         /// <summary>
-        /// “Ç‚İæ‚èê—p‚Ìc‚èƒGƒlƒ‹ƒM[iŒÍŠ‰’†‚Íí‚É 0j
+        /// èª­ã¿å–ã‚Šå°‚ç”¨ã®æ®‹ã‚Šã‚¨ãƒãƒ«ã‚®ãƒ¼ï¼ˆæ¯æ¸‡ä¸­ã¯å¸¸ã« 0ï¼‰
         ///</summary>
-        public int Energy { get { return _characterData.IsEnergyExhaust ? 0 : _characterData.Energy; } }
+        public int Energy { get { return (int)(_characterData.IsEnergyExhaust ? 0 : _characterData.Energy); } }
 
         /// <summary>
-        /// “Ç‚İæ‚èê—p‚ÌUŒ‚î•ñ
+        /// èª­ã¿å–ã‚Šå°‚ç”¨ã®æ”»æ’ƒæƒ…å ±
         /// </summary>
         public AttackInfo CurrentAttackInfo { get { return _attackInfo; } }
 
         /// <summary>
-        /// “Ç‚İæ‚èê—p‚Ì–hŒäî•ñ
+        /// èª­ã¿å–ã‚Šå°‚ç”¨ã®é˜²å¾¡æƒ…å ±
         /// </summary>
         public DefenseInfo CurrentDefenseInfo { get { return _defenseInfo; } }
 
         /// <summary>
-        /// ˆê‚Â‘O‚Ìs“®ó‘Ô
+        /// ä¸€ã¤å‰ã®è¡Œå‹•çŠ¶æ…‹
         /// </summary>
         public ActionState LastState { get; private set; }
 
-        #region ƒAƒjƒ[ƒVƒ‡ƒ“ŠÇ—ƒŠƒAƒNƒeƒBƒuƒvƒƒpƒeƒB
+        #region ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ç®¡ç†ãƒªã‚¢ã‚¯ãƒ†ã‚£ãƒ–ãƒ—ãƒ­ãƒ‘ãƒ†ã‚£
 
         /// <summary>
-        /// Œ»İ‚Ìs“®ó‘Ô‚ÌƒŠƒAƒNƒeƒBƒuƒvƒƒpƒeƒB
+        /// ç¾åœ¨ã®è¡Œå‹•çŠ¶æ…‹ã®ãƒªã‚¢ã‚¯ãƒ†ã‚£ãƒ–ãƒ—ãƒ­ãƒ‘ãƒ†ã‚£
         /// </summary>
         public ReactiveProperty<ActionState> CurrentState;
 
         /// <summary>
-        /// Œ»İ‚Ì•às•ûŒü‚ğ¦‚·ƒŠƒAƒNƒeƒBƒuƒvƒƒpƒeƒB
+        /// ç¾åœ¨ã®æ­©è¡Œæ–¹å‘ã‚’ç¤ºã™ãƒªã‚¢ã‚¯ãƒ†ã‚£ãƒ–ãƒ—ãƒ­ãƒ‘ãƒ†ã‚£
         /// </summary>
         public ReactiveProperty<Vector3> MoveVector;
 
         /// <summary>
-        /// Œ»İ‚Ì\‚¦•ûŒü‚ÌƒŠƒAƒNƒeƒBƒuƒvƒƒpƒeƒB
+        /// ç¾åœ¨ã®æ§‹ãˆæ–¹å‘ã®ãƒªã‚¢ã‚¯ãƒ†ã‚£ãƒ–ãƒ—ãƒ­ãƒ‘ãƒ†ã‚£
         /// </summary>
         public ReactiveProperty<StanceType> CurrentStance;
 
         #endregion
 
-        #region s“®Às‰Â”\ŠÇ—ƒvƒƒpƒeƒB
+        #region è¡Œå‹•å®Ÿè¡Œå¯èƒ½ç®¡ç†ãƒ—ãƒ­ãƒ‘ãƒ†ã‚£
 
         /// <summary>
-        /// UŒ‚‰Â”\‚©‚Ç‚¤‚©
+        /// æ”»æ’ƒå¯èƒ½ã‹ã©ã†ã‹
         /// </summary>
-        public bool CanAttack { get { return !_characterData.IsEnergyExhaust && Time.time >= _moveStunTime && (CurrentState.CurrentValue & ActionState.UŒ‚‰Â”\) > 0; } }
+        public bool CanAttack { get { return !_characterData.IsEnergyExhaust && Time.time >= _moveStunTime && (CurrentState.CurrentValue & ActionState.æ”»æ’ƒå¯èƒ½) > 0; } }
+
+        public bool CanAvoidAttack { get { return !_characterData.IsEnergyExhaust && ((CurrentState.CurrentValue & ActionState.å›é¿æ”»æ’ƒå¯èƒ½) > 0) && Time.time <= _avoidAttackBufferLimit; } }
 
         /// <summary>
-        /// ƒK[ƒh•ûŒüØ‚è‘Ö‚¦‰Â”\‚©‚Ç‚¤‚©
+        /// ã‚¬ãƒ¼ãƒ‰æ–¹å‘åˆ‡ã‚Šæ›¿ãˆå¯èƒ½ã‹ã©ã†ã‹
         /// </summary>
-        public bool CanChangeGuardDirection { get { return (CurrentState.CurrentValue & ActionState.ƒK[ƒh•ûŒüØ‚è‘Ö‚¦‰Â”\) > 0 && Time.time >= _moveStunTime; } }
+        public bool CanChangeGuardDirection { get { return (CurrentState.CurrentValue & ActionState.ã‚¬ãƒ¼ãƒ‰æ–¹å‘åˆ‡ã‚Šæ›¿ãˆå¯èƒ½) > 0 && Time.time >= _moveStunTime; } }
 
         /// <summary>
-        /// ƒuƒƒbƒLƒ“ƒO‰Â”\‚©‚Ç‚¤‚©
+        /// ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°å¯èƒ½ã‹ã©ã†ã‹
         /// </summary>
-        public bool CanBlock { get { return !_characterData.IsEnergyExhaust && (CurrentState.CurrentValue & ActionState.ƒuƒƒbƒLƒ“ƒO‰Â”\) > 0 && Time.time >= _moveStunTime; } }
+        public bool CanBlock { get { return !_characterData.IsEnergyExhaust && (CurrentState.CurrentValue & ActionState.ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°å¯èƒ½) > 0 && Time.time >= _moveStunTime; } }
 
         /// <summary>
-        /// ‰ñ”ğ‰Â”\‚©‚Ç‚¤‚©
+        /// å›é¿å¯èƒ½ã‹ã©ã†ã‹
         /// </summary>
-        public bool CanAvoid { get { return (CurrentState.CurrentValue & ActionState.‰ñ”ğ‰Â”\) > 0 && Time.time >= _moveStunTime; } }
+        public bool CanAvoid { get { return (CurrentState.CurrentValue & ActionState.å›é¿å¯èƒ½) > 0 && Time.time >= _moveStunTime; } }
 
         /// <summary>
-        /// ‹­UŒ‚‚ğƒLƒƒƒ“ƒZƒ‹‰Â”\‚©‚Ç‚¤‚©
+        /// å¼·æ”»æ’ƒã‚’ã‚­ãƒ£ãƒ³ã‚»ãƒ«å¯èƒ½ã‹ã©ã†ã‹
         /// </summary>
-        public bool CanCancelHeavyAttack { get { return !_characterData.IsEnergyExhaust && (CurrentState.CurrentValue & ActionState.‹­UŒ‚ƒLƒƒƒ“ƒZƒ‹‰Â”\) > 0 && Time.time >= _moveStunTime; } }
+        public bool CanCancelHeavyAttack { get { return !_characterData.IsEnergyExhaust && (CurrentState.CurrentValue & ActionState.å¼·æ”»æ’ƒã‚­ãƒ£ãƒ³ã‚»ãƒ«å¯èƒ½) > 0 && Time.time >= _moveStunTime; } }
 
         /// <summary>
-        /// ˆÚ“®‰Â”\‚©‚Ç‚¤‚©
+        /// ç§»å‹•å¯èƒ½ã‹ã©ã†ã‹
         /// </summary>
-        public bool CanMove { get { return (CurrentState.CurrentValue & ActionState.ˆÚ“®‰Â”\) > 0 && Time.time >= _moveStunTime; } }
+        public bool CanMove { get { return (CurrentState.CurrentValue & ActionState.ç§»å‹•å¯èƒ½) > 0 && Time.time >= _moveStunTime; } }
 
         #endregion
 
         #endregion
 
         /// <summary>
-        /// “à•”ó‘Ô‚ğXV‚·‚éiƒtƒŒ[ƒ€XV‚È‚Ç‚ÉŒÄ‚Î‚ê‚éj
+        /// å†…éƒ¨çŠ¶æ…‹ã‚’æ›´æ–°ã™ã‚‹ï¼ˆãƒ•ãƒ¬ãƒ¼ãƒ æ›´æ–°æ™‚ãªã©ã«å‘¼ã°ã‚Œã‚‹ï¼‰
         /// </summary>
         public void Update()
         {
-            // ActionSetting‚Ì’l‚ğg—p
-            _characterData.RecoverEnergyByRate(
-                Time.deltaTime * _actionSetting.EnergyRecoveryRatePerSecond
-            );
+            // é˜²å¾¡ä¸­ã®ã¿ã‚¨ãƒãƒ«ã‚®ãƒ¼å›å¾©
+            if ((CurrentState.Value & ActionState.ã‚¹ã‚¿ãƒŸãƒŠå›å¾©å¯èƒ½) == 0)
+            {
+                return;
+            }
+
+            // ã‚¨ãƒãƒ«ã‚®ãƒ¼åˆ‡ã‚Œä¸­ã¯å°‘ã—å›å¾©é€Ÿåº¦ãŒé€Ÿããªã‚‹
+            else if (_characterData.IsEnergyExhaust)
+            {
+                // ActionSettingã®å€¤ã‚’ä½¿ç”¨
+                _characterData.RecoverEnergyByRate(
+                    Time.deltaTime * _actionSetting.EnergyRecoveryRatePerSecond * 1.8f
+                );
+            }
+            else
+            {
+                // ActionSettingã®å€¤ã‚’ä½¿ç”¨
+                _characterData.RecoverEnergyByRate(
+                    Time.deltaTime * _actionSetting.EnergyRecoveryRatePerSecond
+                );
+            }
         }
 
-        #region Publicƒƒ\ƒbƒh
+        #region Publicãƒ¡ã‚½ãƒƒãƒ‰
 
         /// <summary>
-        /// ƒGƒlƒ‹ƒM[‚ğg—p‚·‚é
-        /// ŠeƒAƒNƒVƒ‡ƒ“‚ÅƒGƒlƒ‹ƒM[‚ğg—p‚·‚éÛ‚Ég‚¤
+        /// ã‚¨ãƒãƒ«ã‚®ãƒ¼ã‚’ä½¿ç”¨ã™ã‚‹
+        /// å„ã‚¢ã‚¯ã‚·ãƒ§ãƒ³ã§ã‚¨ãƒãƒ«ã‚®ãƒ¼ã‚’ä½¿ç”¨ã™ã‚‹éš›ã«ä½¿ã†
         /// </summary>
-        /// <param name="amount">g—p—Ê</param>
+        /// <param name="amount">ä½¿ç”¨é‡</param>
         public void UseEnergy(int amount)
         {
             _characterData.ConsumeEnergy(amount);
         }
 
         /// <summary>
-        /// ƒAƒjƒŠ®—¹‚ğ‘Ò‚Á‚Äƒjƒ…[ƒgƒ‰ƒ‹ó‘Ô‚É–ß‚èƒK[ƒh‚ğŠJn‚·‚é
-        /// ‚Ü‚½As“®Œãd’¼‚ğİ’è‚·‚é
-        /// ƒAƒjƒŠÇ—ƒNƒ‰ƒX‚©‚çŠeƒ‚[ƒVƒ‡ƒ“I—¹‚ÉŒÄ‚Ô‘z’è
+        /// ã‚¢ãƒ‹ãƒ¡å®Œäº†ã‚’å¾…ã£ã¦ãƒ‹ãƒ¥ãƒ¼ãƒˆãƒ©ãƒ«çŠ¶æ…‹ã«æˆ»ã‚Šã‚¬ãƒ¼ãƒ‰ã‚’é–‹å§‹ã™ã‚‹
+        /// ã¾ãŸã€è¡Œå‹•å¾Œç¡¬ç›´ã‚’è¨­å®šã™ã‚‹
+        /// ã‚¢ãƒ‹ãƒ¡ç®¡ç†ã‚¯ãƒ©ã‚¹ã‹ã‚‰å„ãƒ¢ãƒ¼ã‚·ãƒ§ãƒ³çµ‚äº†æ™‚ã«å‘¼ã¶æƒ³å®š
         /// </summary>
         public void SetNeutral()
         {
+            ChangeState(ActionState.ã‚¬ãƒ¼ãƒ‰);
             _moveStunTime = Time.time + _actionSetting[CurrentState.CurrentValue];
-            ChangeState(ActionState.ƒK[ƒh);
+            //Debug.Log($"[{nameof(StateSystem)}] è¡Œå‹•ç¡¬ç›´æ™‚é–“ãŒ {_moveStunTime - Time.time} ç§’ã«è¨­å®šã•ã‚Œã¾ã—ãŸã€‚");
         }
 
         /// <summary>
-        /// ‚ ‚éUŒ‚‚ªƒqƒbƒg‚µ‚½Û‚ÌŒ‹‰Ê‚ğ•Ô‚·ƒƒ\ƒbƒh
-        /// ƒ_ƒ[ƒWƒVƒXƒeƒ€‚©‚çg—p‚·‚é
+        /// ã‚ã‚‹æ”»æ’ƒãŒãƒ’ãƒƒãƒˆã—ãŸéš›ã®çµæœã‚’è¿”ã™ãƒ¡ã‚½ãƒƒãƒ‰
+        /// ãƒ€ãƒ¡ãƒ¼ã‚¸ã‚·ã‚¹ãƒ†ãƒ ã‹ã‚‰ä½¿ç”¨ã™ã‚‹
         /// </summary>
-        /// <param name="attackInfo">UŒ‚‚Ìî•ñ</param>
-        /// <returns>ƒqƒbƒgA‰ñ”ğAƒK[ƒhA‚Ì’†‚Ì‚Ç‚ÌŒ‹‰Ê‚Å‚ ‚é‚©‚ğ•Ô‚·</returns>
+        /// <param name="attackInfo">æ”»æ’ƒã®æƒ…å ±</param>
+        /// <returns>ãƒ’ãƒƒãƒˆã€å›é¿ã€ã‚¬ãƒ¼ãƒ‰ã€ã®ä¸­ã®ã©ã®çµæœã§ã‚ã‚‹ã‹ã‚’è¿”ã™</returns>
         public HitResultType GetAttackResult(in AttackInfo attackInfo)
         {
-            // Œ»İ–hŒä’†‚Å‚È‚¯‚ê‚Î”»’è‚às‚í‚È‚¢
-            if ((CurrentState.CurrentValue & ActionState.–hŒä) == 0)
+            // ç¾åœ¨é˜²å¾¡ä¸­ã§ãªã‘ã‚Œã°åˆ¤å®šã‚‚è¡Œã‚ãªã„
+            if ((CurrentState.CurrentValue & ActionState.é˜²å¾¡) == 0)
             {
                 return HitResultType.Hit;
             }
@@ -345,7 +373,7 @@ namespace LearningAIGame.CombatSystem.Core
         }
 
         /// <summary>
-        /// LLM‚Ö‚Ìo—Íƒf[ƒ^ì¬—p‚ÌƒfƒRƒ“ƒXƒgƒ‰ƒNƒ^
+        /// LLMã¸ã®å‡ºåŠ›ãƒ‡ãƒ¼ã‚¿ä½œæˆç”¨ã®ãƒ‡ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
         /// </summary>
         /// <param name="hitSituations"></param>
         /// <param name="actionHistory"></param>
@@ -359,183 +387,186 @@ namespace LearningAIGame.CombatSystem.Core
 
         #endregion
 
-        #region privateƒƒ\ƒbƒh
+        #region privateãƒ¡ã‚½ãƒƒãƒ‰
 
-        #region w“Ç—pƒƒ\ƒbƒh
+        #region è³¼èª­ç”¨ãƒ¡ã‚½ãƒƒãƒ‰
 
         /// <summary>
-        /// ƒ_ƒ[ƒW‚ğó‚¯‚½ó‹µ‚ğ‹L˜^‚·‚é
+        /// ãƒ€ãƒ¡ãƒ¼ã‚¸ã‚’å—ã‘ãŸçŠ¶æ³ã‚’è¨˜éŒ²ã™ã‚‹
         /// </summary>
         private void OnHit(HitReportInfo hitReport)
         {
-            // UŒ‚Œ‹‰Ê‚ªƒuƒƒbƒLƒ“ƒO‚ÆƒK[ƒh‚È‚çƒŠƒAƒNƒVƒ‡ƒ“‚ğ‚·‚é
-            // ƒuƒƒbƒLƒ“ƒO‚³‚ê‚½ê‡
+            // æ”»æ’ƒçµæœãŒãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°ã¨ã‚¬ãƒ¼ãƒ‰ãªã‚‰ãƒªã‚¢ã‚¯ã‚·ãƒ§ãƒ³ã‚’ã™ã‚‹
+            // ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°ã•ã‚ŒãŸå ´åˆ
             if (hitReport.hitResultType == HitResultType.Block)
             {
-                ChangeState(hitReport.attackType == AttackType.WeakAttack ? ActionState.ãUŒ‚ƒuƒƒbƒLƒ“ƒO : ActionState.‹­UŒ‚ƒLƒƒƒ“ƒZƒ‹);
+                ChangeState(hitReport.attackType == AttackType.WeakAttack ? ActionState.å¼±æ”»æ’ƒãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚° : ActionState.å¼·æ”»æ’ƒãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°);
             }
 
-            // ƒK[ƒh‚³‚ê‚½ê‡
+            // ã‚¬ãƒ¼ãƒ‰ã•ã‚ŒãŸå ´åˆ
             else if (hitReport.hitResultType == HitResultType.Guard)
             {
-                ChangeState(ActionState.ãUŒ‚ƒK[ƒh);
+                ChangeState(ActionState.å¼±æ”»æ’ƒã‚¬ãƒ¼ãƒ‰);
             }
         }
 
         /// <summary>
-        /// ƒ_ƒ[ƒW‚ğó‚¯‚½ó‹µ‚ğ‹L˜^‚·‚é
+        /// ãƒ€ãƒ¡ãƒ¼ã‚¸ã‚’å—ã‘ãŸçŠ¶æ³ã‚’è¨˜éŒ²ã™ã‚‹
         /// </summary>
         private void OnDamage(DamageReportInfo damageReport)
         {
-            // ”í’e‚µ‚Ä‚¢‚éê‡
+            // è¢«å¼¾ã—ã¦ã„ã‚‹å ´åˆ
             if (damageReport.Damage != 0)
             {
-                // ƒ_ƒ[ƒW‚ğó‚¯‚éˆ—
+                // ãƒ€ãƒ¡ãƒ¼ã‚¸ã‚’å—ã‘ã‚‹å‡¦ç†
                 _characterData.TakeDamage(damageReport.Damage);
 
-                // €‚ñ‚Å‚¢‚½‚ç€–Só‘Ô‚ÉˆÚs
+                // æ­»ã‚“ã§ã„ãŸã‚‰æ­»äº¡çŠ¶æ…‹ã«ç§»è¡Œ
                 if (_characterData.IsDead)
                 {
-                    ChangeState(ActionState.€–S);
+                    ChangeState(ActionState.æ­»äº¡);
                 }
 
-                // ãUŒ‚‚Ìê‡
+                // å¼±æ”»æ’ƒã®å ´åˆ
                 if (damageReport.AttackType == AttackType.WeakAttack)
                 {
-                    ChangeState(ActionState.¬‹¯‚İ);
+                    ChangeState(ActionState.å°æ€¯ã¿);
                 }
                 else
                 {
-                    ChangeState(ActionState.‘å‹¯‚İ);
+                    ChangeState(ActionState.å¤§æ€¯ã¿);
                 }
 
-                // ”í’eó‹µ‚ğ’Ç‰Á
+                // è¢«å¼¾çŠ¶æ³ã‚’è¿½åŠ 
                 _damageSituation.Add(new HitSituation(damageReport));
             }
-            // –hŒä¬Œ÷‚µ‚½ê‡
+            // é˜²å¾¡æˆåŠŸã—ãŸå ´åˆ
             else
             {
-                // ƒK[ƒh¬Œ÷
-                if (damageReport.DefenseAction == ActionState.ƒK[ƒh)
+                // ã‚¬ãƒ¼ãƒ‰æˆåŠŸ
+                if (damageReport.DefenseAction == ActionState.ã‚¬ãƒ¼ãƒ‰)
                 {
-                    ChangeState(ActionState.ƒK[ƒh¬Œ÷);
+                    ChangeState(ActionState.ã‚¬ãƒ¼ãƒ‰æˆåŠŸ);
                 }
 
-                // ƒuƒƒbƒLƒ“ƒO¬Œ÷
-                else if (damageReport.DefenseAction == ActionState.ƒuƒƒbƒLƒ“ƒO)
+                // ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°æˆåŠŸ
+                else if (damageReport.DefenseAction == ActionState.ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°)
                 {
-                    ChangeState(ActionState.ƒuƒƒbƒLƒ“ƒO¬Œ÷);
+                    ChangeState(ActionState.ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°æˆåŠŸ);
 
-                    // ƒuƒƒbƒLƒ“ƒO¬Œ÷10ƒp[ƒZƒ“ƒgƒGƒlƒ‹ƒM[‰ñ•œ
-                    // ƒŠƒeƒ‰ƒ‹‚Íİ’èƒf[ƒ^‚É’u‚«Š·‚¦—\’è
+                    // ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°æˆåŠŸæ™‚10ãƒ‘ãƒ¼ã‚»ãƒ³ãƒˆã‚¨ãƒãƒ«ã‚®ãƒ¼å›å¾©
+                    // ãƒªãƒ†ãƒ©ãƒ«ã¯è¨­å®šãƒ‡ãƒ¼ã‚¿ã«ç½®ãæ›ãˆäºˆå®š
                     _characterData.RecoverEnergyByRate(_actionSetting.BlockingSuccessEnergyRecovery);
                 }
             }
         }
 
         /// <summary>
-        /// –hŒäŠÖ˜A‚ÌƒR[ƒ‹ƒoƒbƒN‚ÅŒÄ‚Î‚ê‚éƒƒ\ƒbƒh
-        /// \‚¦•ûŒü‚Ì•ÏX‚ÆƒuƒƒbƒLƒ“ƒOŠJn‚ğ•ñ‚·‚é
-        /// ƒK[ƒhØ‚è‘Ö‚¦ó‚¯•t‚¯
+        /// é˜²å¾¡é–¢é€£ã®ã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯ã§å‘¼ã°ã‚Œã‚‹ãƒ¡ã‚½ãƒƒãƒ‰
+        /// æ§‹ãˆæ–¹å‘ã®å¤‰æ›´ã¨ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°é–‹å§‹ã‚’å ±å‘Šã™ã‚‹
+        /// ã‚¬ãƒ¼ãƒ‰åˆ‡ã‚Šæ›¿ãˆå—ã‘ä»˜ã‘
         /// </summary>
         private void OnDefense(DefenseReportInfo defenseReport)
         {
-            // \‚¦•ûŒü‚Ì•ÏX
+            // æ§‹ãˆæ–¹å‘ã®å¤‰æ›´
             CurrentStance.Value = defenseReport.stance;
 
-            // s“®Ø‚è‘Ö‚¦
-            ChangeState(defenseReport.reportType == DefenseReportType.StanceChange ? ActionState.ƒK[ƒh : ActionState.ƒuƒƒbƒLƒ“ƒO);
+            // è¡Œå‹•åˆ‡ã‚Šæ›¿ãˆ
+            ChangeState(defenseReport.reportType == DefenseReportType.StanceChange ? ActionState.ã‚¬ãƒ¼ãƒ‰ : ActionState.ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°);
 
-            // –hŒäƒf[ƒ^‚Ìİ’è
+            // é˜²å¾¡ãƒ‡ãƒ¼ã‚¿ã®è¨­å®š
             _defenseInfo.SetInfo(defenseReport, _actionSetting.BlockingStartDelay, _actionSetting.BlockingDuration);
         }
 
         /// <summary>
-        /// UŒ‚ŠÖ˜A‚ÌƒR[ƒ‹ƒoƒbƒN‚ÅŒÄ‚Î‚ê‚éƒƒ\ƒbƒh
-        /// ãUŒ‚‚Æ‹­UŒ‚‚ÌŠJnA‹­UŒ‚ƒLƒƒƒ“ƒZƒ‹‚ğ•ñ‚·‚é
+        /// æ”»æ’ƒé–¢é€£ã®ã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯ã§å‘¼ã°ã‚Œã‚‹ãƒ¡ã‚½ãƒƒãƒ‰
+        /// å¼±æ”»æ’ƒã¨å¼·æ”»æ’ƒã®é–‹å§‹ã€å¼·æ”»æ’ƒã‚­ãƒ£ãƒ³ã‚»ãƒ«ã‚’å ±å‘Šã™ã‚‹
         /// </summary>
         private void OnAttack(AttackReportInfo attackReport)
         {
-            // Ø‚è‘Ö‚¦‚és“®ó‘Ô
+            // åˆ‡ã‚Šæ›¿ãˆã‚‹è¡Œå‹•çŠ¶æ…‹
             ActionState useState;
-            // ƒLƒƒƒ“ƒZƒ‹s“®‚Å‚ ‚é‚©‚Ç‚¤‚©
+            // ã‚­ãƒ£ãƒ³ã‚»ãƒ«è¡Œå‹•ã§ã‚ã‚‹ã‹ã©ã†ã‹
             bool isCancel = false;
 
-            // Œ»İ‚Ìs“®‚Æ•ñ“à—e‚É‰‚¶‚Äˆ—‚ğØ‚è‘Ö‚¦
+            // ç¾åœ¨ã®è¡Œå‹•ã¨å ±å‘Šå†…å®¹ã«å¿œã˜ã¦å‡¦ç†ã‚’åˆ‡ã‚Šæ›¿ãˆ
             switch (attackReport.reportType)
             {
                 case AttackReportType.WeakAttackStart:
-                    // ‰ñ”ğUŒ‚‚Ìê‡‚àƒ‚[ƒVƒ‡ƒ“‚Í‘S‚Ä“¯‚¶ãUŒ‚‚Å‚¢‚¢
-                    // ‘O‰ñ”ğUŒ‚‚É‚È‚é‚©‚ğƒ`ƒFƒbƒN
-                    if (CurrentState.CurrentValue == ActionState.‘O‰ñ”ğ)
+                    // å›é¿æ”»æ’ƒã®å ´åˆã‚‚ãƒ¢ãƒ¼ã‚·ãƒ§ãƒ³ã¯å…¨ã¦åŒã˜å¼±æ”»æ’ƒã§ã„ã„
+                    // å‰å›é¿æ”»æ’ƒã«ãªã‚‹ã‹ã‚’ãƒã‚§ãƒƒã‚¯
+                    if (CurrentState.CurrentValue == ActionState.å‰å›é¿)
                     {
-                        useState = ActionState.‘O‰ñ”ğUŒ‚;
+                        useState = ActionState.å‰å›é¿æ”»æ’ƒ;
                         isCancel = true;
                     }
-                    // ‰¡‰ñ”ğUŒ‚‚É‚È‚é‚©‚ğƒ`ƒFƒbƒN
-                    else if (CurrentState.CurrentValue == ActionState.‰¡‰ñ”ğ)
+                    // æ¨ªå›é¿æ”»æ’ƒã«ãªã‚‹ã‹ã‚’ãƒã‚§ãƒƒã‚¯
+                    else if (CurrentState.CurrentValue == ActionState.æ¨ªå›é¿)
                     {
-                        useState = ActionState.‰¡‰ñ”ğUŒ‚;
+                        useState = ActionState.æ¨ªå›é¿æ”»æ’ƒ;
                         isCancel = true;
                     }
                     else
                     {
-                        useState = ActionState.ãUŒ‚;
+                        useState = ActionState.å¼±æ”»æ’ƒ;
                     }
 
-                    // UŒ‚•ûŒüØ‚è‘Ö‚¦
+                    // æ”»æ’ƒæ–¹å‘åˆ‡ã‚Šæ›¿ãˆ
                     CurrentStance.Value = attackReport.stance;
                     break;
 
-                // ‹­UŒ‚ŠJn
+                // å¼·æ”»æ’ƒé–‹å§‹
                 case AttackReportType.HeavyAttackStart:
-                    // ‹­UŒ‚‚Éó‘ÔØ‚è‘Ö‚¦
-                    useState = ActionState.‹­UŒ‚;
+                    // å¼·æ”»æ’ƒã«çŠ¶æ…‹åˆ‡ã‚Šæ›¿ãˆ
+                    useState = ActionState.å¼·æ”»æ’ƒ;
 
-                    // UŒ‚•ûŒüØ‚è‘Ö‚¦
+                    // æ”»æ’ƒæ–¹å‘åˆ‡ã‚Šæ›¿ãˆ
                     CurrentStance.Value = attackReport.stance;
                     break;
 
-                // ‹­UŒ‚ƒLƒƒƒ“ƒZƒ‹
+                // å¼·æ”»æ’ƒã‚­ãƒ£ãƒ³ã‚»ãƒ«
                 case AttackReportType.HeavyAttackCancel:
-                    useState = ActionState.‹­UŒ‚ƒLƒƒƒ“ƒZƒ‹;
+                    useState = ActionState.å¼·æ”»æ’ƒã‚­ãƒ£ãƒ³ã‚»ãƒ«;
                     isCancel = true;
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }
 
-            // s“®Ø‚è‘Ö‚¦
+            // è¡Œå‹•åˆ‡ã‚Šæ›¿ãˆ
             ChangeState(useState, isCancel);
 
-            // UŒ‚ƒf[ƒ^‚ğİ’è
+            // æ”»æ’ƒãƒ‡ãƒ¼ã‚¿ã‚’è¨­å®š
             _attackInfo.SetInfo(attackReport);
         }
 
         /// <summary>
-        /// UŒ‚ŠÖ˜A‚ÌƒR[ƒ‹ƒoƒbƒN‚ÅŒÄ‚Î‚ê‚éƒƒ\ƒbƒh
-        /// ãUŒ‚‚Æ‹­UŒ‚‚ÌŠJnA‹­UŒ‚ƒLƒƒƒ“ƒZƒ‹‚ğ•ñ‚·‚é
+        /// å›é¿é–¢é€£ã®ã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯ã§å‘¼ã°ã‚Œã‚‹ãƒ¡ã‚½ãƒƒãƒ‰
+        /// å¼±æ”»æ’ƒã¨å¼·æ”»æ’ƒã®é–‹å§‹ã€å¼·æ”»æ’ƒã‚­ãƒ£ãƒ³ã‚»ãƒ«ã‚’å ±å‘Šã™ã‚‹
         /// </summary>
         private void OnMovement(MoveReportInfo moveReport)
         {
             switch (moveReport.reportType)
             {
-                // ’ÊíˆÚ“®
+                // é€šå¸¸ç§»å‹•
                 case MovementReportType.NormalMove:
                     MoveVector.Value = moveReport.moveVector;
-                    ChangeState(ActionState.ƒK[ƒh);
+                    ChangeState(ActionState.ã‚¬ãƒ¼ãƒ‰);
                     break;
                 case MovementReportType.FrontStep:
-                    ChangeState(ActionState.‘O‰ñ”ğ);
+                    ChangeState(ActionState.å‰å›é¿);
+                    _avoidAttackBufferLimit = Time.time + _actionSetting.AvoidAttackInputDuration;
                     break;
                 case MovementReportType.LeftStep:
-                    ChangeState(ActionState.‰¡‰ñ”ğ);
+                    ChangeState(ActionState.æ¨ªå›é¿);
+                    _avoidAttackBufferLimit = Time.time + _actionSetting.AvoidAttackInputDuration;
                     break;
                 case MovementReportType.RightStep:
-                    ChangeState(ActionState.‰¡‰ñ”ğ);
+                    ChangeState(ActionState.æ¨ªå›é¿);
+                    _avoidAttackBufferLimit = Time.time + _actionSetting.AvoidAttackInputDuration;
                     break;
                 case MovementReportType.BackStep:
-                    ChangeState(ActionState.Œã‚ë‰ñ”ğ);
+                    ChangeState(ActionState.å¾Œã‚å›é¿);
                     break;
                 default:
                     break;
@@ -547,73 +578,81 @@ namespace LearningAIGame.CombatSystem.Core
         #endregion
 
         /// <summary>
-        /// s“®Ø‚è‘Ö‚¦‚Ég—p‚·‚éƒƒ\ƒbƒh
+        /// è¡Œå‹•åˆ‡ã‚Šæ›¿ãˆã«ä½¿ç”¨ã™ã‚‹ãƒ¡ã‚½ãƒƒãƒ‰
         /// </summary>
-        /// <param name="newState">Ø‚è‘Ö‚¦æ‚Ìs“®</param>
-        /// <param name="isCnancel">‹­UŒ‚ƒLƒƒƒ“ƒZƒ‹‚È‚Ç‚ÌƒLƒƒƒ“ƒZƒ‹s“®‚Å‚ ‚é‚©</param>
+        /// <param name="newState">åˆ‡ã‚Šæ›¿ãˆå…ˆã®è¡Œå‹•</param>
+        /// <param name="isCnancel">å¼·æ”»æ’ƒã‚­ãƒ£ãƒ³ã‚»ãƒ«ãªã©ã®ã‚­ãƒ£ãƒ³ã‚»ãƒ«è¡Œå‹•ã§ã‚ã‚‹ã‹</param>
         private void ChangeState(ActionState newState, bool isCancel = false)
         {
-            // “¯‚¶ó‘Ô‚Ö‚Ì•ÏX‚Í–³‹
+            // åŒã˜çŠ¶æ…‹ã¸ã®å¤‰æ›´ã¯ç„¡è¦–
             if (newState == CurrentState.CurrentValue)
                 return;
 
-            // ƒLƒƒƒ“ƒZƒ‹s“®‚Ìê‡‹L˜^‚¹‚¸Ø‚è‘Ö‚¦‚é
+            // ã‚­ãƒ£ãƒ³ã‚»ãƒ«è¡Œå‹•ã®å ´åˆè¨˜éŒ²ã›ãšåˆ‡ã‚Šæ›¿ãˆã‚‹
             if (isCancel)
             {
-                // s“®Ø‚è‘Ö‚¦
+                // è¡Œå‹•åˆ‡ã‚Šæ›¿ãˆ
                 CurrentState.Value = newState;
             }
             else
             {
-                // s“®—š—ğ‚Ö‚Ì‹L˜^‘ÎÛŠO‚Å‚È‚¯‚ê‚Î
-                if ((CurrentState.CurrentValue & ActionState.s“®—š—ğ‚É‹L˜^‚µ‚È‚¢) == 0)
+                // è¡Œå‹•å±¥æ­´ã¸ã®è¨˜éŒ²å¯¾è±¡å¤–ã§ãªã‘ã‚Œã°
+                if ((CurrentState.CurrentValue & ActionState.è¡Œå‹•å±¥æ­´ã«è¨˜éŒ²ã—ãªã„) == 0)
                 {
-                    // s“®Ø‚è‘Ö‚¦‘O‚ÉŒ»İ‚Ìs“®‚ğ—š—ğ‚É•Û‘¶
+                    // è¡Œå‹•åˆ‡ã‚Šæ›¿ãˆå‰ã«ç¾åœ¨ã®è¡Œå‹•ã‚’å±¥æ­´ã«ä¿å­˜
                     this._actHistory.Add(CurrentState.CurrentValue);
 
-                    // ‘O‰ñ‚Ìs“®‚ğ•Û‘¶‚·‚é
+                    // å‰å›ã®è¡Œå‹•ã‚’ä¿å­˜ã™ã‚‹
                     LastState = CurrentState.CurrentValue;
                 }
 
-                // s“®Ø‚è‘Ö‚¦
+                // è¡Œå‹•åˆ‡ã‚Šæ›¿ãˆ
                 CurrentState.Value = newState;
+
+                Debug.Log($"[{nameof(StateSystem)}] è¡Œå‹•çŠ¶æ…‹ãŒ {LastState} ã‹ã‚‰ {CurrentState.CurrentValue} ã«åˆ‡ã‚Šæ›¿ã‚ã‚Šã¾ã—ãŸã€‚");
             }
 
-            // ƒAƒNƒVƒ‡ƒ“‚ªØ‚è‘Ö‚í‚Á‚½Û‚ÉˆÚ“®ƒtƒ‰ƒO‚Íˆê“xÁ‚·
+            // ã‚¢ã‚¯ã‚·ãƒ§ãƒ³ãŒåˆ‡ã‚Šæ›¿ã‚ã£ãŸéš›ã«ç§»å‹•ãƒ•ãƒ©ã‚°ã¯ä¸€åº¦æ¶ˆã™
             MoveVector.Value = Vector3.zero;
         }
 
         #endregion
 
-        #region ƒ‰ƒCƒtƒTƒCƒNƒ‹
+        #region ãƒ©ã‚¤ãƒ•ã‚µã‚¤ã‚¯ãƒ«
 
         /// <summary>
-        /// ‰Šú‰»‚ÉƒtƒB[ƒ‹ƒhAReactivePropertyAw“Çİ’è‚ğs‚¤
+        /// åˆæœŸåŒ–æ™‚ã«ãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰ã€ReactivePropertyã€è³¼èª­è¨­å®šã‚’è¡Œã†
         /// </summary>
         private void Awake()
         {
-            // ƒtƒB[ƒ‹ƒh‚Ì‰Šú‰»
+            // ãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰ã®åˆæœŸåŒ–
             _damageSituation = new List<HitSituation>();
             _actHistory = new List<ActionState>();
 
-            // nullƒ`ƒFƒbƒN
+            // ä¸€æ™‚çš„ãªåˆæœŸåŒ–å¯¾å¿œã€‚
+            // ã„ãšã‚Œè¨­å®šãƒ•ã‚¡ã‚¤ãƒ«ã«ç½®ãæ›ãˆ
+            _characterData = new CharacterData(100, 100);
+
+            // nullãƒã‚§ãƒƒã‚¯
             if (_actionSetting == null)
             {
-                Debug.LogError($"[{nameof(StateSystem)}] ActionSetting‚ªİ’è‚³‚ê‚Ä‚¢‚Ü‚¹‚ñI");
+                Debug.LogError($"[{nameof(StateSystem)}] ActionSettingãŒè¨­å®šã•ã‚Œã¦ã„ã¾ã›ã‚“ï¼");
             }
 
-            // ƒŠƒAƒNƒeƒBƒuƒvƒƒpƒeƒB‚Ì‰Šú‰»‚Æ”jŠü“o˜^
-            CurrentState = new ReactiveProperty<ActionState>(ActionState.ƒK[ƒh).AddTo(this);
+            // ãƒªã‚¢ã‚¯ãƒ†ã‚£ãƒ–ãƒ—ãƒ­ãƒ‘ãƒ†ã‚£ã®åˆæœŸåŒ–ã¨ç ´æ£„ç™»éŒ²
+            CurrentState = new ReactiveProperty<ActionState>(ActionState.ã‚¬ãƒ¼ãƒ‰).AddTo(this);
             MoveVector = new ReactiveProperty<Vector3>(Vector3.zero).AddTo(this);
             CurrentStance = new ReactiveProperty<StanceType>(StanceType.Up).AddTo(this);
+
+            SubscribeSystems();
         }
 
         /// <summary>
-        /// ŠeƒVƒXƒeƒ€‚©‚ç‚Ì’Ê’m‚ğw“Ç‚·‚é
+        /// å„ã‚·ã‚¹ãƒ†ãƒ ã‹ã‚‰ã®é€šçŸ¥ã‚’è³¼èª­ã™ã‚‹
         /// </summary>
         private void SubscribeSystems()
         {
-            // ŠeƒVƒXƒeƒ€‚Ìw“Çİ’è
+            // å„ã‚·ã‚¹ãƒ†ãƒ ã®è³¼èª­è¨­å®š
             if (_attackSystem != null)
             {
                 _attackSystem.Observable.Subscribe(OnAttack).AddTo(this);

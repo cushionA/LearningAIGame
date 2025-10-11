@@ -35,6 +35,7 @@ namespace LearningAIGame.CombatSystem.Core
         /// <summary>
         /// 移動に使用するクラス
         /// </summary>
+        [SerializeField]
         protected MoveController moveController;
 
         #endregion
