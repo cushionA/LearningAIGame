@@ -36,7 +36,7 @@ namespace LearningAIGame.CombatSystem.Data
     /// 回避の成功や失敗の報告はダメージシステムの責任
     /// （ヒットや防御が実際に行われ、成功や失敗が評価可能になるから）
     /// </summary>
-    public class MoveReportInfo
+    public struct MoveReportInfo
     {
         /// <summary>
         /// 移動ベクトル

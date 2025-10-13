@@ -4,7 +4,6 @@ using UnityEngine;
 
 namespace LearningAIGame.CombatSystem.Core
 {
-
     /// <summary>
     /// 移動速度管理を担当するコントローラー
     /// </summary>
@@ -27,6 +26,24 @@ namespace LearningAIGame.CombatSystem.Core
         private Rigidbody _rb;
 
         /// <summary>
+        /// 地面検知用のレイキャスト距離
+        /// </summary>
+        [SerializeField]
+        private float _groundCheckDistance = 0.1f;
+
+        /// <summary>
+        /// 地面として認識するレイヤー
+        /// </summary>
+        [SerializeField]
+        private LayerMask _groundLayer = -1;
+
+        /// <summary>
+        /// ローカル座標系で移動するか（true: キャラの向きに沿う、false: ワールド座標）
+        /// </summary>
+        [SerializeField]
+        private bool _useLocalDirection = true;
+
+        /// <summary>
         /// 移動開始時間
         /// </summary>
         private float _moveStartTime;
@@ -37,7 +54,7 @@ namespace LearningAIGame.CombatSystem.Core
         private float _moveDuration;
 
         /// <summary>
-        /// 移動ベクトル
+        /// 移動ベクトル(ローカル座標系またはワールド座標系)
         /// </summary>
         private Vector3 _moveDirection;
 
@@ -47,31 +64,45 @@ namespace LearningAIGame.CombatSystem.Core
         private MoveType _moveType;
 
         /// <summary>
-        /// 通常移動開始（Velocity設定）
+        /// 通常移動開始(Velocity設定)
         /// </summary>
-        /// <param name="moveVector">移動ベクトル</param>
+        /// <param name="moveVector">移動ベクトル(ローカル座標系の場合は自分の向き基準)</param>
         public void MoveStart(Vector3 moveVector)
         {
-            _moveDirection = moveVector;
+            // Y軸成分は無視して水平方向のみ保持
+            Vector3 localDirection = new Vector3(moveVector.x, 0f, moveVector.z);
+
+            // ローカル座標系の場合、ワールド座標に変換
+            _moveDirection = _useLocalDirection
+                ? transform.TransformDirection(localDirection)
+                : localDirection;
+
             _moveType = MoveType.Velocity;
             _moveDuration = 0f;
         }
 
         /// <summary>
-        /// 加速度付き移動開始（AddForce設定）
+        /// 加速度付き移動開始(AddForce設定)
         /// </summary>
-        /// <param name="moveVector">移動ベクトル</param>
+        /// <param name="moveVector">移動ベクトル(ローカル座標系の場合は自分の向き基準)</param>
         /// <param name="moveDuration">移動継続時間</param>
         public void AddForce(Vector3 moveVector, float moveDuration)
         {
-            _moveDirection = moveVector;
+            // Y軸成分は無視して水平方向のみ保持
+            Vector3 localDirection = new Vector3(moveVector.x, 0f, moveVector.z);
+
+            // ローカル座標系の場合、ワールド座標に変換
+            _moveDirection = _useLocalDirection
+                ? transform.TransformDirection(localDirection)
+                : localDirection;
+
             _moveStartTime = Time.time;
             _moveDuration = moveDuration;
             _moveType = MoveType.AddForce;
         }
 
         /// <summary>
-        /// 停止処理（MoveTypeをNoneに設定）
+        /// 停止処理(MoveTypeをNoneに設定)
         /// </summary>
         public void Stop()
         {
@@ -94,22 +125,37 @@ namespace LearningAIGame.CombatSystem.Core
                 return;
             }
 
+            // 現在のY軸速度(重力による落下速度)を保持
+            float verticalVelocity = _rb.linearVelocity.y;
+
             // 移動タイプによって処理を分岐
             switch (_moveType)
             {
                 case MoveType.Velocity:
-                    // 等速運動：速度を直接設定
-                    _rb.linearVelocity = _moveDirection;
+                    // 等速運動:水平方向の速度のみ設定、Y軸は保持
+                    _rb.linearVelocity = new Vector3(
+                        _moveDirection.x,
+                        verticalVelocity,
+                        _moveDirection.z
+                    );
                     break;
 
                 case MoveType.AddForce:
-                    // 加速度付き運動：指数関数的な減衰で自然な力の減衰を表現
+                    // 加速度付き運動:指数関数的な減衰で自然な力の減衰を表現
                     float elapsedTime = Time.time - _moveStartTime;
                     float normalizedTime = elapsedTime / _moveDuration;
 
-                    // 1 - t^2 の減衰カーブ（開始時最大、滑らかに減速）
+                    // 1 - t^2 の減衰カーブ(開始時最大、滑らかに減速)
                     float decayFactor = 1f - (normalizedTime * normalizedTime);
-                    _rb.linearVelocity = _moveDirection * decayFactor;
+
+                    Vector3 horizontalVelocity = _moveDirection * decayFactor;
+
+                    // 水平方向の速度のみ適用、Y軸は保持
+                    _rb.linearVelocity = new Vector3(
+                        horizontalVelocity.x,
+                        verticalVelocity,
+                        horizontalVelocity.z
+                    );
 
                     // 移動継続時間を超えたら停止
                     if (elapsedTime >= _moveDuration)
