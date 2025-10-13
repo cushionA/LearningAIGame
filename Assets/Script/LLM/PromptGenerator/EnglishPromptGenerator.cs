@@ -23,10 +23,10 @@ namespace LLMDataArchitect.Test
             // === Œ»İ‚Ìó‹µ ===
             prompt.AppendLine("## Current Situation");
 
-            var myHp = inputData.MyData.Hp;
+            var myHp = inputData.PlayerData.Hp;
             var enemyHp = inputData.NPCData.Hp;
             var hpDiff = myHp - enemyHp;
-            var myEnergy = inputData.MyData.Energy;
+            var myEnergy = inputData.PlayerData.Energy;
             var enemyEnergy = inputData.NPCData.Energy;
             var energyDiff = myEnergy - enemyEnergy;
 
@@ -147,14 +147,14 @@ namespace LLMDataArchitect.Test
             // === ‘O‰ñ”»’fŠî€‚ÌƒtƒB[ƒhƒoƒbƒN ===
             prompt.AppendLine("## Feedback on Previous Decision Criteria");
 
-            if (inputData.LastStrategy != null)
+            if (inputData.CurrentStrategy != null)
             {
                 // StrategyResult‚©‚ç‘S•]‰¿‚ğæ“¾
                 prompt.AppendLine(inputData.StrategyResult.GetAllConditionEvaluationsEnglish(
-                    inputData.LastStrategy.UŒ‚”»’fŠî€,
-                    inputData.LastStrategy.UŒ‚Œp‘±”»’fŠî€,
-                    inputData.LastStrategy.–hŒä”»’fŠî€,
-                    inputData.LastStrategy.˜A‘±–hŒä”»’fŠî€
+                    inputData.CurrentStrategy.AttackCriteria,
+                    inputData.CurrentStrategy.ContinuousAttackCriteria,
+                    inputData.CurrentStrategy.DefenseCriteria,
+                    inputData.CurrentStrategy.ContinuousDefenseCriteria
                 ));
             }
             else
@@ -280,26 +280,38 @@ namespace LLMDataArchitect.Test
         /// <returns></returns>
         public override string GenerateGrammar()
         {
-            return @"
-root ::= object
-object ::= ""{"" 
-  ws ""\"" ""AnalysisResult"" ""\"" "":"" ws string "",""
-  ws ""\"" ""BasicTactic"" ""\"" "":"" ws basic_tactic_value "",""
-  ws ""\"" ""AttackCriteria"" ""\"" "":"" ws attack_criteria_value "",""
-  ws ""\"" ""ContinuousAttackCriteria"" ""\"" "":"" ws attack_criteria_value "",""
-  ws ""\"" ""DefenseCriteria"" ""\"" "":"" ws defense_criteria_value "",""
-  ws ""\"" ""ContinuousDefenseCriteria"" ""\"" "":"" ws defense_criteria_value
-  ws ""}""
-
-basic_tactic_value ::= ""\"" (""Aggressive"" | ""Defensive"" | ""Adaptive"" | ""Disruptive"" | ""Endurance"") ""\""
-
-attack_criteria_value ::= ""\"" (""Cumulative Probability"" | ""Recent Pattern Focus"" | ""Speed Priority"" | ""Return Priority"" | ""Feint Focus"" | ""Dispersion Focus"" | ""Energy Efficiency"") ""\""
-
-defense_criteria_value ::= ""\"" (""Cumulative Probability"" | ""Recent Pattern Focus"" | ""Counterattack Focus"" | ""Return Priority"" | ""Risk Avoidance"" | ""Counter Priority"" | ""Dispersion Focus"") ""\""
-
-string ::= ""\"" ([^""\\\x00-\x1f] | ""\\"" ([""\\/bfnrt] | ""u"" [0-9a-fA-F]{4})) * ""\""
-ws ::= [ \t\n\r]*
-";
+            // JSON SchemaŒ`®‚Å•Ô‚·
+            return @"{
+  ""type"": ""object"",
+  ""properties"": {
+    ""AnalysisResult"": {
+      ""type"": ""string"",
+      ""maxLength"": 100
+    },
+    ""BasicTactic"": {
+      ""type"": ""string"",
+      ""enum"": [""Aggressive"", ""Defensive"", ""Adaptive"", ""Disruptive"", ""Endurance""]
+    },
+    ""AttackCriteria"": {
+      ""type"": ""string"",
+      ""enum"": [""Cumulative Probability"", ""Recent Pattern Focus"", ""Speed Priority"", ""Return Priority"", ""Feint Focus"", ""Dispersion Focus"", ""Energy Efficiency""]
+    },
+    ""ContinuousAttackCriteria"": {
+      ""type"": ""string"",
+      ""enum"": [""Cumulative Probability"", ""Recent Pattern Focus"", ""Speed Priority"", ""Return Priority"", ""Feint Focus"", ""Dispersion Focus"", ""Energy Efficiency""]
+    },
+    ""DefenseCriteria"": {
+      ""type"": ""string"",
+      ""enum"": [""Cumulative Probability"", ""Recent Pattern Focus"", ""Counterattack Focus"", ""Return Priority"", ""Risk Avoidance"", ""Counter Priority"", ""Dispersion Focus""]
+    },
+    ""ContinuousDefenseCriteria"": {
+      ""type"": ""string"",
+      ""enum"": [""Cumulative Probability"", ""Recent Pattern Focus"", ""Counterattack Focus"", ""Return Priority"", ""Risk Avoidance"", ""Counter Priority"", ""Dispersion Focus""]
+    }
+  },
+  ""required"": [""AnalysisResult"", ""BasicTactic"", ""AttackCriteria"", ""ContinuousAttackCriteria"", ""DefenseCriteria"", ""ContinuousDefenseCriteria""],
+  ""additionalProperties"": false
+}";
         }
 
     }

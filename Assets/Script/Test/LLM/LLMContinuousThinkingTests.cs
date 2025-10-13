@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text;
 using UnityEngine;
 using static LLMDataArchitect.ActionTable;
+using Debug = UnityEngine.Debug;
 
 namespace LLMDataArchitect.Test
 {
@@ -21,6 +22,8 @@ namespace LLMDataArchitect.Test
         English,
         Jap_Rag,
         Eng_Rag,
+        Fixed_Eng,
+        Main,
         Experimental
     }
 
@@ -361,6 +364,9 @@ namespace LLMDataArchitect.Test
             _performanceMetrics = new PerformanceMetrics();
             _ragStatistics = new RAGStatistics();
 
+            // プロンプト生成器を初期化（依存性注入）
+            _promptGenerator = CreatePromptGenerator(_generatorType);
+
             // 出力ディレクトリの作成
             if (!Directory.Exists(_outputDirectoryPath))
             {
@@ -389,8 +395,7 @@ namespace LLMDataArchitect.Test
             // システムプロンプトを設定
             SetupSystemPrompt();
 
-            // プロンプト生成器を初期化（依存性注入）
-            _promptGenerator = CreatePromptGenerator(_generatorType);
+
 
             // テストデータ生成
             GenerateTestData();
@@ -410,11 +415,15 @@ namespace LLMDataArchitect.Test
         /// </summary>
         private PromptGeneratorBase CreatePromptGenerator(PromptGeneratorType type)
         {
+            Debug.Log("プロンプト生成を初期化");
             return type switch
             {
                 PromptGeneratorType.Japanese => new JapanesePromptGenerator(),
                 PromptGeneratorType.English => new EnglishPromptGenerator(),
                 PromptGeneratorType.Jap_Rag => new JapRagPromptGenerator(),
+                PromptGeneratorType.Eng_Rag => new EngRagPromptGenerator(),
+                PromptGeneratorType.Fixed_Eng => new FixedEnglishGenerator(),
+                PromptGeneratorType.Main => new MainPromptGenerator(),
                 _ => new JapanesePromptGenerator()
             };
         }
@@ -424,7 +433,7 @@ namespace LLMDataArchitect.Test
         /// </summary>
         private void SetupSystemPrompt()
         {
-            if (_generatorType == PromptGeneratorType.English)
+            if (_generatorType == PromptGeneratorType.English || _generatorType == PromptGeneratorType.Main)
             {
                 _llmCharacter.prompt = @"You are a tactical combat AI assistant with access to a comprehensive game rules knowledge base.
 Analyze battle data and the provided game rules to make strategic decisions in strict JSON format.
@@ -614,9 +623,19 @@ Use the provided game rules context to inform your tactical decisions.";
         [ContextMenu("サンプルプロンプト表示")]
         public void ShowSamplePrompt()
         {
+            _promptGenerator = CreatePromptGenerator(_generatorType);
             var sampleData = LLMInputData.CreateForTestSituation(_situationType);
             var samplePrompt = _promptGenerator.GeneratePromptByData(sampleData);
             UnityEngine.Debug.Log($"Sample Prompt ({_situationType}):\n{samplePrompt}");
+        }
+
+
+        [ContextMenu("サンプルGrammar表示")]
+        public void ShowSampleGrammar()
+        {
+            _promptGenerator = CreatePromptGenerator(_generatorType);
+            var sampleGrammar = _promptGenerator.GenerateGrammar();
+            UnityEngine.Debug.Log($"Sample Grammar:\n{sampleGrammar}");
         }
 
         [ContextMenu("RAG検索テスト")]
@@ -669,7 +688,7 @@ Use the provided game rules context to inform your tactical decisions.";
                     // 新しい戦況データを生成するが、LastStrategyは保持
                     var newSituation = GetCurrentSituationType(i);
                     var newData = LLMInputData.CreateForTestSituation(newSituation);
-                    newData.LastStrategy = _currentTestData.LastStrategy;
+                    newData.CurrentStrategy = _currentTestData.CurrentStrategy;
                     _currentTestData = newData;
                 }
 
@@ -792,21 +811,21 @@ Use the provided game rules context to inform your tactical decisions.";
             StringBuilder queryBuilder = new StringBuilder();
 
             // 前回の戦術があれば参照
-            if (data.LastStrategy != null)
+            if (data.CurrentStrategy != null)
             {
                 if (_generatorType == PromptGeneratorType.English)
                 {
-                    queryBuilder.Append($"Previous tactics: {data.LastStrategy.基本戦術}. ");
+                    queryBuilder.Append($"Previous tactics: {data.CurrentStrategy.BasicTactic}. ");
                 }
                 else
                 {
-                    queryBuilder.Append($"前回の戦術: {data.LastStrategy.基本戦術}。");
+                    queryBuilder.Append($"前回の戦術: {data.CurrentStrategy.BasicTactic}。");
                 }
             }
 
             // 体力・エネルギー状況に応じたクエリ
-            float healthRatio = data.MyData.Hp / 100f;
-            float energyRatio = data.MyData.Energy / 100f;
+            float healthRatio = data.PlayerData.Hp / 100f;
+            float energyRatio = data.PlayerData.Energy / 100f;
 
             if (_generatorType == PromptGeneratorType.English)
             {
@@ -865,11 +884,11 @@ Use the provided game rules context to inform your tactical decisions.";
                 }
 
                 // LastStrategyを更新（次のイテレーションで使用）
-                _currentTestData.LastStrategy = strategy;
+                _currentTestData.CurrentStrategy = strategy;
 
                 if (_showProgressInConsole)
                 {
-                    UnityEngine.Debug.Log($"LastStrategy更新: 基本戦術={strategy.基本戦術}");
+                    UnityEngine.Debug.Log($"LastStrategy更新: 基本戦術={strategy.BasicTactic}");
                 }
             }
             catch (Exception ex)

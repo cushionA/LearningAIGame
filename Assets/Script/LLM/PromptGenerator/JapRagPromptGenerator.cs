@@ -21,10 +21,10 @@ namespace LLMDataArchitect.Test
             // === 現在の状況 ===
             prompt.AppendLine("## 現在の状況");
 
-            var myHp = inputData.MyData.Hp;
+            var myHp = inputData.PlayerData.Hp;
             var enemyHp = inputData.NPCData.Hp;
             var hpDiff = myHp - enemyHp;
-            var myEnergy = inputData.MyData.Energy;
+            var myEnergy = inputData.PlayerData.Energy;
             var enemyEnergy = inputData.NPCData.Energy;
             var energyDiff = myEnergy - enemyEnergy;
 
@@ -145,7 +145,7 @@ namespace LLMDataArchitect.Test
             // === 前回判断基準のフィードバック ===
             prompt.AppendLine("## 前回判断基準のフィードバック");
 
-            if (inputData.LastStrategy != null)
+            if (inputData.CurrentStrategy != null)
             {
                 // 各判断基準の評価（実際のデータがあれば使用、なければプレースホルダー）
                 // 攻撃時判断基準

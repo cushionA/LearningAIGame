@@ -21,10 +21,10 @@ namespace LLMDataArchitect.Test
             // === 現在の状況 ===
             prompt.AppendLine("## 現在の状況");
 
-            var myHp = inputData.MyData.Hp;
+            var myHp = inputData.PlayerData.Hp;
             var enemyHp = inputData.NPCData.Hp;
             var hpDiff = myHp - enemyHp;
-            var myEnergy = inputData.MyData.Energy;
+            var myEnergy = inputData.PlayerData.Energy;
             var enemyEnergy = inputData.NPCData.Energy;
             var energyDiff = myEnergy - enemyEnergy;
 
@@ -145,7 +145,7 @@ namespace LLMDataArchitect.Test
             // === 前回判断基準のフィードバック ===
             prompt.AppendLine("## 前回判断基準のフィードバック");
 
-            if (inputData.LastStrategy != null)
+            if (inputData.CurrentStrategy != null)
             {
                 // 各判断基準の評価（実際のデータがあれば使用、なければプレースホルダー）
                 // 攻撃時判断基準
@@ -255,27 +255,79 @@ namespace LLMDataArchitect.Test
         /// <returns></returns>
         public override string GenerateGrammar()
         {
-            return @"
-root ::= object
-object ::= ""{"" 
-  ws ""\"" ""分析結果"" ""\"" "":"" ws string "",""
-  ws ""\"" ""基本戦術"" ""\"" "":"" ws basic_tactic_value "",""
-  ws ""\"" ""攻撃時判断基準"" ""\"" "":"" ws attack_criteria_value "",""
-  ws ""\"" ""連続攻撃時判断基準"" ""\"" "":"" ws attack_criteria_value "",""
-  ws ""\"" ""防御時判断基準"" ""\"" "":"" ws defense_criteria_value "",""
-  ws ""\"" ""連続防御時判断基準"" ""\"" "":"" ws defense_criteria_value
-  ws ""}""
-
-basic_tactic_value ::= ""\"" (""攻撃型"" | ""防御型"" | ""対応型"" | ""攪乱型"" | ""持久型"") ""\""
-
-attack_criteria_value ::= ""\"" (""累積確率重視"" | ""直近パターン重視"" | ""速度重視"" | ""リターン重視"" | ""フェイント重視"" | ""分散重視"" | ""エネルギー効率重視"") ""\""
-
-defense_criteria_value ::= ""\"" (""累積確率重視"" | ""直近パターン重視"" | ""反撃重視"" | ""リターン重視"" | ""リスク回避重視"" | ""カウンター重視"" | ""分散重視"") ""\""
-
-string ::= ""\"" ([^""\\\x00-\x1f] | ""\\"" ([""\\/bfnrt] | ""u"" [0-9a-fA-F]{4})) * ""\""
-ws ::= [ \t\n\r]*
-";
+            // JSON Schema形式で返す（日本語仕様）
+            return @"{
+  ""type"": ""object"",
+  ""properties"": {
+    ""分析結果"": {
+      ""type"": ""string"",
+      ""maxLength"": 200
+    },
+    ""基本戦術"": {
+      ""type"": ""string"",
+      ""enum"": [""攻撃型"", ""防御型"", ""適応型"", ""撹乱型"", ""持久型""]
+    },
+    ""攻撃時判断基準"": {
+      ""type"": ""string"",
+      ""enum"": [
+        ""累積確率重視"",
+        ""直近パターン重視"",
+        ""速度重視"",
+        ""リターン重視"",
+        ""フェイント重視"",
+        ""分散重視"",
+        ""エネルギー効率重視""
+      ]
+    },
+    ""連続攻撃時判断基準"": {
+      ""type"": ""string"",
+      ""enum"": [
+        ""累積確率重視"",
+        ""直近パターン重視"",
+        ""速度重視"",
+        ""リターン重視"",
+        ""フェイント重視"",
+        ""分散重視"",
+        ""エネルギー効率重視""
+      ]
+    },
+    ""防御時判断基準"": {
+      ""type"": ""string"",
+      ""enum"": [
+        ""累積確率重視"",
+        ""直近パターン重視"",
+        ""反撃重視"",
+        ""リターン重視"",
+        ""リスク回避重視"",
+        ""カウンター重視"",
+        ""分散重視""
+      ]
+    },
+    ""連続防御時判断基準"": {
+      ""type"": ""string"",
+      ""enum"": [
+        ""累積確率重視"",
+        ""直近パターン重視"",
+        ""反撃重視"",
+        ""リターン重視"",
+        ""リスク回避重視"",
+        ""カウンター重視"",
+        ""分散重視""
+      ]
+    }
+  },
+  ""required"": [
+    ""分析結果"",
+    ""基本戦術"",
+    ""攻撃時判断基準"",
+    ""連続攻撃時判断基準"",
+    ""防御時判断基準"",
+    ""連続防御時判断基準""
+  ],
+  ""additionalProperties"": false
+}";
         }
+
 
     }
 }
