@@ -1,3 +1,4 @@
+using LearningAIGame.CombatSystem.Core;
 using LearningAIGame.CombatSystem.Data;
 using LearningAIGame.CombatSystem.Utilities;
 using Newtonsoft.Json;
@@ -43,10 +44,6 @@ using static LLMDataArchitect.ActionTable;
 // - Validate: 行動テーブルの妥当性検証
 // - GetStats: 攻撃/防御比率の統計情報取得
 // 
-// [BattleAnalysisResult]
-// - 戦闘状況の分析結果（HP割合、体力差、効果的だった攻撃、危険だった防御など）
-// - AnalyzeFromInputData: LLMInputDataから分析結果を計算
-// 
 // [補助クラス]
 // - Vector3JsonConverter: System.Numerics.Vector3のJSON変換
 // - ActionTableStats: 行動テーブルの統計情報（攻撃/防御数、割合、戦術傾向）
@@ -60,8 +57,6 @@ using static LLMDataArchitect.ActionTable;
 //=====================================================================================================================
 namespace LLMDataArchitect
 {
-
-
     /// <summary>
     /// TestSituationType列挙型
     /// </summary>
@@ -78,26 +73,37 @@ namespace LLMDataArchitect
     /// LLMに入力するデータの構造体
     /// 最初にStateSystemからキャラデータとログデータの参照を取る
     /// </summary>
-    public struct LLMInputData
+    public class LLMInputData
     {
-
         /// <summary>
         /// 自分のキャラクターデータ
+        /// stateSystemから参照を取る
         /// </summary>
-        public CharacterData MyData { get; set; }
+        public CharacterData PlayerData
+        {
+            get => _playerData;
+            set => _playerData = value;
+        }
 
         /// <summary>
         /// 敵のキャラクターデータ
+        /// stateSystemから参照を取る
         /// </summary>
-        public CharacterData NPCData { get; set; }
+        public CharacterData NPCData
+        {
+            get => _npcData;
+            set => _npcData = value;
+        }
 
         /// <summary>
         /// 行動ログの集積
+        /// 参照はいらない
         /// </summary>
-        public ActionProbabilityManager ActionLog { get; set; }
+        public ActionProbabilityManager ActionLog { get { return NPCLog.ActionLog; } set { NPCLog.ActionLog = value; } }
 
         /// <summary>
         ///  プレイヤーの行動ログ
+        /// stateSystemから参照を取る
         /// </summary>
         public LLMLogData PlayerLog
         {
@@ -107,6 +113,7 @@ namespace LLMDataArchitect
 
         /// <summary>
         ///  NPCの行動ログ
+        /// stateSystemから参照を取る
         /// </summary>
         public LLMLogData NPCLog
         {
@@ -116,12 +123,23 @@ namespace LLMDataArchitect
 
         /// <summary>
         /// NPCの戦術の成否を保存するデータ
+        /// AIから参照を取る
         /// </summary>
         public StrategyResult StrategyResult
         {
             get => _strategyResult;
             private set => _strategyResult = value;
         }
+
+        /// <summary>
+        /// プレイヤーの行動、与ダメージ/被ダメージログ
+        /// </summary>
+        private CharacterData _playerData;
+
+        /// <summary>
+        /// AIキャラクターの行動、与ダメージ/被ダメージログ
+        /// </summary>
+        private CharacterData _npcData;
 
         /// <summary>
         /// プレイヤーの行動、与ダメージ/被ダメージログ
@@ -140,13 +158,57 @@ namespace LLMDataArchitect
         private StrategyResult _strategyResult;
 
         /// <summary>
-        /// 前回の判断データ
+        /// 現在の判断データ
+        /// LLMプロンプトを生成する際は前回の判断データとして使う
         /// </summary>
-        public StrategyData? LastStrategy { get; set; }
+        public StrategyData? CurrentStrategy { get; set; }
 
         #region データ追加
 
         #endregion
+
+        /// <summary>
+        /// プロンプトを生成後、前回判断を書き換える
+        /// 同時に直近のデータを書き換える処理
+        /// </summary>
+        public void UpdateStrategy(StrategyData newStrategy)
+        {
+            // 直近データをリセット
+            PlayerLog.ClearAllRecentLogs();
+
+            // NPCの直近データをリセット
+            NPCLog.ClearAllRecentLogs();
+
+            // 戦術成否データをリセット
+            _strategyResult.Clear();
+
+            // 新しい戦術データを設定
+            CurrentStrategy = newStrategy;
+        }
+
+        /// <summary>
+        /// コンストラクタ
+        /// </summary>
+        /// <param name="player"></param>
+        /// <param name="npc"></param>
+        public LLMInputData(StateSystem player, StateSystem npc, StrategyResult resultData)
+        {
+            player.Deconstruct(out _playerData, out _playerLog);
+
+            npc.Deconstruct(out _npcData, out _npcLog);
+
+            CurrentStrategy = null;
+
+            _strategyResult = resultData;
+        }
+
+        /// <summary>
+        /// テストデータ用の空コンストラクタ
+        /// </summary>
+        public LLMInputData()
+        {
+
+        }
 
         #region テストデータ生成用
         /// <summary>
@@ -188,15 +250,16 @@ namespace LLMDataArchitect
             var strategyResult = new StrategyResult();
             strategyResult.SetTestData(situationType);
 
-            return new LLMInputData
+            return new LLMInputData()
             {
-                MyData = myData,
+                PlayerData = myData,
                 NPCData = enemyData,
-                ActionLog = actionLog,
                 PlayerLog = playerLog,
                 NPCLog = npcLog,
+                ActionLog = actionLog,
+
                 StrategyResult = strategyResult,
-                LastStrategy = lastStrategy
+                CurrentStrategy = lastStrategy
             };
         }
 
@@ -447,66 +510,14 @@ namespace LLMDataArchitect
         {
             return new StrategyData
             {
-                基本戦術 = "対応型",
-                攻撃時判断基準 = "累積確率重視",
-                攻撃継続時判断基準 = "直近パターン重視",
-                防御時判断基準 = "累積確率重視",
-                連続防御時判断基準 = "反撃"
+                BasicTactic = "対応型",
+                AttackCriteria = "累積確率重視",
+                ContinuousAttackCriteria = "直近パターン重視",
+                DefenseCriteria = "累積確率重視",
+                ContinuousDefenseCriteria = "反撃"
             };
         }
 
         #endregion
-    }
-
-    /// <summary>
-    /// プロンプト分析用の計算結果クラス
-    /// </summary>
-    public class BattleAnalysisResult
-    {
-        /// <summary>
-        /// 自分のHP割合
-        /// </summary>
-        public float MyHpPercentage { get; set; }
-
-        /// <summary>
-        /// 敵のHP割合
-        /// </summary>
-        public float EnemyHpPercentage { get; set; }
-
-        /// <summary>
-        /// 体力差（自分% - 敵%）
-        /// </summary>
-        public float HpDifference { get; set; }
-
-        /// <summary>
-        /// 自分のエネルギー割合
-        /// </summary>
-        public float MyEnergyPercentage { get; set; }
-
-        /// <summary>
-        /// 効果的だった攻撃の説明
-        /// </summary>
-        public string EffectiveAttack { get; set; } = "";
-
-        /// <summary>
-        /// 危険だった防御の説明
-        /// </summary>
-        public string DangerousDefense { get; set; } = "";
-
-        /// <summary>
-        /// 敵の攻撃傾向
-        /// </summary>
-        public string EnemyAttackTendency { get; set; } = "";
-
-        /// <summary>
-        /// 決定された戦術タイプ
-        /// </summary>
-        public string TacticType { get; set; } = "";
-
-        /// <summary>
-        /// 計算結果の文字列表現
-        /// </summary>
-        public string CalculationSummary =>
-            $"自分HP{MyHpPercentage:F0}% 敵HP{EnemyHpPercentage:F0}% 差{HpDifference:+0;-0;0}P エネルギー{MyEnergyPercentage:F0}%";
     }
 }

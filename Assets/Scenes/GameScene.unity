@@ -428,7 +428,7 @@ MonoBehaviour:
   dontDestroyOnLoad: 1
   contextSize: 3549
   batchSize: 512
-  model: gemma-2-2b-jpn-it-IQ4_XS.gguf
+  model: gemma-2-2b-it-IQ4_XS.gguf
   chatTemplate: gemma
   lora: 
   loraWeights: 
@@ -509,17 +509,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cde58c20aff33f74ca4a79d64a46b7ad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LLMDataArchitectTest.Scene.SceneLLMContinuousThinkingTest
-  _testIterations: 3
+  _testIterations: 10
   _delayBetweenTests: 2
   _autoStartOnPlay: 1
   _generateRandomDataEachIteration: 1
-  _generatorType: 2
+  _generatorType: 5
   _outputDirectoryPath: Assets/LLMTestResults
   _filePrefix: LLMTest
   _llmCharacter: {fileID: 1262174236}
   _timeoutSeconds: 30
   _rag: {fileID: 1262174242}
-  _useRAG: 1
+  _useRAG: 0
   _ragTopK: 3
   _ragDistanceThreshold: 0.8
   _showRAGResults: 1
@@ -538,7 +538,7 @@ MonoBehaviour:
   - {fileID: 4900000, guid: c2e818ffafe2f19419b832cc94aad66f, type: 3}
   _ragFolderPath: Assets/Resources/GameRules
   _autoConfigureLLM: 0
-  _useGrammar: 0
+  _useGrammar: 1
   _situationType: 1
   _useMixedSituations: 1
   _showProgressInConsole: 1

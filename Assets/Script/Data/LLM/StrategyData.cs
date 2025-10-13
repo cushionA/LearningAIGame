@@ -1,4 +1,5 @@
 using Newtonsoft.Json;
+using System;
 using System.Linq;
 using UnityEngine;
 
@@ -15,32 +16,32 @@ namespace LLMDataArchitect
         /// <summary>
         /// Šî–{íp
         /// </summary>
-        public string •ªÍŒ‹‰Ê { get; set; }
+        public string AnalysisResult { get; set; }
 
         /// <summary>
         /// Šî–{íp
         /// </summary>
-        public string Šî–{íp { get; set; }
+        public string BasicTactic { get; set; }
 
         /// <summary>
         /// UŒ‚”»’fŠî€
         /// </summary>
-        public string UŒ‚”»’fŠî€ { get; set; }
+        public string AttackCriteria { get; set; }
 
         /// <summary>
         /// UŒ‚Œp‘±”»’fŠî€
         /// </summary>
-        public string UŒ‚Œp‘±”»’fŠî€ { get; set; }
+        public string ContinuousAttackCriteria { get; set; }
 
         /// <summary>
         /// –hŒä”»’fŠî€
         /// </summary>
-        public string –hŒä”»’fŠî€ { get; set; }
+        public string DefenseCriteria { get; set; }
 
         /// <summary>
         /// ˜A‘±–hŒä”»’fŠî€
         /// </summary>
-        public string ˜A‘±–hŒä”»’fŠî€ { get; set; }
+        public string ContinuousDefenseCriteria { get; set; }
 
         /// <summary>
         /// JSONŒ`®‚Ì•¶š—ñ‚É•ÏŠ·
@@ -48,14 +49,15 @@ namespace LLMDataArchitect
         public string ToJson()
         {
             return $@"{{
-  ""•ªÍŒ‹‰Ê"": ""{•ªÍŒ‹‰Ê}"",
-  ""Šî–{íp"": ""{Šî–{íp}"",
-  ""UŒ‚”»’fŠî€"": ""{UŒ‚”»’fŠî€}"",
-  ""UŒ‚Œp‘±”»’fŠî€"": ""{UŒ‚Œp‘±”»’fŠî€}"",
-  ""–hŒä”»’fŠî€"": ""{–hŒä”»’fŠî€}"",
-  ""˜A‘±–hŒä”»’fŠî€"": ""{˜A‘±–hŒä”»’fŠî€}""
+  ""AnalysisResult"": ""{AnalysisResult}"",
+  ""BasicTactic"": ""{BasicTactic}"",
+  ""AttackCriteria"": ""{AttackCriteria}"",
+  ""ContinuousAttackCriteria"": ""{ContinuousAttackCriteria}"",
+  ""DefenseCriteria"": ""{DefenseCriteria}"",
+  ""ContinuousDefenseCriteria"": ""{ContinuousDefenseCriteria}""
 }}";
         }
+
         /// <summary>
         /// JSON•¶š—ñ‚©‚çí—ªƒf[ƒ^‚ğ‰ğÍi“ú–{Œê”Åj
         /// </summary>
@@ -64,29 +66,69 @@ namespace LLMDataArchitect
             // ŠÈˆÕ“I‚ÈJSON‰ğÍiÀÛ‚É‚ÍNewtonsoft.Json‚È‚Ç‚ğg—p‚·‚é‚±‚Æ‚ğ„§j
             var strategy = new StrategyData();
             // ƒvƒƒpƒeƒB‚Ì’ŠoiŠÈˆÕÀ‘•j
-            strategy.•ªÍŒ‹‰Ê = ExtractJsonValue(json, "•ªÍŒ‹‰Ê");
-            strategy.Šî–{íp = ExtractJsonValue(json, "Šî–{íp");
-            strategy.UŒ‚”»’fŠî€ = ExtractJsonValue(json, "UŒ‚”»’fŠî€");
-            strategy.UŒ‚Œp‘±”»’fŠî€ = ExtractJsonValue(json, "˜A‘±UŒ‚”»’fŠî€");
-            strategy.–hŒä”»’fŠî€ = ExtractJsonValue(json, "–hŒä”»’fŠî€");
-            strategy.˜A‘±–hŒä”»’fŠî€ = ExtractJsonValue(json, "˜A‘±–hŒä”»’fŠî€");
+            strategy.AnalysisResult = ExtractJsonValue(json, "•ªÍŒ‹‰Ê");
+            strategy.BasicTactic = ExtractJsonValue(json, "Šî–{íp");
+            strategy.AttackCriteria = ExtractJsonValue(json, "UŒ‚”»’fŠî€");
+            strategy.ContinuousAttackCriteria = ExtractJsonValue(json, "˜A‘±UŒ‚”»’fŠî€\"");
+            strategy.DefenseCriteria = ExtractJsonValue(json, "–hŒä”»’fŠî€");
+            strategy.ContinuousDefenseCriteria = ExtractJsonValue(json, "˜A‘±–hŒä”»’fŠî€");
             return strategy;
         }
 
         /// <summary>
+        /// JSON•¶š—ñ‚©‚çí—ªƒf[ƒ^‚ğˆÀ‘S‚É‰ğÍi‰pŒê”Åj
+        /// —áŠO‚ğ”­¶‚³‚¹‚¸A¬Œ÷/¸”s‚ğ•Ô‚µ‚Ü‚·B
+        /// </summary>
+        /// <param name="json">JSON•¶š—ñ</param>
+        /// <returns>(‰ğÍ¬Œ÷, í—ªƒf[ƒ^)‚Ìƒ^ƒvƒ‹B¸”s‚Ístrategy‚Ínull</returns>
+        public static (bool isSuccess, StrategyData strategy) TryFromJsonEnglish(string json)
+        {
+            try
+            {
+                // ŠÈˆÕ“I‚ÈJSON‰ğÍiÀÛ‚É‚ÍNewtonsoft.Json‚È‚Ç‚ğg—p‚·‚é‚±‚Æ‚ğ„§j
+                var strategy = new StrategyData();
+
+                // ƒvƒƒpƒeƒB‚Ì’Šo
+                strategy.AnalysisResult = ExtractJsonValue(json, "AnalysisResult");
+                strategy.BasicTactic = ExtractJsonValue(json, "BasicTactic");
+                strategy.AttackCriteria = ExtractJsonValue(json, "AttackCriteria");
+                strategy.ContinuousAttackCriteria = ExtractJsonValue(json, "ContinuousAttackCriteria");
+                strategy.DefenseCriteria = ExtractJsonValue(json, "DefenseCriteria");
+                strategy.ContinuousDefenseCriteria = ExtractJsonValue(json, "ContinuousDefenseCriteria");
+
+                // •K{ƒtƒB[ƒ‹ƒh‚ÌŒŸØ
+                if (string.IsNullOrEmpty(strategy.BasicTactic) ||
+                    string.IsNullOrEmpty(strategy.AttackCriteria) ||
+                    string.IsNullOrEmpty(strategy.ContinuousAttackCriteria) ||
+                    string.IsNullOrEmpty(strategy.DefenseCriteria) ||
+                    string.IsNullOrEmpty(strategy.ContinuousDefenseCriteria))
+                {
+                    return (false, null);
+                }
+
+                return (true, strategy);
+            }
+            catch (Exception ex)
+            {
+                // —áŠO‚ª”­¶‚µ‚½ê‡‚àfalse‚ğ•Ô‚·iƒfƒoƒbƒO—p‚ÉƒƒOo—Íj
+                Debug.LogWarning($"JSON‰ğÍ’†‚É—áŠO‚ª”­¶‚µ‚Ü‚µ‚½: {ex.Message}");
+                return (false, null);
+            }
+        }
+
+        /// <summary>
         /// JSON•¶š—ñ‚©‚çí—ªƒf[ƒ^‚ğ‰ğÍi‰pŒê”Åj
+        /// —áŠO‚ª”­¶‚·‚é‰Â”\«‚ª‚ ‚é‚½‚ßATryFromJsonEnglish‚Ìg—p‚ğ„§
         /// </summary>
         public static StrategyData FromJsonEnglish(string json)
         {
-            // ŠÈˆÕ“I‚ÈJSON‰ğÍiÀÛ‚É‚ÍNewtonsoft.Json‚È‚Ç‚ğg—p‚·‚é‚±‚Æ‚ğ„§j
-            var strategy = new StrategyData();
-            // ƒvƒƒpƒeƒB‚Ì’ŠoiŠÈˆÕÀ‘•j
-            strategy.•ªÍŒ‹‰Ê = ExtractJsonValue(json, "AnalysisResult");
-            strategy.Šî–{íp = ExtractJsonValue(json, "BasicTactic");
-            strategy.UŒ‚”»’fŠî€ = ExtractJsonValue(json, "AttackCriteria");
-            strategy.UŒ‚Œp‘±”»’fŠî€ = ExtractJsonValue(json, "ContinuousAttackCriteria");
-            strategy.–hŒä”»’fŠî€ = ExtractJsonValue(json, "DefenseCriteria");
-            strategy.˜A‘±–hŒä”»’fŠî€ = ExtractJsonValue(json, "ContinuousDefenseCriteria");
+            var (isSuccess, strategy) = TryFromJsonEnglish(json);
+
+            if (!isSuccess)
+            {
+                throw new JsonException("JSON‰ğÍ‚É¸”s‚µ‚Ü‚µ‚½B");
+            }
+
             return strategy;
         }
 
@@ -107,11 +149,11 @@ namespace LLMDataArchitect
         {
             return new StrategyData
             {
-                Šî–{íp = "‘Î‰Œ^",
-                UŒ‚”»’fŠî€ = "—İÏŠm—¦d‹",
-                UŒ‚Œp‘±”»’fŠî€ = "’¼‹ßƒpƒ^[ƒ“d‹",
-                –hŒä”»’fŠî€ = "—İÏŠm—¦d‹",
-                ˜A‘±–hŒä”»’fŠî€ = "”½Œ‚"
+                BasicTactic = "‘Î‰Œ^",
+                AttackCriteria = "—İÏŠm—¦d‹",
+                ContinuousAttackCriteria = "’¼‹ßƒpƒ^[ƒ“d‹",
+                DefenseCriteria = "—İÏŠm—¦d‹",
+                ContinuousDefenseCriteria = "”½Œ‚"
             };
         }
 
@@ -122,11 +164,11 @@ namespace LLMDataArchitect
         {
             return new StrategyData
             {
-                Šî–{íp = "UŒ‚Œ^",
-                UŒ‚”»’fŠî€ = "ƒŠƒ^[ƒ“d‹",
-                UŒ‚Œp‘±”»’fŠî€ = "ƒŠƒ^[ƒ“d‹",
-                –hŒä”»’fŠî€ = "”½Œ‚",
-                ˜A‘±–hŒä”»’fŠî€ = "ƒJƒEƒ“ƒ^["
+                BasicTactic = "UŒ‚Œ^",
+                AttackCriteria = "ƒŠƒ^[ƒ“d‹",
+                ContinuousAttackCriteria = "ƒŠƒ^[ƒ“d‹",
+                DefenseCriteria = "”½Œ‚",
+                ContinuousDefenseCriteria = "ƒJƒEƒ“ƒ^["
             };
         }
 
@@ -137,11 +179,11 @@ namespace LLMDataArchitect
         {
             return new StrategyData
             {
-                Šî–{íp = "–hŒäŒ^",
-                UŒ‚”»’fŠî€ = "‘¬“xd‹",
-                UŒ‚Œp‘±”»’fŠî€ = "‘¬“xd‹",
-                –hŒä”»’fŠî€ = "¶‘¶d‹",
-                ˜A‘±–hŒä”»’fŠî€ = "‰ñ”ğd‹"
+                BasicTactic = "–hŒäŒ^",
+                AttackCriteria = "‘¬“xd‹",
+                ContinuousAttackCriteria = "‘¬“xd‹",
+                DefenseCriteria = "¶‘¶d‹",
+                ContinuousDefenseCriteria = "‰ñ”ğd‹"
             };
         }
 
@@ -152,11 +194,11 @@ namespace LLMDataArchitect
         {
             return new StrategyData
             {
-                Šî–{íp = "‹vŒ^",
-                UŒ‚”»’fŠî€ = "ƒGƒlƒ‹ƒM[Œø—¦d‹",
-                UŒ‚Œp‘±”»’fŠî€ = "ƒGƒlƒ‹ƒM[Œø—¦d‹",
-                –hŒä”»’fŠî€ = "ƒGƒlƒ‹ƒM[d‹",
-                ˜A‘±–hŒä”»’fŠî€ = "ƒGƒlƒ‹ƒM[d‹"
+                BasicTactic = "‹vŒ^",
+                AttackCriteria = "ƒGƒlƒ‹ƒM[Œø—¦d‹",
+                ContinuousAttackCriteria = "ƒGƒlƒ‹ƒM[Œø—¦d‹",
+                DefenseCriteria = "ƒGƒlƒ‹ƒM[d‹",
+                ContinuousDefenseCriteria = "ƒGƒlƒ‹ƒM[d‹"
             };
         }
 
@@ -175,33 +217,33 @@ namespace LLMDataArchitect
                 "”½Œ‚", "ƒJƒEƒ“ƒ^[", "¶‘¶d‹", "•ªUd‹", "‰ñ”ğd‹"
             };
 
-            if (!validBasicTactics.Contains(Šî–{íp))
+            if (!validBasicTactics.Contains(BasicTactic))
             {
-                errorMessage = $"–³Œø‚ÈŠî–{íp: {Šî–{íp}";
+                errorMessage = $"–³Œø‚ÈŠî–{íp: {BasicTactic}";
                 return false;
             }
 
-            if (!validAttackCriteria.Contains(UŒ‚”»’fŠî€))
+            if (!validAttackCriteria.Contains(AttackCriteria))
             {
-                errorMessage = $"–³Œø‚ÈUŒ‚”»’fŠî€: {UŒ‚”»’fŠî€}";
+                errorMessage = $"–³Œø‚ÈUŒ‚”»’fŠî€: {AttackCriteria}";
                 return false;
             }
 
-            if (!validAttackCriteria.Contains(UŒ‚Œp‘±”»’fŠî€))
+            if (!validAttackCriteria.Contains(ContinuousAttackCriteria))
             {
-                errorMessage = $"–³Œø‚ÈUŒ‚Œp‘±”»’fŠî€: {UŒ‚Œp‘±”»’fŠî€}";
+                errorMessage = $"–³Œø‚ÈUŒ‚Œp‘±”»’fŠî€: {ContinuousAttackCriteria}";
                 return false;
             }
 
-            if (!validDefenseCriteria.Contains(–hŒä”»’fŠî€))
+            if (!validDefenseCriteria.Contains(DefenseCriteria))
             {
-                errorMessage = $"–³Œø‚È–hŒä”»’fŠî€: {–hŒä”»’fŠî€}";
+                errorMessage = $"–³Œø‚È–hŒä”»’fŠî€: {DefenseCriteria}";
                 return false;
             }
 
-            if (!validDefenseCriteria.Contains(˜A‘±–hŒä”»’fŠî€))
+            if (!validDefenseCriteria.Contains(ContinuousDefenseCriteria))
             {
-                errorMessage = $"–³Œø‚È˜A‘±–hŒä”»’fŠî€: {˜A‘±–hŒä”»’fŠî€}";
+                errorMessage = $"–³Œø‚È˜A‘±–hŒä”»’fŠî€: {ContinuousDefenseCriteria}";
                 return false;
             }
 
