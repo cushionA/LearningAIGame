@@ -275,7 +275,7 @@ namespace LearningAIGame.CombatSystem.Setting
         /// <summary>‰ñ”ğ‚Ì–³“G”»’èŒp‘±ŠÔ</summary>
         public float AvoidInvincibleDuration => _avoidInvincibleDuration;
         /// <summary>‰ñ”ğUŒ‚‚Ì“ü—Í—P—\ŠÔ</summary>
-        public float AvoidAttackInputDuration => _avoidInvincibleDuration * 0.5f;
+        public float AvoidAttackInputDuration => _avoidInvincibleDuration * 0.7f;
 
         #endregion
 
