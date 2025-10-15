@@ -1,6 +1,7 @@
 ﻿using LearningAIGame.CombatSystem.Data;
 using LearningAIGame.CombatSystem.Setting;
 using LearningAIGame.CombatSystem.Systems;
+using LearningAIGame.CombatSystem.Utilities;
 using LLMDataArchitect;
 using LLMDataArchitectTest;
 using Newtonsoft.Json;
@@ -155,18 +156,6 @@ namespace LearningAIGame.CombatSystem.Core
         private CharacterData _characterData;
 
         /// <summary>
-        /// 攻撃を受けた際の状況を記録する
-        /// LLMへの報告用
-        /// </summary>
-        private List<HitSituation> _damageSituation;
-
-        /// <summary>
-        /// 自分の行動を記録するリスト
-        /// LLMへの報告用
-        /// </summary>
-        private List<ActionState> _actHistory;
-
-        /// <summary>
         /// 攻撃の実行情報
         /// コールバックとプロパティを通じてアクセス
         /// </summary>
@@ -177,6 +166,11 @@ namespace LearningAIGame.CombatSystem.Core
         /// コールバックとメソッドを通じてのみアクセス
         /// </summary>
         private DefenseInfo _defenseInfo;
+
+        /// <summary>
+        /// LLMプロンプト生成用に行動や攻撃を記録するための履歴
+        /// </summary>
+        private LLMLogData _llmLogData;
 
         /// <summary>
         /// 行動硬直を記録する変数
@@ -374,15 +368,14 @@ namespace LearningAIGame.CombatSystem.Core
 
         /// <summary>
         /// LLMへの出力データ作成用のデコンストラクタ
+        /// ここからまず参照を取る
         /// </summary>
-        /// <param name="hitSituations"></param>
-        /// <param name="actionHistory"></param>
         /// <param name="characterData"></param>
-        public void Deconstruct(out HitSituation[] hitSituations, out ActionState[] actionHistory, out CharacterData characterData)
+        /// <param name="logData"></param>
+        public void Deconstruct(out CharacterData characterData, out LLMLogData logData)
         {
-            hitSituations = _damageSituation.ToArray();
-            actionHistory = _actHistory.ToArray();
             characterData = _characterData;
+            logData = _llmLogData;
         }
 
         #endregion
@@ -408,6 +401,9 @@ namespace LearningAIGame.CombatSystem.Core
             {
                 ChangeState(ActionState.弱攻撃ガード);
             }
+
+            // 被弾状況を追加
+            _llmLogData.AddHitSituationLog(new HitSituation(hitReport));
         }
 
         /// <summary>
@@ -425,6 +421,7 @@ namespace LearningAIGame.CombatSystem.Core
                 if (_characterData.IsDead)
                 {
                     ChangeState(ActionState.死亡);
+                    return;
                 }
 
                 // 弱攻撃の場合
@@ -436,9 +433,6 @@ namespace LearningAIGame.CombatSystem.Core
                 {
                     ChangeState(ActionState.大怯み);
                 }
-
-                // 被弾状況を追加
-                _damageSituation.Add(new HitSituation(damageReport));
             }
             // 防御成功した場合
             else
@@ -459,6 +453,9 @@ namespace LearningAIGame.CombatSystem.Core
                     _characterData.RecoverEnergyByRate(_actionSetting.BlockingSuccessEnergyRecovery);
                 }
             }
+
+            // 被ダメージ状況を追加
+            _llmLogData.AddDamageSituationLog(new HitSituation(damageReport));
         }
 
         /// <summary>
@@ -600,7 +597,7 @@ namespace LearningAIGame.CombatSystem.Core
                 if ((CurrentState.CurrentValue & ActionState.行動履歴に記録しない) == 0)
                 {
                     // 行動切り替え前に現在の行動を履歴に保存
-                    this._actHistory.Add(CurrentState.CurrentValue);
+                    _llmLogData.AddActionLog(CurrentState.CurrentValue);
 
                     // 前回の行動を保存する
                     LastState = CurrentState.CurrentValue;
@@ -626,8 +623,7 @@ namespace LearningAIGame.CombatSystem.Core
         private void Awake()
         {
             // フィールドの初期化
-            _damageSituation = new List<HitSituation>();
-            _actHistory = new List<ActionState>();
+            _llmLogData = new LLMLogData(7, 7, 7);
 
             // 一時的な初期化対応。
             // いずれ設定ファイルに置き換え
