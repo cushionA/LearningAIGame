@@ -179,7 +179,7 @@ namespace LLMDataArchitect.Test
             prompt.AppendLine("- Analyze the cause of stalemate (both have countered each other, lack of decisive moves, etc.)");
             prompt.AppendLine("- Consider tactical changes to create momentum");
             prompt.AppendLine();
-            prompt.AppendLine(GenerateFixedSectionEnglish());
+            prompt.AppendLine(GenerateFixedSection());
             return prompt.ToString();
         }
 
@@ -191,66 +191,117 @@ namespace LLMDataArchitect.Test
         }
 
         /// <summary>
-        /// 英語版の固定部分(システムプロンプト)を生成
+        /// 固定プロンプトセクション（Output Format Requirements）を生成
+        /// LLMへのJSON出力形式、利用可能な戦術オプション、プロパティ説明を含む
+        /// このメソッドは初回のみ実行され、結果はキャッシュされる
         /// </summary>
-        public string GenerateFixedSectionEnglish()
+        /// <returns>生成された固定プロンプトセクション</returns>
+        public override string GenerateFixedSection()
         {
             var prompt = new StringBuilder();
-            prompt.AppendLine("---");
-            prompt.AppendLine("## System Prompt");
-            prompt.AppendLine("- You MUST respond with valid JSON format only");
-            prompt.AppendLine("- Do NOT include any explanatory text, comments, or markdown formatting");
-            prompt.AppendLine("- Do NOT use code blocks (```json) or any other decorations");
-            prompt.AppendLine("- The entire response must be parsable JSON starting with { and ending with }");
-            prompt.AppendLine("- All string values must be properly escaped and enclosed in quotes");
-            prompt.AppendLine("- If any property in the output JSON does not contain a valid value, it will be considered an error");
+
+            // === システムプロンプトとしてのロール定義 ===
+            prompt.AppendLine("You are a tactical combat AI advisor. Your role is to analyze battle situations and provide strategic decisions in strict JSON format.");
             prompt.AppendLine();
-            prompt.AppendLine("### Basic Tactic Types");
-            prompt.AppendLine("- **Aggressive**: High risk high return, high attack frequency");
-            prompt.AppendLine("- **Defensive**: Low risk low return, survival priority, only attack when hit is guaranteed");
-            prompt.AppendLine("- **Adaptive**: Balance priority, flexible based on situation");
-            prompt.AppendLine("- **Disruptive**: Unexpected movements, tactics to break down defensive opponents");
-            prompt.AppendLine("- **Endurance**: Energy management is top priority, energy-saving actions for long battles");
+
+            // === 戦術ガイドライン ===
+            prompt.AppendLine("# Tactical Decision Guidelines");
             prompt.AppendLine();
-            prompt.AppendLine("## Attack Decision Criteria (Attack Decision Indicators)");
-            prompt.AppendLine("- Cumulative Probability: Attack with highest success rate from all action history");
-            prompt.AppendLine("- Recent Pattern Focus: Select attacks with high success probability based on enemy's recent attack patterns");
-            prompt.AppendLine("- Speed Priority: Low risk, low return, high turnover rate, effective against feints");
-            prompt.AppendLine("- Return Priority: High return, high risk");
-            prompt.AppendLine("- Feint Focus: Minimum risk, no return, observe enemy reaction");
-            prompt.AppendLine("- Dispersion Focus: Scatter actions to avoid pattern recognition");
-            prompt.AppendLine("- Energy Efficiency: Prioritize energy recovery, avoid actions");
+            prompt.AppendLine("## When DOMINANT/ADVANTAGE:");
+            prompt.AppendLine("- Use 'Aggressive' or 'Disruptive' to secure victory quickly");
+            prompt.AppendLine("- Focus on high-damage attacks to finish the battle");
             prompt.AppendLine();
-            prompt.AppendLine("## Defense Decision Criteria (Defense Decision Indicators)");
-            prompt.AppendLine("- Cumulative Probability: Defense with highest success rate from all action history");
-            prompt.AppendLine("- Recent Pattern Focus: Select actions with high success probability based on enemy's recent attack patterns");
-            prompt.AppendLine("- Counterattack Focus: Medium risk, medium return, seize attack initiative");
-            prompt.AppendLine("- Return Priority: Emphasize return on success");
-            prompt.AppendLine("- Risk Avoidance: Focus on defending against enemy's most powerful attacks");
-            prompt.AppendLine("- Counter Priority: Meta against high attack frequency opponents, high risk on failure");
-            prompt.AppendLine("- Dispersion Focus: Scatter defense patterns to avoid recognition");
+            prompt.AppendLine("## When EVENLY MATCHED:");
+            prompt.AppendLine("- Use 'Adaptive' to remain flexible");
+            prompt.AppendLine("- Create opportunities through varied tactics");
             prompt.AppendLine();
-            prompt.AppendLine("## Output Format");
-            prompt.AppendLine("Fill in all property values of the following Json data structure and output as a string.");
-            prompt.AppendLine("For each property, select and enter one most appropriate option from the basic tactic types or decision criteria mentioned above.");
-            prompt.AppendLine("There must be absolutely no missing property keys or values.");
+            prompt.AppendLine("## When DISADVANTAGE/CRITICAL:");
+            prompt.AppendLine("- Use 'Defensive' or 'Endurance' to survive");
+            prompt.AppendLine("- Prioritize energy management and damage avoidance");
+            prompt.AppendLine("- Use 'Energy Efficiency' for attacks, 'Risk Avoidance' for defense");
+            prompt.AppendLine();
+
+            // === 出力形式要件 ===
+            prompt.AppendLine("# Output Format Requirements");
+            prompt.AppendLine();
+
+            // JSON出力の厳密なルール定義
+            prompt.AppendLine("## Critical JSON Rules");
+            prompt.AppendLine("1. Output ONLY pure JSON - no markdown, no code blocks, no explanations");
+            prompt.AppendLine("2. Start directly with { and end with }");
+            prompt.AppendLine("3. NEVER write ```json or ``` markers");
+            prompt.AppendLine("4. ALL properties must contain valid values from the options below");
+            prompt.AppendLine("5. NEVER use 'None' or leave any field empty");
+            prompt.AppendLine();
+
+            // === 利用可能な戦術オプション ===
+            prompt.AppendLine("# Available Tactical Options");
+            prompt.AppendLine();
+
+            // 基本戦術タイプ（5種類）
+            prompt.AppendLine("## BasicTactic (Choose ONE):");
+            prompt.AppendLine("- **Aggressive**: High risk, high damage, fast victory");
+            prompt.AppendLine("- **Defensive**: Low risk, survival priority, attack only when safe");
+            prompt.AppendLine("- **Adaptive**: Balanced approach, flexible to situation");
+            prompt.AppendLine("- **Disruptive**: Unpredictable moves to break enemy rhythm");
+            prompt.AppendLine("- **Endurance**: Energy conservation for prolonged battle");
+            prompt.AppendLine();
+
+            // 攻撃判断基準（7種類）
+            prompt.AppendLine("## AttackCriteria & ContinuousAttackCriteria (Choose ONE for each):");
+            prompt.AppendLine("- **Cumulative Probability**: Use historically most successful attacks");
+            prompt.AppendLine("- **Recent Pattern Focus**: Counter enemy's recent attack patterns");
+            prompt.AppendLine("- **Speed Priority**: Fast, low-risk attacks");
+            prompt.AppendLine("- **Return Priority**: High-damage, high-risk attacks");
+            prompt.AppendLine("- **Feint Focus**: Feints to observe enemy reactions");
+            prompt.AppendLine("- **Dispersion Focus**: Vary attacks to avoid predictability");
+            prompt.AppendLine("- **Energy Efficiency**: Minimal attacks to conserve energy (use in desperate situations)");
+            prompt.AppendLine();
+
+            // 防御判断基準（7種類）
+            prompt.AppendLine("## DefenseCriteria & ContinuousDefenseCriteria (Choose ONE for each):");
+            prompt.AppendLine("- **Cumulative Probability**: Use historically most successful defenses");
+            prompt.AppendLine("- **Recent Pattern Focus**: Counter enemy's recent attack patterns");
+            prompt.AppendLine("- **Counterattack Focus**: Risky counters to seize initiative");
+            prompt.AppendLine("- **Return Priority**: High-reward defensive moves");
+            prompt.AppendLine("- **Risk Avoidance**: Defend against enemy's strongest attacks");
+            prompt.AppendLine("- **Counter Priority**: Counter-heavy style (high risk if timed wrong)");
+            prompt.AppendLine("- **Dispersion Focus**: Vary defenses to avoid predictability");
+            prompt.AppendLine();
+
+            // === 必須JSON構造の例示 ===
+            prompt.AppendLine("# Required JSON Structure");
+            prompt.AppendLine();
+            prompt.AppendLine("You must always respond with this exact structure:");
             prompt.AppendLine();
             prompt.AppendLine("{");
-            prompt.AppendLine("  \"AnalysisResult\": \"\",");
-            prompt.AppendLine("  \"BasicTactic\": \"<Select from Basic Tactic Types>\",");
-            prompt.AppendLine("  \"AttackCriteria\": \"<Select from Attack Decision Indicators>\",");
-            prompt.AppendLine("  \"ContinuousAttackCriteria\": \"<Select from Attack Decision Indicators>\",");
-            prompt.AppendLine("  \"DefenseCriteria\": \"<Select from Defense Decision Indicators>\",");
-            prompt.AppendLine("  \"ContinuousDefenseCriteria\": \"<Select from Defense Decision Indicators>\"");
+            prompt.AppendLine("  \"AnalysisResult\": \"Your tactical reasoning in max 50 characters\",");
+            prompt.AppendLine("  \"BasicTactic\": \"One of: Aggressive, Defensive, Adaptive, Disruptive, Endurance\",");
+            prompt.AppendLine("  \"AttackCriteria\": \"One attack criteria from list above\",");
+            prompt.AppendLine("  \"ContinuousAttackCriteria\": \"One attack criteria from list above\",");
+            prompt.AppendLine("  \"DefenseCriteria\": \"One defense criteria from list above\",");
+            prompt.AppendLine("  \"ContinuousDefenseCriteria\": \"One defense criteria from list above\"");
             prompt.AppendLine("}");
             prompt.AppendLine();
-            prompt.AppendLine("## Key Descriptions");
-            prompt.AppendLine("- AnalysisResult: Concisely describe the reasoning, necessary responses, and reflected content within 30 characters");
-            prompt.AppendLine("- AttackCriteria: Decision criteria when attacking");
-            prompt.AppendLine("- ContinuousAttackCriteria: Decision criteria when attacks continue two or more times");
-            prompt.AppendLine("- DefenseCriteria: Decision criteria when defending against enemy attacks");
-            prompt.AppendLine("- ContinuousDefenseCriteria: Decision criteria when enemy attacks continue two or more times");
+
+            // === 各プロパティの説明 ===
+            prompt.AppendLine("# Property Descriptions");
             prompt.AppendLine();
+            prompt.AppendLine("- **AnalysisResult**: Brief explanation of your tactical decision (max 50 characters)");
+            prompt.AppendLine("- **BasicTactic**: Overall combat approach for this turn");
+            prompt.AppendLine("- **AttackCriteria**: Decision logic for initiating attacks");
+            prompt.AppendLine("- **ContinuousAttackCriteria**: Decision logic when attacks chain (2+ consecutive attacks)");
+            prompt.AppendLine("- **DefenseCriteria**: Decision logic for initial defensive response");
+            prompt.AppendLine("- **ContinuousDefenseCriteria**: Decision logic when defending chains (2+ consecutive enemy attacks)");
+            prompt.AppendLine();
+
+            // 最終リマインダー
+            prompt.AppendLine("# CRITICAL REMINDER");
+            prompt.AppendLine();
+            prompt.AppendLine("Your response MUST be valid JSON starting with { and ending with } - absolutely nothing else!");
+            prompt.AppendLine("No explanations, no markdown formatting, no code blocks - ONLY the JSON object.");
+            prompt.AppendLine();
+
             return prompt.ToString();
         }
 

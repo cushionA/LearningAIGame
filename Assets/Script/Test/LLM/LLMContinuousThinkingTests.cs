@@ -24,6 +24,7 @@ namespace LLMDataArchitect.Test
         Eng_Rag,
         Fixed_Eng,
         Main,
+        Cache,
         Experimental
     }
 
@@ -424,6 +425,7 @@ namespace LLMDataArchitect.Test
                 PromptGeneratorType.Eng_Rag => new EngRagPromptGenerator(),
                 PromptGeneratorType.Fixed_Eng => new FixedEnglishGenerator(),
                 PromptGeneratorType.Main => new MainPromptGenerator(),
+                PromptGeneratorType.Cache => new CachePromptGenerator(),
                 _ => new JapanesePromptGenerator()
             };
         }
@@ -439,6 +441,10 @@ namespace LLMDataArchitect.Test
 Analyze battle data and the provided game rules to make strategic decisions in strict JSON format.
 Always respond with ONLY valid JSON, no markdown, no explanations.
 Use the provided game rules context to inform your tactical decisions.";
+            }
+            else if (_generatorType == PromptGeneratorType.Cache)
+            {
+                _llmCharacter.SetPrompt(_promptGenerator.GenerateFixedSection());
             }
             else
             {
@@ -761,6 +767,17 @@ Use the provided game rules context to inform your tactical decisions.";
                 {
                     UnityEngine.Debug.Log($"RAG: {ragResults.Length}件の関連ルール追加 ({ragSearchTimeMs:F2}ms)");
                 }
+            }
+            // _llmCharacter.ClearChat();
+            if (iteration == 0)
+            {
+                // _llmCharacter.saveCache = true;
+                // _llmCharacter.save = "domain_session";
+                // Debug.Log($"LLMキャッシュ保存を有効化{_llmCharacter.GetCacheSavePath("domain_session")}");
+
+
+                yield return _llmCharacter.Warmup(_llmCharacter.prompt);
+                // _llmCharacter.cachePrompt = false;
             }
 
             // LLMに完全なプロンプトを送信
