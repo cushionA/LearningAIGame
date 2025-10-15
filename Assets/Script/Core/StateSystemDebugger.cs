@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 // ============================================================================
 // LearningAIGame - Combat System
@@ -428,10 +429,13 @@ namespace LearningAIGame.CombatSystem.Core
             Debug.Log($"残り硬直時間: {Mathf.Max(0, _moveStunTime - Time.time):F2}秒");
             Debug.Log("");
             Debug.Log("--- 行動履歴 ---");
-            Debug.Log($"履歴数: {_actHistory.Count}");
-            if (_actHistory.Count > 0)
+            Debug.Log($"履歴数: {_llmLogData.RecentActionArray.Count}");
+
+            if (_llmLogData.RecentActionArray.Count > 0)
             {
-                Debug.Log($"直近5件: {string.Join(", ", _actHistory.GetRange(Mathf.Max(0, _actHistory.Count - 5), Mathf.Min(5, _actHistory.Count)))}");
+                var actSpan = _llmLogData.RecentActionArray.AsSpan();
+
+                Debug.Log($"直近5件: {string.Join(", ", actSpan.ToArray())}");
             }
         }
 

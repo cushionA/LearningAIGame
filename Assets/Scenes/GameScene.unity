@@ -395,6 +395,10 @@ GameObject:
   - component: {fileID: 1262174237}
   - component: {fileID: 1262174236}
   - component: {fileID: 1262174235}
+  - component: {fileID: 1262174242}
+  - component: {fileID: 1262174241}
+  - component: {fileID: 1262174240}
+  - component: {fileID: 1262174239}
   m_Layer: 0
   m_Name: GameObject
   m_TagString: Untagged
@@ -422,9 +426,9 @@ MonoBehaviour:
   debug: 0
   parallelPrompts: 1
   dontDestroyOnLoad: 1
-  contextSize: 2048
+  contextSize: 3549
   batchSize: 512
-  model: gemma-2-2b-jpn-it-IQ4_XS.gguf
+  model: gemma-2-2b-it-IQ4_XS.gguf
   chatTemplate: gemma
   lora: 
   loraWeights: 
@@ -509,27 +513,40 @@ MonoBehaviour:
   _delayBetweenTests: 2
   _autoStartOnPlay: 1
   _generateRandomDataEachIteration: 1
-  _isUseEnglish: 0
+  _generatorType: 5
   _outputDirectoryPath: Assets/LLMTestResults
   _filePrefix: LLMTest
   _llmCharacter: {fileID: 1262174236}
   _timeoutSeconds: 30
+  _rag: {fileID: 1262174242}
+  _useRAG: 0
+  _ragTopK: 3
+  _ragDistanceThreshold: 0.8
+  _showRAGResults: 1
+  _autoInitializeRAG: 1
+  _loadFromResources: 0
+  _resourcesPath: GameRules
+  _manualRuleFiles:
+  - {fileID: 4900000, guid: fdc8388da9db5844ea2ec46cfba8d049, type: 3}
+  - {fileID: 4900000, guid: 1dbdbc324e1f23146ad71d7f1f3096c0, type: 3}
+  - {fileID: 4900000, guid: 93e75ac9c4074f84f9141196c93ba141, type: 3}
+  - {fileID: 4900000, guid: edb174370b818e5479af8a4bc32f2813, type: 3}
+  - {fileID: 4900000, guid: 5c5d6147b71932e4db35f5ff7c669bd3, type: 3}
+  - {fileID: 4900000, guid: 3cbdfb1128d8efa4896addc3caf41a57, type: 3}
+  - {fileID: 4900000, guid: 94777654c0715a749b483e30e6750b31, type: 3}
+  - {fileID: 4900000, guid: 620db894bc0272544b4901f38df78006, type: 3}
+  - {fileID: 4900000, guid: c2e818ffafe2f19419b832cc94aad66f, type: 3}
+  _ragFolderPath: Assets/Resources/GameRules
   _autoConfigureLLM: 0
-  _useGrammar: 0
-  _optimalThreads: 6
-  _optimalGpuLayers: 33
-  _optimalContextSize: 2048
-  _optimalBatchSize: 512
+  _useGrammar: 1
   _situationType: 1
-  _situationTypeEnglish: 1
   _useMixedSituations: 1
   _showProgressInConsole: 1
   _showDetailedTiming: 1
   _showPromptSummary: 1
   _validateResponses: 1
   _showPerformanceMetrics: 1
-  _enableResponseCache: 0
-  _maxCacheSize: 20
+  _verboseRAGLogging: 0
 --- !u!4 &1262174238
 Transform:
   m_ObjectHideFlags: 0
@@ -545,6 +562,73 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1262174239
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1262174234}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 354c2418b0d6913efbfb73dccd540d23, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: undream.llmunity.Runtime::LLMUnity.SentenceSplitter
+  delimiters: 2e0021003a003b003f00023023002d00
+--- !u!114 &1262174240
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1262174234}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8c6492f8c97ab9a09b0eb0f93a158da, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: undream.llmunity.Runtime::LLMUnity.DBSearch
+  llmEmbedder: {fileID: 1262174241}
+  advancedOptions: 1
+  quantization: 4
+  metricKind: 1
+  connectivity: 32
+  expansionAdd: 40
+  expansionSearch: 16
+--- !u!114 &1262174241
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1262174234}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6856fbefac554a38a7b8a4b353fd43d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: undream.llmunity.Runtime::LLMUnity.LLMEmbedder
+  advancedOptions: 0
+  remote: 0
+  _llm: {fileID: 1262174235}
+  APIKey: 
+  host: localhost
+  port: 13333
+  numRetries: 10
+--- !u!114 &1262174242
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1262174234}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a2496546d1575771597fc8cbdd0d852d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: undream.llmunity.Runtime::LLMUnity.RAG
+  searchType: 0
+  search: {fileID: 1262174240}
+  chunkingType: 3
+  chunking: {fileID: 1262174239}
 --- !u!1 &1387439237
 GameObject:
   m_ObjectHideFlags: 0
