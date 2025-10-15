@@ -179,7 +179,7 @@ namespace LLMDataArchitect.Test
             prompt.AppendLine("- Analyze the cause of stalemate (both have countered each other, lack of decisive moves, etc.)");
             prompt.AppendLine("- Consider tactical changes to create momentum");
             prompt.AppendLine();
-            prompt.AppendLine(GenerateFixedSectionEnglish());
+            prompt.AppendLine(GenerateFixedSection());
             return prompt.ToString();
         }
 
@@ -193,7 +193,7 @@ namespace LLMDataArchitect.Test
         /// <summary>
         /// 英語版の固定部分(システムプロンプト)を生成
         /// </summary>
-        public string GenerateFixedSectionEnglish()
+        public override string GenerateFixedSection()
         {
             var prompt = new StringBuilder();
             prompt.AppendLine("---");

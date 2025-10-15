@@ -18,6 +18,8 @@ namespace LLMDataArchitect.Test
         /// </summary>
         public abstract string GeneratePromptByData(LLMInputData inputData);
 
+        public abstract string GenerateFixedSection();
+
         /// <summary>
         /// ƒOƒ‰ƒ}[‚ğ¶¬‚·‚é
         /// </summary>

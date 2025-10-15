@@ -173,7 +173,7 @@ namespace LLMDataArchitect.Test
             prompt.AppendLine("- 膠着の原因を分析する（互いに対策済み、決定打の不足など）");
             prompt.AppendLine("- 変化を生むための戦術変更を検討");
             prompt.AppendLine();
-            prompt.AppendLine(GenerateFixedSectionJapanese());
+            prompt.AppendLine(GenerateFixedSection());
 
             return prompt.ToString();
         }
@@ -188,7 +188,7 @@ namespace LLMDataArchitect.Test
         /// <summary>
         /// 日本語版の固定部分(システムプロンプト)を生成
         /// </summary>
-        public string GenerateFixedSectionJapanese()
+        public override string GenerateFixedSection()
         {
             var prompt = new StringBuilder();
             prompt.AppendLine("---");

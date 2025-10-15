@@ -386,7 +386,7 @@ namespace LLMDataArchitect.Test
             }
 
             // キャッシュがない場合は生成してキャッシュ
-            _cachedFixedSection = GenerateFixedSectionEnglish();
+            _cachedFixedSection = GenerateFixedSection();
             return _cachedFixedSection;
         }
 
@@ -396,7 +396,7 @@ namespace LLMDataArchitect.Test
         /// このメソッドは初回のみ実行され、結果はキャッシュされる
         /// </summary>
         /// <returns>生成された固定プロンプトセクション</returns>
-        private string GenerateFixedSectionEnglish()
+        public override string GenerateFixedSection()
         {
             var prompt = new StringBuilder();
 

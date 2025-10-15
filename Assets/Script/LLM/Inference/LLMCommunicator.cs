@@ -306,7 +306,7 @@ namespace LLMDataArchitect
         {
             // 現在はMainPromptGeneratorを使用
             // 必要に応じて他の生成器に切り替え可能
-            return new MainPromptGenerator();
+            return new CachePromptGenerator();
 
             // 将来的にタイプ選択を有効化する場合:
             //return _generatorType switch
@@ -325,9 +325,11 @@ namespace LLMDataArchitect
         /// </summary>
         private void SetupSystemPrompt()
         {
-            _llmCharacter.prompt = @"You are a tactical combat AI assistant. Analyze the provided battle data to make strategic decisions in a strict JSON format. Always respond with ONLY valid JSON.";
+            _llmCharacter.SetPrompt(_promptGenerator.GenerateFixedSection());
             _llmCharacter.playerName = "User";
             _llmCharacter.AIName = "TacticAI";
+
+            _llmCharacter.Warmup(_promptGenerator.GenerateFixedSection());
 
             Debug.Log("システムプロンプトを設定しました。");
         }
@@ -335,10 +337,14 @@ namespace LLMDataArchitect
         /// <summary>
         /// LLMの最適な設定を適用
         /// ストリーミングとプロンプトキャッシュを有効化
+        /// 今回処理するタスクに最適化
         /// </summary>
         private void ConfigureLLMOptimal()
         {
             _llmCharacter.stream = true;       // ストリーミングレスポンスを有効化（推奨）
+            _llmCharacter.cachePrompt = true;  // プロンプトキャッシュを有効化（推奨）
+            _llmCharacter.llm.contextSize = 2048; // コンテキストサイズを2048に設定
+            _llmCharacter.seed = 0; // シード値を0に設定（ランダム性をなくす）
 
             Debug.Log("LLM最適設定を適用しました (stream: true, cachePrompt: true)");
         }
@@ -349,10 +355,10 @@ namespace LLMDataArchitect
         /// </summary>
         private void SetupGrammar()
         {
-            string grammar = _promptGenerator.GenerateGrammar();
-            _llmCharacter.grammarJSONString = grammar;
+            _llmCharacter.grammarJSONString = _promptGenerator.GenerateGrammar();
+            ;
 
-            Debug.Log($"JSON Schema Grammar設定完了 ( Length: {grammar.Length})");
+            Debug.Log($"JSON Schema Grammar設定完了");
         }
 
         #endregion

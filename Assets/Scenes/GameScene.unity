@@ -462,7 +462,7 @@ MonoBehaviour:
   port: 13333
   numRetries: 10
   save: 
-  saveCache: 0
+  saveCache: 1
   debugPrompt: 0
   numPredict: -1
   slot: -1
@@ -513,7 +513,7 @@ MonoBehaviour:
   _delayBetweenTests: 2
   _autoStartOnPlay: 1
   _generateRandomDataEachIteration: 1
-  _generatorType: 5
+  _generatorType: 6
   _outputDirectoryPath: Assets/LLMTestResults
   _filePrefix: LLMTest
   _llmCharacter: {fileID: 1262174236}
