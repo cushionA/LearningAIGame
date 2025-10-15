@@ -204,7 +204,7 @@ namespace LLMDataArchitect.Test
             prompt.AppendLine("**If at disadvantage**: Use Defensive/Endurance, prioritize survival and energy management");
             prompt.AppendLine();
 
-            prompt.AppendLine(GenerateFixedSectionEnglish());
+            prompt.AppendLine(GenerateFixedSection());
             return prompt.ToString();
         }
 
@@ -218,7 +218,7 @@ namespace LLMDataArchitect.Test
         /// <summary>
         /// 英語版の固定部分(システムプロンプト)を生成
         /// </summary>
-        public string GenerateFixedSectionEnglish()
+        public override string GenerateFixedSection()
         {
             var prompt = new StringBuilder();
             prompt.AppendLine("---");

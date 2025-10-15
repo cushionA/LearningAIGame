@@ -426,7 +426,7 @@ MonoBehaviour:
   debug: 0
   parallelPrompts: 1
   dontDestroyOnLoad: 1
-  contextSize: 3549
+  contextSize: 2048
   batchSize: 512
   model: gemma-2-2b-it-IQ4_XS.gguf
   chatTemplate: gemma
@@ -470,7 +470,7 @@ MonoBehaviour:
   grammarJSON: 
   cachePrompt: 1
   seed: 0
-  temperature: 0.5
+  temperature: 0.2
   topK: 40
   topP: 0.9
   minP: 0.05
@@ -513,7 +513,7 @@ MonoBehaviour:
   _delayBetweenTests: 2
   _autoStartOnPlay: 1
   _generateRandomDataEachIteration: 1
-  _generatorType: 5
+  _generatorType: 6
   _outputDirectoryPath: Assets/LLMTestResults
   _filePrefix: LLMTest
   _llmCharacter: {fileID: 1262174236}
