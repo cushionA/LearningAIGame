@@ -462,7 +462,7 @@ MonoBehaviour:
   port: 13333
   numRetries: 10
   save: 
-  saveCache: 0
+  saveCache: 1
   debugPrompt: 0
   numPredict: -1
   slot: -1
