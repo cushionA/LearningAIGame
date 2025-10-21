@@ -279,6 +279,40 @@ namespace LearningAIGame.CombatSystem.Core
         }
 
         /// <summary>
+        /// AI用の弱攻撃ブロッキング実行
+        /// </summary>
+        public void LightBlocking(StanceType stance)
+        {
+            BlockingReleaseAfterDelay(_actionSetting.WeakAttackStartFrame - 2, stance).Forget();
+        }
+
+        /// <summary>
+        /// AI用の強攻撃ブロッキング実行
+        /// </summary>
+        public void HeavyBlocking(StanceType stance)
+        {
+            BlockingReleaseAfterDelay(_actionSetting.HeavyAttackStartFrame - 2, stance).Forget();
+        }
+
+        /// <summary>
+        /// 指定フレームだけ遅らせてからブロッキング実行
+        /// </summary>
+        /// <param name="delay"></param>
+        /// <param name="stance"></param>
+        /// <returns></returns>
+        private async UniTaskVoid BlockingReleaseAfterDelay(int delay, StanceType stance)
+        {
+            // 指定時間待機
+            bool isCancel = await UniTask.DelayFrame(delay, cancellationToken: destroyCancellationToken).SuppressCancellationThrow();
+
+            // 正常に待機が終わればブロッキング実行
+            if (!isCancel)
+            {
+                BlockingAct(stance);
+            }
+        }
+
+        /// <summary>
         /// 回避実行
         /// </summary>
         /// <param name="moveVector">移動方向ベクトル</param>

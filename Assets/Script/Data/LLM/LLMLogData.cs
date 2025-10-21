@@ -83,6 +83,100 @@ namespace LLMDataArchitect
             get => _damageSituations;
         }
 
+        #region 直近集計
+
+        /// <summary>
+        /// 直近の行動履歴から最も実行している攻撃アクション
+        /// </summary>
+        public ActionState RecentMostUsedAttack
+        {
+            get
+            {
+                if (_recentActions.Count == 0)
+                    return ActionState.デフォルト攻撃;
+
+                ActionState mostUsed = ActionState.デフォルト攻撃;
+                int maxCount = 0;
+
+                var recentActions = _recentActions.GetInOrder();
+
+                // 攻撃行動のみをカウント
+                Span<ActionState> attackActions = stackalloc[]
+                {
+                    ActionState.弱攻撃,
+                    ActionState.強攻撃,
+                    ActionState.強攻撃キャンセル,
+                    ActionState.横回避攻撃,
+                    ActionState.前回避攻撃
+                };
+
+                foreach (var attackAction in attackActions)
+                {
+                    int count = 0;
+                    foreach (var action in recentActions)
+                    {
+                        if (action == attackAction)
+                            count++;
+                    }
+
+                    if (count > maxCount)
+                    {
+                        maxCount = count;
+                        mostUsed = attackAction;
+                    }
+                }
+
+                return mostUsed;
+            }
+        }
+
+        /// <summary>
+        /// 直近の行動履歴から最も実行している防御アクション
+        /// </summary>
+        public ActionState RecentMostUsedDefense
+        {
+            get
+            {
+                if (_recentActions.Count == 0)
+                    return ActionState.デフォルト防御;
+
+                ActionState mostUsed = ActionState.デフォルト防御;
+                int maxCount = 0;
+
+                var recentActions = _recentActions.GetInOrder();
+
+                // 防御行動のみをカウント
+                Span<ActionState> defenseActions = stackalloc[]
+                {
+                    ActionState.後ろ回避,
+                    ActionState.横回避,
+                    ActionState.前回避,
+                    ActionState.ブロッキング,
+                    ActionState.ガード
+                };
+
+                foreach (var defenseAction in defenseActions)
+                {
+                    int count = 0;
+                    foreach (var action in recentActions)
+                    {
+                        if (action == defenseAction)
+                            count++;
+                    }
+
+                    if (count > maxCount)
+                    {
+                        maxCount = count;
+                        mostUsed = defenseAction;
+                    }
+                }
+
+                return mostUsed;
+            }
+        }
+
+        #endregion
+
         /// <summary>
         /// 与えたダメージの累積値
         /// </summary>

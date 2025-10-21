@@ -173,11 +173,12 @@ namespace LLMDataArchitect
         /// </summary>
         public void UpdateStrategy(StrategyData newStrategy)
         {
+            // 直近データは消さなくても入れ替わる
             // 直近データをリセット
-            PlayerLog.ClearAllRecentLogs();
+            //PlayerLog.ClearAllRecentLogs();
 
             // NPCの直近データをリセット
-            NPCLog.ClearAllRecentLogs();
+            // NPCLog.ClearAllRecentLogs();
 
             // 戦術成否データをリセット
             _strategyResult.Clear();
