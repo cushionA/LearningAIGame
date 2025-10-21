@@ -184,7 +184,7 @@ namespace LLMDataArchitect.Test
 
             if (inputData.ActionLog != null)
             {
-                prompt.AppendLine($"**Historical Pattern**: Heavy {inputData.ActionLog.StrongAttackPercentage * 100:F0}%, Light {inputData.ActionLog.LightAttackPercentage * 100:F0}%, Feint {inputData.ActionLog.StrongAttackCancelPercentage * 100:F0}%");
+                prompt.AppendLine($"**Historical Pattern**: Heavy {inputData.ActionLog.HeavyAttackPercentage * 100:F0}%, Light {inputData.ActionLog.LightAttackPercentage * 100:F0}%, Feint {inputData.ActionLog.HeavyAttackCancelPercentage * 100:F0}%");
             }
             prompt.AppendLine();
 

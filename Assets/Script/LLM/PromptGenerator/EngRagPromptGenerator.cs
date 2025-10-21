@@ -70,9 +70,9 @@ namespace LLMDataArchitect.Test
             // Cumulative pattern
             if (inputData.ActionLog != null)
             {
-                prompt.AppendLine($"**Cumulative** Strong Attacks: {inputData.ActionLog.StrongAttackPercentage * 100:F0}%, " +
+                prompt.AppendLine($"**Cumulative** Strong Attacks: {inputData.ActionLog.HeavyAttackPercentage * 100:F0}%, " +
                                  $"Light Attacks: {inputData.ActionLog.LightAttackPercentage * 100:F0}%, " +
-                                 $"Feints: {inputData.ActionLog.StrongAttackCancelPercentage * 100:F0}%");
+                                 $"Feints: {inputData.ActionLog.HeavyAttackCancelPercentage * 100:F0}%");
             }
             else
             {

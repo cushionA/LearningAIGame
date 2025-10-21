@@ -1,18 +1,89 @@
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
 namespace LLMDataArchitect
 {
     /// <summary>
-    /// 新プロンプト対応の戦略データ
-    /// </summary>
-    /// <summary>
-    /// 新プロンプト形式用の戦略データ構造
+    /// LLMにより作成される戦略データ
     /// </summary>
     public class StrategyData
     {
+        #region 静的配列と列挙型
+
+        /// <summary>
+        /// 攻撃行動の基準をマッピングするDictionary
+        /// キー: プロンプトの行動基準文字列
+        /// 値: ActionCriteriaType (Attack_*)
+        /// </summary>
+        public static readonly Dictionary<string, ActionCriteriaType> AttackCriteriaDictionary = new()
+        {
+            { "Cumulative Probability", ActionCriteriaType.Attack_CumulativeProbability },
+            { "Recent Pattern Focus", ActionCriteriaType.Attack_RecentPatternFocus },
+            { "Speed Priority", ActionCriteriaType.Attack_SpeedPriority },
+            { "Return Priority", ActionCriteriaType.Attack_ReturnPriority },
+            { "Feint Focus", ActionCriteriaType.Attack_FeintFocus },
+            { "Dispersion Focus", ActionCriteriaType.Attack_DispersionFocus },
+            { "Energy Efficiency", ActionCriteriaType.Attack_EnergyEfficiency }
+        };
+
+        /// <summary>
+        /// 防御行動の基準をマッピングするDictionary
+        /// キー: プロンプトの行動基準文字列
+        /// 値: ActionCriteriaType (Defense_*)
+        /// </summary>
+        public static readonly Dictionary<string, ActionCriteriaType> DefenseCriteriaDictionary = new()
+        {
+            { "Cumulative Probability", ActionCriteriaType.Defense_CumulativeProbability },
+            { "Recent Pattern Focus", ActionCriteriaType.Defense_RecentPatternFocus },
+            { "Counterattack Focus", ActionCriteriaType.Defense_CounterattackFocus },
+            { "Return Priority", ActionCriteriaType.Defense_ReturnPriority },
+            { "Risk Avoidance", ActionCriteriaType.Defense_RiskAvoidance },
+            { "Counter Priority", ActionCriteriaType.Defense_AvoidAttackPriority },
+            { "Dispersion Focus", ActionCriteriaType.Defense_DispersionFocus }
+        };
+
+        /// <summary>
+        /// 戦闘AIが選択できる基準に対応する列挙型。
+        /// 各メンバーのXMLコメントに元のプロンプトの文字列を記述しています。
+        /// </summary>
+        public enum ActionCriteriaType : byte
+        {
+            /// <summary> 累積確率 </summary>
+            Attack_CumulativeProbability,
+            /// <summary> 最近のパターン重視 </summary>
+            Attack_RecentPatternFocus,
+            /// <summary> スピード優先 </summary>
+            Attack_SpeedPriority,
+            /// <summary> リターン優先 </summary>
+            Attack_ReturnPriority,
+            /// <summary> フェイント重視 </summary>
+            Attack_FeintFocus,
+            /// <summary> 分散重視 </summary>
+            Attack_DispersionFocus,
+            /// <summary> エネルギー効率 </summary>
+            Attack_EnergyEfficiency,
+            // 
+            /// <summary> 累積確率 </summary>
+            Defense_CumulativeProbability,
+            /// <summary> 最近のパターン重視 </summary>
+            Defense_RecentPatternFocus,
+            /// <summary> 反撃重視 </summary>
+            Defense_CounterattackFocus,
+            /// <summary> リターン優先 </summary>
+            Defense_ReturnPriority,
+            /// <summary> リスク回避 </summary>
+            Defense_RiskAvoidance,
+            /// <summary> カウンター優先 </summary>
+            Defense_AvoidAttackPriority,
+            /// <summary> 分散重視 </summary>
+            Defense_DispersionFocus
+        }
+
+        #endregion
+
         /// <summary>
         /// 基本戦術
         /// </summary>
@@ -42,6 +113,47 @@ namespace LLMDataArchitect
         /// 連続防御時判断基準
         /// </summary>
         public string ContinuousDefenseCriteria { get; set; }
+
+        /// <summary>
+        /// 文字列からAttackCriteriaTypeを取得
+        /// </summary>
+        /// <param name="criteria">プロンプトの基準文字列</param>
+        /// <returns>対応するActionCriteriaType</returns>
+        public static ActionCriteriaType GetAttackCriteria(string criteria)
+        {
+            if (AttackCriteriaDictionary.TryGetValue(criteria, out var result))
+                return result;
+
+            return ActionCriteriaType.Attack_CumulativeProbability; // デフォルト値
+        }
+
+        /// <summary>
+        /// 文字列からDefenseCriteriaTypeを取得
+        /// </summary>
+        /// <param name="criteria">プロンプトの基準文字列</param>
+        /// <returns>対応するActionCriteriaType</returns>
+        public static ActionCriteriaType GetDefenseCriteria(string criteria)
+        {
+            if (DefenseCriteriaDictionary.TryGetValue(criteria, out var result))
+                return result;
+
+            return ActionCriteriaType.Defense_CumulativeProbability; // デフォルト値
+        }
+
+        /// <summary>
+        /// 文字列（列挙型のメンバー名）を ActionCriteriaType 列挙型に変換。
+        /// </summary>
+        /// <param name="result">変換結果の ActionCriteriaType</param>
+        /// <param name="ignoreCase">大文字と小文字を区別しない場合は true（デフォルトは true）</param>
+        /// <returns>変換に成功した場合は true、それ以外は false</returns>
+        public static bool TryGetActionCriteriaTypeFromString(string criteriaMemberName, out ActionCriteriaType result, bool ignoreCase = true)
+        {
+            // C# 7.3 以降で利用可能なジェネリック版 Enum.TryParse。
+            // これが最も高速かつ低オーバーヘッドな方法です。
+            return Enum.TryParse<ActionCriteriaType>(criteriaMemberName, ignoreCase, out result);
+        }
+
+        #region Json変換
 
         /// <summary>
         /// JSON形式の文字列に変換
@@ -141,6 +253,10 @@ namespace LLMDataArchitect
             var match = System.Text.RegularExpressions.Regex.Match(json, keyPattern);
             return match.Success ? match.Groups[1].Value : "";
         }
+
+        #endregion
+
+        #region テスト用
 
         /// <summary>
         /// デフォルトの戦略データを生成
@@ -250,5 +366,7 @@ namespace LLMDataArchitect
             errorMessage = "";
             return true;
         }
+
+        #endregion
     }
 }

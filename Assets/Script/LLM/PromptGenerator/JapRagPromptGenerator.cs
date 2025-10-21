@@ -70,9 +70,9 @@ namespace LLMDataArchitect.Test
             // 累積パターン
             if (inputData.ActionLog != null)
             {
-                prompt.AppendLine($"【累積】強攻撃:{inputData.ActionLog.StrongAttackPercentage * 100:F0}%, " +
+                prompt.AppendLine($"【累積】強攻撃:{inputData.ActionLog.HeavyAttackPercentage * 100:F0}%, " +
                                  $"弱攻撃:{inputData.ActionLog.LightAttackPercentage * 100:F0}%, " +
-                                 $"フェイント:{inputData.ActionLog.StrongAttackCancelPercentage * 100:F0}%");
+                                 $"フェイント:{inputData.ActionLog.HeavyAttackCancelPercentage * 100:F0}%");
             }
             else
             {

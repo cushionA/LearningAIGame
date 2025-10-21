@@ -51,23 +51,6 @@ namespace LLMDataArchitect
     /// </summary>
     public class StrategyResult
     {
-        // ===== 評価基準定数 =====
-
-        /// <summary>
-        /// 「非常に効果的」と判定する最小差分
-        /// </summary>
-        private const int k_HIGHLY_EFFECTIVE_THRESHOLD = 3;
-
-        /// <summary>
-        /// 「効果的」と判定する最小差分
-        /// </summary>
-        private const int k_EFFECTIVE_THRESHOLD = 2;
-
-        /// <summary>
-        /// 「許容範囲」と判定する最小差分
-        /// </summary>
-        private const int k_ACCEPTABLE_THRESHOLD = 1;
-
         /// <summary>
         /// 判断基準の種類
         /// </summary>
@@ -88,8 +71,29 @@ namespace LLMDataArchitect
             /// <summary>
             /// 連続防御時判断基準
             /// </summary>
-            SequentialDefense
+            SequentialDefense,
+            /// <summary>
+            /// なし。ニュートラル
+            /// </summary>
+            None
         }
+
+        // ===== 評価基準定数 =====
+
+        /// <summary>
+        /// 「非常に効果的」と判定する最小差分
+        /// </summary>
+        private const int k_HIGHLY_EFFECTIVE_THRESHOLD = 3;
+
+        /// <summary>
+        /// 「効果的」と判定する最小差分
+        /// </summary>
+        private const int k_EFFECTIVE_THRESHOLD = 2;
+
+        /// <summary>
+        /// 「許容範囲」と判定する最小差分
+        /// </summary>
+        private const int k_ACCEPTABLE_THRESHOLD = 1;
 
         // ===== プライベートフィールド =====
 

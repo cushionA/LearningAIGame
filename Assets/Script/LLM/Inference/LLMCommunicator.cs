@@ -1,4 +1,5 @@
 using Cysharp.Threading.Tasks;
+using LearningAIGame.CombatSystem.AI;
 using LearningAIGame.CombatSystem.Core;
 using LLMDataArchitect.Test;
 using LLMUnity;
@@ -23,7 +24,7 @@ using Debug = UnityEngine.Debug;
 // 
 // 依存ライブラリ: LLMUnity, UniTask
 // 入力元クラス: StateSystem(プレイヤー/NPC), PromptGeneratorBase
-// 出力先クラス: StrategyData(AIControllerが参照)
+// 出力先クラス: StrategyData(AIControllerが参照)、RuleBaseInjection（戦術を注入されるルールベースAIの基底クラス）
 // 
 // 設計思想:
 // - 全ての非同期処理は例外を発生させず、ログ出力のみで継続動作
@@ -35,7 +36,7 @@ using Debug = UnityEngine.Debug;
 // 2. PromptGeneratorでプロンプト生成
 // 3. LLMCharacterへ非同期リクエスト送信
 // 4. JSON形式で戦術データを受信・解析
-// 5. StrategyDataを更新してAIControllerへ反映
+// 5. StrategyDataを更新してルールベースAIへ反映
 // 
 // その他:
 // JSON Schema Grammarによる構造化出力を強制
@@ -90,6 +91,10 @@ namespace LLMDataArchitect
         [Tooltip("NPCの状態システムへの参照")]
         private StateSystem _npcStateSystem;
 
+        [SerializeField]
+        [Tooltip("NPCのAI")]
+        private RuleBaseInjection _ruleBaseAI;
+
         // 内部状態
         private LLMInputData _inputData;
         private PromptGeneratorBase _promptGenerator;
@@ -126,6 +131,7 @@ namespace LLMDataArchitect
         private void Start()
         {
             Initialize();
+            _ruleBaseAI.InjectionData(_inputData);
         }
 
         private void OnDestroy()
@@ -445,6 +451,8 @@ namespace LLMDataArchitect
 
                 // 応答が有効な場合、入力データを更新
                 _inputData.UpdateStrategy(strategy);
+                _ruleBaseAI.UpdateStrategy();
+
                 Debug.Log($"戦術を更新しました: {strategy.BasicTactic}");
             }
             catch (Exception ex)
