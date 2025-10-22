@@ -15,7 +15,7 @@ namespace LLMDataArchitect
         /// 行動記録数の上限
         /// この数を超えたら圧縮が実行される
         /// </summary>
-        private const int k_MaxActionCount = 100;
+        private const int k_MaxActionCount = 1000;
 
         /// <summary>
         /// 圧縮後の目標行動記録数

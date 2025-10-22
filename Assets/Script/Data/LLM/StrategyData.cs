@@ -41,7 +41,7 @@ namespace LLMDataArchitect
             { "Counterattack Focus", ActionCriteriaType.Defense_CounterattackFocus },
             { "Return Priority", ActionCriteriaType.Defense_ReturnPriority },
             { "Risk Avoidance", ActionCriteriaType.Defense_RiskAvoidance },
-            { "Counter Priority", ActionCriteriaType.Defense_AvoidAttackPriority },
+            { "Evasive Counter Priority", ActionCriteriaType.Defense_EvasiveCounterPriority },
             { "Dispersion Focus", ActionCriteriaType.Defense_DispersionFocus }
         };
 
@@ -77,7 +77,7 @@ namespace LLMDataArchitect
             /// <summary> リスク回避 </summary>
             Defense_RiskAvoidance,
             /// <summary> カウンター優先 </summary>
-            Defense_AvoidAttackPriority,
+            Defense_EvasiveCounterPriority,
             /// <summary> 分散重視 </summary>
             Defense_DispersionFocus
         }
