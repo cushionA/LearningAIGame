@@ -190,6 +190,11 @@ namespace LearningAIGame.CombatSystem.Core
         /// </summary>
         private float _avoidAttackBufferLimit = -1f;
 
+        /// <summary>
+        /// 強攻撃キャンセルを受け付けるフレームを記録する変数
+        /// </summary>
+        private long _heavyCancelFrame;
+
         #region 購読対象
 
         /// <summary>
@@ -227,6 +232,11 @@ namespace LearningAIGame.CombatSystem.Core
         #endregion
 
         #region Publicプロパティ
+
+        /// <summary>
+        /// 読み取り専用のHP
+        ///</summary>
+        public int Hp { get { return (_characterData.Hp >= 0 ? _characterData.Hp : 0); } }
 
         /// <summary>
         /// 読み取り専用の残りエネルギー（枯渇中は常に 0）
@@ -294,7 +304,7 @@ namespace LearningAIGame.CombatSystem.Core
         /// <summary>
         /// 強攻撃をキャンセル可能かどうか
         /// </summary>
-        public bool CanCancelHeavyAttack { get { return !_characterData.IsEnergyExhaust && (CurrentState.CurrentValue & ActionState.強攻撃キャンセル可能) > 0 && Time.time >= _moveStunTime; } }
+        public bool CanCancelHeavyAttack { get { return !_characterData.IsEnergyExhaust && (CurrentState.CurrentValue & ActionState.強攻撃キャンセル可能) > 0 && Time.frameCount <= _heavyCancelFrame && Time.time >= _moveStunTime; } }
 
         /// <summary>
         /// 移動可能かどうか
@@ -523,6 +533,9 @@ namespace LearningAIGame.CombatSystem.Core
                 case AttackReportType.HeavyAttackStart:
                     // 強攻撃に状態切り替え
                     useState = ActionState.強攻撃;
+
+                    // 強攻撃キャンセルフレームを設定
+                    _heavyCancelFrame = Time.frameCount + _actionSetting.HeavyCancelInputFrame;
 
                     // 攻撃方向切り替え
                     CurrentStance.Value = attackReport.stance;

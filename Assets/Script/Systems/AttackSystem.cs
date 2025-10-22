@@ -36,13 +36,13 @@ namespace LearningAIGame.CombatSystem.Systems
         /// <param name="stance">攻撃の方向。</param>
         /// <param name="moveVector">踏み込みの移動ベクトル。</param>
         /// <param name="moveDuration">踏み込みの継続時間。</param>
-        public void WeakAttack(int damage, StanceType stance, Vector3 moveVector, float moveDuration)
+        public void WeakAttack(int damage, StanceType stance, Vector3 moveVector, float moveDuration, int hitDelayFrame)
         {
             // 踏み込み開始
             moveController.AddForce(moveVector, moveDuration);
 
             // 報告用データをセット
-            _info.SetInfo(stance, damage, AttackReportType.WeakAttackStart);
+            _info.SetInfo(stance, damage, AttackReportType.WeakAttackStart, damage);
 
             // 攻撃開始をNotifyObservers()で状態管理クラスに通知
             NotifyObservers(_info);
@@ -55,13 +55,13 @@ namespace LearningAIGame.CombatSystem.Systems
         /// <param name="stance">攻撃の方向。</param>
         /// <param name="moveVector">踏み込みの移動ベクトル。</param>
         /// <param name="moveDuration">踏み込みの継続時間。</param>
-        public void HeavyAttack(int damage, StanceType stance, Vector3 moveVector, float moveDuration)
+        public void HeavyAttack(int damage, StanceType stance, Vector3 moveVector, float moveDuration, int hitDelayFrame)
         {
             // 踏み込み開始
             moveController.AddForce(moveVector, moveDuration);
 
             // 報告用データをセット
-            _info.SetInfo(stance, damage, AttackReportType.HeavyAttackStart);
+            _info.SetInfo(stance, damage, AttackReportType.HeavyAttackStart, hitDelayFrame);
 
             // 攻撃開始をNotifyObservers()で状態管理クラスに通知
             NotifyObservers(_info);
@@ -76,7 +76,7 @@ namespace LearningAIGame.CombatSystem.Systems
             moveController.Stop();
 
             // 報告用データをセット
-            _info.SetInfo(StanceType.None, 0, AttackReportType.HeavyAttackCancel);
+            _info.SetInfo(StanceType.None, 0, AttackReportType.HeavyAttackCancel, 0);
 
             // 攻撃キャンセルを状態管理クラスに通知
             NotifyObservers(_info);
