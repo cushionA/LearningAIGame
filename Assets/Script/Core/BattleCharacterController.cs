@@ -151,7 +151,7 @@ namespace LearningAIGame.CombatSystem.Core
             float stepDuration = _actionSetting.WeakAttackStepDuration;
 
             // 攻撃実行
-            _attackSystem.WeakAttack(damage, stance, stepVector, stepDuration);
+            _attackSystem.WeakAttack(damage, stance, stepVector, stepDuration, _actionSetting.WeakAttackStartFrame);
 
             // 攻撃判定発生フレームまで待機
             bool isCancel = await UniTask.DelayFrame(_actionSetting.WeakAttackStartFrame, cancellationToken: destroyCancellationToken).SuppressCancellationThrow();
@@ -188,7 +188,7 @@ namespace LearningAIGame.CombatSystem.Core
             float stepDuration = _actionSetting.HeavyAttackStepDuration;
 
             // 攻撃実行
-            _attackSystem.HeavyAttack(damage, stance, stepVector, stepDuration);
+            _attackSystem.HeavyAttack(damage, stance, stepVector, stepDuration, _actionSetting.HeavyAttackStartFrame);
 
             // 攻撃判定発生フレームまで待機
             bool isCancel = await UniTask.DelayFrame(_actionSetting.HeavyAttackStartFrame, cancellationToken: destroyCancellationToken).SuppressCancellationThrow();
