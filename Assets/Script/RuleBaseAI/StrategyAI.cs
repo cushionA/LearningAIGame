@@ -939,7 +939,7 @@ namespace LearningAIGame.CombatSystem.AI
                     ActionAct(ActionState.Œã‚ë‰ñ”ğ, enemyStance);
                     break;
 
-                case ActionCriteriaType.Defense_AvoidAttackPriority:
+                case ActionCriteriaType.Defense_EvasiveCounterPriority:
                     ActionAct(ActionState.‰¡‰ñ”ğUŒ‚, enemyStance);
                     break;
 

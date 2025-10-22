@@ -459,14 +459,23 @@ Use the provided game rules context to inform your tactical decisions.";
         }
 
         /// <summary>
-        /// LLM Characterの最適設定を適用
+        /// LLM の最適設定を適用（戦術判断タスク用）
         /// </summary>
         private void ConfigureLLMOptimal()
         {
-            _llmCharacter.stream = true;
+            // === ストリーミングとキャッシュ ===
+            _llmCharacter.llm.contextSize = 4096;  // 重要！
+            _llmCharacter.numPredict = 512;        // 重要！
+            _llmCharacter.temperature = 0.0f;
+            _llmCharacter.topK = 1;
+            _llmCharacter.topP = 1.0f;
+            _llmCharacter.seed = 42;               // 0 ではなく 42
             _llmCharacter.cachePrompt = true;
 
-            UnityEngine.Debug.Log("LLM最適設定を適用しました");
+            UnityEngine.Debug.Log("LLM戦術判断用最適設定を適用しました");
+            UnityEngine.Debug.Log($"- Temperature: {_llmCharacter.temperature} (決定論的)");
+            UnityEngine.Debug.Log($"- Context Size: {_llmCharacter.llm.contextSize}");
+            UnityEngine.Debug.Log($"- Max Tokens: {_llmCharacter.numPredict}");
         }
 
         /// <summary>
@@ -632,7 +641,7 @@ Use the provided game rules context to inform your tactical decisions.";
             _promptGenerator = CreatePromptGenerator(_generatorType);
             var sampleData = LLMInputData.CreateForTestSituation(_situationType);
             var samplePrompt = _promptGenerator.GeneratePromptByData(sampleData);
-            UnityEngine.Debug.Log($"Sample Prompt ({_situationType}):\n{samplePrompt}");
+            UnityEngine.Debug.Log($"Sample Prompt ({_situationType}):\n{_promptGenerator.GenerateFixedSection()}\n{samplePrompt}");
         }
 
 
@@ -776,8 +785,8 @@ Use the provided game rules context to inform your tactical decisions.";
                 // Debug.Log($"LLMキャッシュ保存を有効化{_llmCharacter.GetCacheSavePath("domain_session")}");
 
 
-                yield return _llmCharacter.Warmup(_llmCharacter.prompt);
-                // _llmCharacter.cachePrompt = false;
+                _llmCharacter.Warmup(_llmCharacter.prompt);
+                //   _llmCharacter.cachePrompt = false;
             }
 
             // LLMに完全なプロンプトを送信
@@ -891,14 +900,8 @@ Use the provided game rules context to inform your tactical decisions.";
             {
                 StrategyData strategy;
 
-                if (_generatorType == PromptGeneratorType.English)
-                {
-                    strategy = StrategyData.FromJsonEnglish(jsonResponse);
-                }
-                else
-                {
-                    strategy = StrategyData.FromJson(jsonResponse);
-                }
+                strategy = StrategyData.FromJsonEnglish(jsonResponse);
+
 
                 // LastStrategyを更新（次のイテレーションで使用）
                 _currentTestData.CurrentStrategy = strategy;

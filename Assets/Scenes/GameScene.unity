@@ -462,15 +462,15 @@ MonoBehaviour:
   port: 13333
   numRetries: 10
   save: 
-  saveCache: 1
-  debugPrompt: 0
+  saveCache: 0
+  debugPrompt: 1
   numPredict: -1
   slot: -1
   grammar: 
   grammarJSON: 
   cachePrompt: 1
   seed: 0
-  temperature: 0.2
+  temperature: 0.5
   topK: 40
   topP: 0.9
   minP: 0.05
