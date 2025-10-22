@@ -41,14 +41,20 @@ namespace LearningAIGame.CombatSystem.Data
         public AttackReportType reportType; // 開始、キャンセル、のどれか
 
         /// <summary>
+        /// 攻撃開始から起算した当たり判定が発生するまでのフレーム
+        /// </summary>
+        public int hitDelayFrame;
+
+        /// <summary>
         /// 報告用の情報を設定する
         /// インスタンスを使いまわすために後からセットできるように
         /// </summary>
-        public void SetInfo(StanceType newStance, int nextDamage, AttackReportType type)
+        public void SetInfo(StanceType newStance, int nextDamage, AttackReportType type, int delayFrame)
         {
             stance = newStance;
             damage = nextDamage;
             reportType = type;
+            hitDelayFrame = delayFrame;
         }
     }
 

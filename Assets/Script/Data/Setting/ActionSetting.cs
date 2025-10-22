@@ -162,6 +162,9 @@ namespace LearningAIGame.CombatSystem.Setting
         /// <summary>強攻撃時の判定継続時間</summary>
         public int HeavyAttackDurationFrame => _heavyAttackDurationFrame;
 
+        /// <summary>強攻撃時のキャンセル可能フレーム</summary>
+        public int HeavyCancelInputFrame => _heavyAttackStartFrame;
+
         #endregion
 
         #region ブロッキング設定
