@@ -5,13 +5,17 @@ using static LearningAIGame.CombatSystem.Core.StateSystem;
 //==============================================ファイルヘッダ===========================================================
 // CachePromptGenerator
 // 
-// 概要: LLM用の戦術判断プロンプトを生成するメインクラス（英語版・最適化済み）
+// 概要: LLM用の戦術判断プロンプトを生成するメインクラス（英語版・最適化済み・Cache8互換）
 // 
 // 制作者: 小さな座布団
 // 
 // 機能説明:
 // 戦闘データを解析し、LLMが戦術判断を行うための構造化プロンプトを生成する。
 // JSON Schema Grammarでパース失敗を防止。
+// 
+// **重要な変更点（Cache8互換化）:**
+// - フィードバックセクションに「前回の BasicTactic」を明示
+// - これにより LLM が前回の決定を正確に把握し、適切な継続/変更判断が可能になる
 // 
 // 基底クラス: PromptGeneratorBase
 // 入力データ: LLMInputData (StateSystem, ActionLog, StrategyResult)
@@ -22,7 +26,7 @@ using static LearningAIGame.CombatSystem.Core.StateSystem;
 // 2. Enemy Attack Patterns - 直近ターン+累積データ
 // 3. Enemy Defense Patterns - 直近ターン+累積データ
 // 4. Previous Turn Results - ダメージ収支とパフォーマンス評価
-// 5. Performance Feedback - 前回戦術の詳細フィードバック
+// 5. Performance Feedback - 前回戦術の詳細フィードバック（★前回のBasicTacticを含む）
 // 6. Tactical Guidelines - 状況別推奨戦術
 // 7. Output Format - JSON形式の厳密な指定
 // 
@@ -33,7 +37,7 @@ using static LearningAIGame.CombatSystem.Core.StateSystem;
 namespace LLMDataArchitect.Test
 {
     /// <summary>
-    /// 英語版プロンプト生成クラス（最適化版）
+    /// 英語版プロンプト生成クラス（最適化版・Cache8互換）
     /// </summary>
     public class CachePromptGenerator : PromptGeneratorBase
     {
@@ -252,7 +256,7 @@ namespace LLMDataArchitect.Test
             prompt.AppendLine($"**Performance**: {performanceTag}");
             prompt.AppendLine();
 
-            // === フィードバック（大幅強化） ===
+            // === フィードバック（★Cache8互換：前回のBasicTacticを含む） ===
             prompt.AppendLine("## 5. Performance Feedback on Last Decision");
             prompt.AppendLine();
 
@@ -260,7 +264,17 @@ namespace LLMDataArchitect.Test
             {
                 var result = inputData.StrategyResult;
 
-                // 各基準の評価を取得
+                // ★重要: 前回の決定を明示（Cache8の成功要因）
+                prompt.AppendLine("**Previous Turn Decision:**");
+                prompt.AppendLine($"- BasicTactic: {inputData.CurrentStrategy.BasicTactic}");
+                prompt.AppendLine($"- AttackCriteria: {inputData.CurrentStrategy.AttackCriteria}");
+                prompt.AppendLine($"- ContinuousAttackCriteria: {inputData.CurrentStrategy.ContinuousAttackCriteria}");
+                prompt.AppendLine($"- DefenseCriteria: {inputData.CurrentStrategy.DefenseCriteria}");
+                prompt.AppendLine($"- ContinuousDefenseCriteria: {inputData.CurrentStrategy.ContinuousDefenseCriteria}");
+                prompt.AppendLine();
+
+                // パフォーマンス評価（前回の基準名を明示）
+                prompt.AppendLine("**Performance Results:**");
                 var evaluations = result.GetAllConditionEvaluationsEnglish(
                     inputData.CurrentStrategy.AttackCriteria,
                     inputData.CurrentStrategy.ContinuousAttackCriteria,
@@ -270,6 +284,8 @@ namespace LLMDataArchitect.Test
 
                 prompt.AppendLine(evaluations);
                 prompt.AppendLine();
+
+                // フィードバックルール
                 prompt.AppendLine("### [IMPORTANT] MANDATORY FEEDBACK RULES");
                 prompt.AppendLine();
                 prompt.AppendLine("**Rule 1: Keep What Works**");
@@ -428,10 +444,10 @@ namespace LLMDataArchitect.Test
             prompt.AppendLine("- **Endurance**: Energy conservation for prolonged battle");
             prompt.AppendLine();
 
-            // 攻撃判断基準（7種類）
+            // 攻撃判断基準（7種類）- 説明を明確化
             prompt.AppendLine("## AttackCriteria & ContinuousAttackCriteria (Choose ONE for each):");
-            prompt.AppendLine("- **Cumulative Probability**: Use historically most successful attacks");
-            prompt.AppendLine("- **Recent Pattern Focus**: Counter enemy's recent attack patterns");
+            prompt.AppendLine("- **Cumulative Probability**: Use all historical data to select most successful attacks");
+            prompt.AppendLine("- **Recent Pattern Focus**: Focus only on last 3-5 turns to counter recent patterns");
             prompt.AppendLine("- **Speed Priority**: Fast, low-risk attacks");
             prompt.AppendLine("- **Return Priority**: High-damage, high-risk attacks");
             prompt.AppendLine("- **Feint Focus**: Feints to observe enemy reactions");
@@ -439,14 +455,14 @@ namespace LLMDataArchitect.Test
             prompt.AppendLine("- **Energy Efficiency**: Minimal attacks to conserve energy (use in desperate situations)");
             prompt.AppendLine();
 
-            // 防御判断基準（7種類）
+            // 防御判断基準（7種類）- Evasive Counter Priorityに変更 & 説明明確化
             prompt.AppendLine("## DefenseCriteria & ContinuousDefenseCriteria (Choose ONE for each):");
-            prompt.AppendLine("- **Cumulative Probability**: Use historically most successful defenses");
-            prompt.AppendLine("- **Recent Pattern Focus**: Counter enemy's recent attack patterns");
+            prompt.AppendLine("- **Cumulative Probability**: Use all historical data to select most successful defenses");
+            prompt.AppendLine("- **Recent Pattern Focus**: Focus only on last 3-5 turns to counter recent patterns");
             prompt.AppendLine("- **Counterattack Focus**: Risky counters to seize initiative");
             prompt.AppendLine("- **Return Priority**: High-reward defensive moves");
             prompt.AppendLine("- **Risk Avoidance**: Defend against enemy's strongest attacks");
-            prompt.AppendLine("- **Counter Priority**: Counter-heavy style (high risk if timed wrong)");
+            prompt.AppendLine("- **Evasive Counter Priority**: Attack while dodging (high risk if failed)");
             prompt.AppendLine("- **Dispersion Focus**: Vary defenses to avoid predictability");
             prompt.AppendLine();
 
@@ -513,11 +529,11 @@ namespace LLMDataArchitect.Test
     },
     ""DefenseCriteria"": {
       ""type"": ""string"",
-      ""enum"": [""Cumulative Probability"", ""Recent Pattern Focus"", ""Counterattack Focus"", ""Return Priority"", ""Risk Avoidance"", ""Counter Priority"", ""Dispersion Focus""]
+      ""enum"": [""Cumulative Probability"", ""Recent Pattern Focus"", ""Counterattack Focus"", ""Return Priority"", ""Risk Avoidance"", ""Evasive Counter Priority"", ""Dispersion Focus""]
     },
     ""ContinuousDefenseCriteria"": {
       ""type"": ""string"",
-      ""enum"": [""Cumulative Probability"", ""Recent Pattern Focus"", ""Counterattack Focus"", ""Return Priority"", ""Risk Avoidance"", ""Counter Priority"", ""Dispersion Focus""]
+      ""enum"": [""Cumulative Probability"", ""Recent Pattern Focus"", ""Counterattack Focus"", ""Return Priority"", ""Risk Avoidance"", ""Evasive Counter Priority"", ""Dispersion Focus""]
     }
   },
   ""required"": [""AnalysisResult"", ""BasicTactic"", ""AttackCriteria"", ""ContinuousAttackCriteria"", ""DefenseCriteria"", ""ContinuousDefenseCriteria""],

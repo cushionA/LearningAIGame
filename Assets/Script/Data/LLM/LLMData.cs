@@ -511,11 +511,11 @@ namespace LLMDataArchitect
         {
             return new StrategyData
             {
-                BasicTactic = "対応型",
-                AttackCriteria = "累積確率重視",
-                ContinuousAttackCriteria = "直近パターン重視",
-                DefenseCriteria = "累積確率重視",
-                ContinuousDefenseCriteria = "反撃"
+                BasicTactic = "Adaptive",
+                AttackCriteria = "Cumulative Probability",
+                ContinuousAttackCriteria = "Recent Pattern Focus",
+                DefenseCriteria = "Cumulative Probability",
+                ContinuousDefenseCriteria = "Counterattack Focus"
             };
         }
 
