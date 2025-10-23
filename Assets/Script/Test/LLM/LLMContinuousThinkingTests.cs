@@ -25,6 +25,7 @@ namespace LLMDataArchitect.Test
         Fixed_Eng,
         Main,
         Cache,
+        Tuned,
         Experimental
     }
 
@@ -426,6 +427,7 @@ namespace LLMDataArchitect.Test
                 PromptGeneratorType.Fixed_Eng => new FixedEnglishGenerator(),
                 PromptGeneratorType.Main => new MainPromptGenerator(),
                 PromptGeneratorType.Cache => new CachePromptGenerator(),
+                PromptGeneratorType.Tuned => new TunedPromptGenerator(),
                 _ => new JapanesePromptGenerator()
             };
         }
@@ -443,6 +445,10 @@ Always respond with ONLY valid JSON, no markdown, no explanations.
 Use the provided game rules context to inform your tactical decisions.";
             }
             else if (_generatorType == PromptGeneratorType.Cache)
+            {
+                _llmCharacter.SetPrompt(_promptGenerator.GenerateFixedSection());
+            }
+            else if (_generatorType == PromptGeneratorType.Tuned)
             {
                 _llmCharacter.SetPrompt(_promptGenerator.GenerateFixedSection());
             }
@@ -777,7 +783,6 @@ Use the provided game rules context to inform your tactical decisions.";
                     UnityEngine.Debug.Log($"RAG: {ragResults.Length}件の関連ルール追加 ({ragSearchTimeMs:F2}ms)");
                 }
             }
-            // _llmCharacter.ClearChat();
             if (iteration == 0)
             {
                 // _llmCharacter.saveCache = true;
@@ -964,6 +969,7 @@ Use the provided game rules context to inform your tactical decisions.";
             }
 
             UnityEngine.Debug.Log($"LLM応答: {response}");
+            _llmCharacter.ClearChat();
         }
 
         private void ValidateResponse(TestResult testResult)

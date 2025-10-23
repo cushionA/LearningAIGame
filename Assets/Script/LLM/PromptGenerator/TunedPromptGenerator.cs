@@ -3,9 +3,10 @@ using System.Text;
 using static LearningAIGame.CombatSystem.Core.StateSystem;
 
 //==============================================ファイルヘッダ===========================================================
-// CachePromptGenerator
+// TunedPromptGenerator
 // 
-// 概要: LLM用の戦術判断プロンプトを生成するメインクラス（英語版・最適化済み・Cache8互換）
+//
+// 概要: LLM用の戦術判断プロンプトを生成するメインクラス（英語版・最適化済み）
 // 
 // 制作者: 小さな座布団
 // 
@@ -13,7 +14,7 @@ using static LearningAIGame.CombatSystem.Core.StateSystem;
 // 戦闘データを解析し、LLMが戦術判断を行うための構造化プロンプトを生成する。
 // JSON Schema Grammarでパース失敗を防止。
 // 
-// **重要な変更点（Cache8互換化）:**
+// **重要な変更点:**
 // - フィードバックセクションに「前回の BasicTactic」を明示
 // - これにより LLM が前回の決定を正確に把握し、適切な継続/変更判断が可能になる
 // 
@@ -39,7 +40,7 @@ namespace LLMDataArchitect.Test
     /// <summary>
     /// 英語版プロンプト生成クラス（最適化版・Cache8互換）
     /// </summary>
-    public class CachePromptGenerator : PromptGeneratorBase
+    public class TunedPromptGenerator : PromptGeneratorBase
     {
         #region バランス調整用定数
 
@@ -111,6 +112,26 @@ namespace LLMDataArchitect.Test
             prompt.AppendLine("# Combat AI Tactical Decision");
             prompt.AppendLine("Analyze the current battle state and select optimal tactics.");
             prompt.AppendLine();
+
+            //// === 戦術ガイドライン ===
+            //prompt.AppendLine("# Tactical Decision Guidelines");
+            //prompt.AppendLine();
+
+            //prompt.AppendLine("## When DOMINANT/ADVANTAGE:");
+            //prompt.AppendLine("- 'Aggressive': Use for offensive strategy to maximize damage output");
+            //prompt.AppendLine("- 'Disruptive': Use to break through strong defenses or disrupt enemy tactics");
+            //prompt.AppendLine("- Goal: Finish the battle quickly with high-damage attacks");
+            //prompt.AppendLine();
+
+            //prompt.AppendLine("## When EVENLY MATCHED:");
+            //prompt.AppendLine("- 'Adaptive': Remain flexible and adjust tactics based on situation");
+            //prompt.AppendLine("- Goal: Create opportunities through varied tactics and analysis");
+            //prompt.AppendLine();
+
+            //prompt.AppendLine("## When DISADVANTAGE/CRITICAL:");
+            //prompt.AppendLine("- 'Defensive': Use when HP is critically low (survival priority)");
+            //prompt.AppendLine("- 'Endurance': Use when energy is depleted (conservation strategy)");
+            //prompt.AppendLine("- Goal: Survive and recover until conditions improve");
 
             // === 現在の状況 ===
             prompt.AppendLine("## 1. Current Battle State");
@@ -190,6 +211,7 @@ namespace LLMDataArchitect.Test
             {
                 prompt.AppendLine($"**Historical Pattern**: Heavy {inputData.ActionLog.HeavyAttackPercentage * 100:F0}%, Light {inputData.ActionLog.LightAttackPercentage * 100:F0}%, Feint {inputData.ActionLog.HeavyAttackCancelPercentage * 100:F0}%");
             }
+
             prompt.AppendLine();
 
             // === 敵防御パターン ===
@@ -284,6 +306,28 @@ namespace LLMDataArchitect.Test
 
                 prompt.AppendLine(evaluations);
                 prompt.AppendLine();
+
+
+                // === 戦術ガイドライン ===
+                prompt.AppendLine("### Tactical Decision Guidelines");
+                prompt.AppendLine();
+
+                prompt.AppendLine("#### When DOMINANT/ADVANTAGE:");
+                prompt.AppendLine("- 'Aggressive': Use for offensive strategy to maximize damage output");
+                prompt.AppendLine("- 'Disruptive': Use to break through strong defenses or disrupt enemy tactics");
+                prompt.AppendLine("- Goal: Finish the battle quickly with high-damage attacks");
+                prompt.AppendLine();
+
+                prompt.AppendLine("#### When EVENLY MATCHED:");
+                prompt.AppendLine("- 'Adaptive': Remain flexible and adjust tactics based on situation");
+                prompt.AppendLine("- Goal: Create opportunities through varied tactics and analysis");
+                prompt.AppendLine();
+
+                prompt.AppendLine("#### When DISADVANTAGE/CRITICAL:");
+                prompt.AppendLine("- 'Defensive': Use when HP is critically low (survival priority)");
+                prompt.AppendLine("- 'Endurance': Use when energy is depleted (conservation strategy)");
+                prompt.AppendLine("- **Priority: When HP is low, prioritize 'Defensive' over 'Endurance'**");
+                prompt.AppendLine("- Goal: Survive and recover until conditions improve");
 
                 // フィードバックルール
                 prompt.AppendLine("### [IMPORTANT] MANDATORY FEEDBACK RULES");
@@ -389,7 +433,8 @@ namespace LLMDataArchitect.Test
 
         /// <summary>
         /// 固定プロンプトセクション（Output Format Requirements）を生成
-        /// LLMへのJSON出力形式、利用可能な戦術オプション、プロパティ説明を含む
+        /// ファインチューニング済みモデル用の最小限システムプロンプト
+        /// モデルに焼き付けた戦術知識を活用し、出力形式とルールのみを指定
         /// このメソッドは初回のみ実行され、結果はキャッシュされる
         /// </summary>
         /// <returns>生成された固定プロンプトセクション</returns>
@@ -398,111 +443,19 @@ namespace LLMDataArchitect.Test
             var prompt = new StringBuilder();
 
             // === システムプロンプトとしてのロール定義 ===
-            prompt.AppendLine("You are a tactical combat AI advisor. Your role is to analyze battle situations and provide strategic decisions in strict JSON format.");
+            prompt.AppendLine("You are a tactical combat AI advisor. Analyze battle situations and provide strategic decisions in strict JSON format.");
             prompt.AppendLine();
 
-            // === 戦術ガイドライン ===
-            prompt.AppendLine("## Tactical Decision Guidelines");
+            // === ファインチューニング済み知識の活用指示 ===
+            prompt.AppendLine("You have been fine-tuned with comprehensive combat tactics knowledge. Apply your trained understanding of:");
+            prompt.AppendLine("- BasicTactic types and their strategic applications");
+            prompt.AppendLine("- Attack/Defense criteria and their optimal usage contexts");
+            prompt.AppendLine("- Situational decision-making (dominant/even/disadvantaged scenarios)");
+            prompt.AppendLine("- Performance feedback interpretation and adaptation");
+            prompt.AppendLine();
+            prompt.AppendLine("USE YOUR TRAINED KNOWLEDGE - do not ask for clarification on tactical terminology.");
             prompt.AppendLine();
 
-            prompt.AppendLine("## When DOMINANT/ADVANTAGE:");
-            prompt.AppendLine("- 'Aggressive': Use for offensive strategy to maximize damage output");
-            prompt.AppendLine("- 'Disruptive': Use to break through strong defenses or disrupt enemy tactics");
-            prompt.AppendLine("- Goal: Finish the battle quickly with high-damage attacks");
-            prompt.AppendLine();
-
-            prompt.AppendLine("## When EVENLY MATCHED:");
-            prompt.AppendLine("- 'Adaptive': Remain flexible and adjust tactics based on situation");
-            prompt.AppendLine("- Goal: Create opportunities through varied tactics and analysis");
-            prompt.AppendLine();
-
-            prompt.AppendLine("## When DISADVANTAGE/CRITICAL:");
-            prompt.AppendLine("- 'Defensive': Use when HP is critically low (survival priority)");
-            prompt.AppendLine("- 'Endurance': Use when energy is depleted (conservation strategy)");
-            prompt.AppendLine("- **Priority: When HP is low, prioritize 'Defensive' over 'Endurance'**");
-            prompt.AppendLine("- Goal: Survive and recover until conditions improve");
-
-
-            // === 出力形式要件 ===
-            prompt.AppendLine("# Output Format Requirements");
-            prompt.AppendLine();
-
-            // JSON出力の厳密なルール定義
-            prompt.AppendLine("## Critical JSON Rules");
-            prompt.AppendLine("1. Output ONLY pure JSON - no markdown, no code blocks, no explanations");
-            prompt.AppendLine("2. Start directly with { and end with }");
-            prompt.AppendLine("3. NEVER write ```json or ``` markers");
-            prompt.AppendLine("4. ALL properties must contain valid values from the options below");
-            prompt.AppendLine("5. NEVER use 'None' or leave any field empty");
-            prompt.AppendLine();
-
-            // === 利用可能な戦術オプション ===
-            prompt.AppendLine("# Available Tactical Options");
-            prompt.AppendLine();
-
-            // 基本戦術タイプ（5種類）
-            prompt.AppendLine("## BasicTactic (Choose ONE):");
-            prompt.AppendLine("- **Aggressive**: High risk, high damage, fast victory");
-            prompt.AppendLine("- **Defensive**: Low risk, survival priority, attack only when safe");
-            prompt.AppendLine("- **Adaptive**: Balanced approach, flexible to situation");
-            prompt.AppendLine("- **Disruptive**: Unpredictable moves to break enemy rhythm");
-            prompt.AppendLine("- **Endurance**: Energy conservation for prolonged battle");
-            prompt.AppendLine();
-
-            // 攻撃判断基準（7種類）- 説明を明確化
-            prompt.AppendLine("## AttackCriteria & ContinuousAttackCriteria (Choose ONE for each):");
-            prompt.AppendLine("- **Cumulative Probability**: Use all historical data to select most successful attacks");
-            prompt.AppendLine("- **Recent Pattern Focus**: Focus only on last 3-5 turns to counter recent patterns");
-            prompt.AppendLine("- **Speed Priority**: Fast, low-risk attacks");
-            prompt.AppendLine("- **Return Priority**: High-damage, high-risk attacks");
-            prompt.AppendLine("- **Feint Focus**: Feints to observe enemy reactions");
-            prompt.AppendLine("- **Dispersion Focus**: Vary attacks to avoid predictability");
-            prompt.AppendLine("- **Energy Efficiency**: Minimal attacks to conserve energy (use in desperate situations)");
-            prompt.AppendLine();
-
-            // 防御判断基準（7種類）- Evasive Counter Priorityに変更 & 説明明確化
-            prompt.AppendLine("## DefenseCriteria & ContinuousDefenseCriteria (Choose ONE for each):");
-            prompt.AppendLine("- **Cumulative Probability**: Use all historical data to select most successful defenses");
-            prompt.AppendLine("- **Recent Pattern Focus**: Focus only on last 3-5 turns to counter recent patterns");
-            prompt.AppendLine("- **Counterattack Focus**: Risky counters to seize initiative");
-            prompt.AppendLine("- **Return Priority**: High-reward defensive moves");
-            prompt.AppendLine("- **Risk Avoidance**: Defend against enemy's strongest attacks");
-            prompt.AppendLine("- **Evasive Counter Priority**: Attack while dodging (high risk if failed)");
-            prompt.AppendLine("- **Dispersion Focus**: Vary defenses to avoid predictability");
-            prompt.AppendLine();
-
-            // === 必須JSON構造の例示 ===
-            prompt.AppendLine("# Required JSON Structure");
-            prompt.AppendLine();
-            prompt.AppendLine("You must always respond with this exact structure:");
-            prompt.AppendLine();
-            prompt.AppendLine("{");
-            prompt.AppendLine("  \"AnalysisResult\": \"Your tactical reasoning in max 50 characters\",");
-            prompt.AppendLine("  \"BasicTactic\": \"One of: Aggressive, Defensive, Adaptive, Disruptive, Endurance\",");
-            prompt.AppendLine("  \"AttackCriteria\": \"One attack criteria from list above\",");
-            prompt.AppendLine("  \"ContinuousAttackCriteria\": \"One attack criteria from list above\",");
-            prompt.AppendLine("  \"DefenseCriteria\": \"One defense criteria from list above\",");
-            prompt.AppendLine("  \"ContinuousDefenseCriteria\": \"One defense criteria from list above\"");
-            prompt.AppendLine("}");
-            prompt.AppendLine();
-
-            // === 各プロパティの説明 ===
-            prompt.AppendLine("# Property Descriptions");
-            prompt.AppendLine();
-            prompt.AppendLine("- **AnalysisResult**: Brief explanation of your tactical decision (max 50 characters)");
-            prompt.AppendLine("- **BasicTactic**: Overall combat approach for this turn");
-            prompt.AppendLine("- **AttackCriteria**: Decision logic for initiating attacks");
-            prompt.AppendLine("- **ContinuousAttackCriteria**: Decision logic when attacks chain (2+ consecutive attacks)");
-            prompt.AppendLine("- **DefenseCriteria**: Decision logic for initial defensive response");
-            prompt.AppendLine("- **ContinuousDefenseCriteria**: Decision logic when defending chains (2+ consecutive enemy attacks)");
-            prompt.AppendLine();
-
-            // 最終リマインダー
-            prompt.AppendLine("# CRITICAL REMINDER");
-            prompt.AppendLine();
-            prompt.AppendLine("Your response MUST be valid JSON starting with { and ending with } - absolutely nothing else!");
-            prompt.AppendLine("No explanations, no markdown formatting, no code blocks - ONLY the JSON object.");
-            prompt.AppendLine();
 
             return prompt.ToString();
         }
@@ -518,7 +471,7 @@ namespace LLMDataArchitect.Test
   ""properties"": {
     ""AnalysisResult"": {
       ""type"": ""string"",
-      ""maxLength"": 100
+      ""maxLength"": 200
     },
     ""BasicTactic"": {
       ""type"": ""string"",
