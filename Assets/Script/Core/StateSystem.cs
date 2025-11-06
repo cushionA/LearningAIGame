@@ -364,7 +364,7 @@ namespace LearningAIGame.CombatSystem.Core
         {
             ChangeState(ActionState.ガード);
             _moveStunTime = Time.time + _actionSetting[CurrentState.CurrentValue];
-            //Debug.Log($"[{nameof(StateSystem)}] 行動硬直時間が {_moveStunTime - Time.time} 秒に設定されました。");
+            Debug.Log($"[{nameof(StateSystem)}] 行動硬直時間が {_moveStunTime - Time.time} 秒に設定されました。");
         }
 
         /// <summary>
