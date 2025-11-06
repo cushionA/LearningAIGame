@@ -3,82 +3,82 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.InputSystem;
 
-public class CameraController : MonoBehaviour
+public class CameraController2 : MonoBehaviour
 {
-#region インスペクター変数
+    #region インスペクター変数
 
- #region 入力値
-        public Vector2 look;
-    
-        public bool lockOn = false;
-    
+    #region 入力値
+    public Vector2 look;
+
+    public bool lockOn = false;
+
     KeyCode strafeInput = KeyCode.Tab;
     PlayerInput _playerInput;
 
     #endregion
 
 
-#region  カメラ制御値
-  [Header("カメラ追従値")]
-        public Transform targetTransform;
+    #region  カメラ制御値
+    [Header("カメラ追従値")]
+    public Transform targetTransform;
 
-        public Transform pivot;
+    public Transform pivot;
 
-        public float followSpeed = 0.1f, rotateSpeed = 1;
-        float lookAngle; 
-        float pivotAngle;
+    public float followSpeed = 0.1f, rotateSpeed = 1;
+    float lookAngle;
+    float pivotAngle;
 
 
-  // CameraRange
-  [Header("カメラ範囲値")]
-        public float TopClamp = 70.0f;
-        public float BottomClamp = -10.0f;
+    // CameraRange
+    [Header("カメラ範囲値")]
+    public float TopClamp = 70.0f;
+    public float BottomClamp = -10.0f;
 
 
     // CameraZoom
-        public float zoom, zoomMultiplier = 4, minZoom = 2, maxZoom = 8, velocirty = 0, smoothTime = 0.25f;
+    public float zoom, zoomMultiplier = 4, minZoom = 2, maxZoom = 8, velocirty = 0, smoothTime = 0.25f;
 
-    bool  cursorInputForLook = true, isScoll = false;
+    bool cursorInputForLook = true, isScoll = false;
 
     #endregion
 
 
     #region  ターゲット取得値
 
- [Header("ターゲット位置取得")]
-        public GameObject MonsterTargetLocator;
+    [Header("ターゲット位置取得")]
+    public GameObject MonsterTargetLocator;
 
 
 
     #endregion
 
 
- [Header("カメラ距離と移動")]
-#region カメラ距離と移動
-        public GameObject camParent;
-        GameObject Cam;
-        public Vector3 CamOffset;
-        public float SmoothSpeed;
+    [Header("カメラ距離と移動")]
+    #region カメラ距離と移動
+    public GameObject camParent;
+    GameObject Cam;
+    public Vector3 CamOffset;
+    public float SmoothSpeed;
 
     #endregion
 
 
-#region カメラコライダー
- [Header("カメラ距離値")]
-        public float smooth;
-        public float minDistance, maxDistance, distance,  distanceOffset;
+    #region カメラコライダー
+    [Header("カメラ距離値")]
+    public float smooth;
+    public float minDistance, maxDistance, distance, distanceOffset;
 
     [Header("カメラピボット距離")]
-        public float normalMagnitude, movementMagnitude;
-        public Vector3 dollyDir;
+    public float normalMagnitude, movementMagnitude;
+    public Vector3 dollyDir;
 
     Animator anim;
     float saveDistance;
 
-#endregion
+    #endregion
 
 
-#region 角度チェック ～ 未実装
+    #region 角度チェック ～ 未実装
     [Header("角度チェック")]
     [Tooltip("Set Limit of Angle with Camera & Target ")]
     float setAngle;
@@ -87,7 +87,7 @@ public class CameraController : MonoBehaviour
     #endregion
 
 
-#endregion
+    #endregion
 
 
     private void Awake()
@@ -113,7 +113,7 @@ public class CameraController : MonoBehaviour
         CameraCollision();
         ZoomInput();
     }
-   
+
 
     #region カメラ制御
 
@@ -125,7 +125,7 @@ public class CameraController : MonoBehaviour
     public void Tick(float delta)
     {
         // set camera follow Lerp value
-        Vector3 targetPosition = Vector3.Lerp(transform.position, targetTransform.transform.position, delta / followSpeed);   
+        Vector3 targetPosition = Vector3.Lerp(transform.position, targetTransform.transform.position, delta / followSpeed);
 
         transform.position = targetPosition;
     }
@@ -137,16 +137,16 @@ public class CameraController : MonoBehaviour
         {
             float deltaTimeMultiplier = IsCurrentDeviceMouse ? 1.0f : Time.deltaTime;
 
-            lookAngle += (mouseX * deltaTimeMultiplier) * (rotateSpeed);   
-            pivotAngle +=(mouseY * deltaTimeMultiplier) * (rotateSpeed);  
-            pivotAngle = Mathf.Clamp(pivotAngle, BottomClamp, TopClamp);  
+            lookAngle += (mouseX * deltaTimeMultiplier) * (rotateSpeed);
+            pivotAngle += (mouseY * deltaTimeMultiplier) * (rotateSpeed);
+            pivotAngle = Mathf.Clamp(pivotAngle, BottomClamp, TopClamp);
 
             Vector3 euler = Vector3.zero;
             euler.y = lookAngle;
             euler.x = pivotAngle;
             Quaternion targetRotation = Quaternion.Euler(euler);
 
-           
+
             transform.rotation = targetRotation;
             pivot.rotation = Quaternion.Lerp(pivot.rotation, targetRotation, delta / 0.25f);
 
@@ -163,13 +163,13 @@ public class CameraController : MonoBehaviour
             pivotDir.Normalize();
             Quaternion pivotTargetRotation = Quaternion.LookRotation(pivotDir);
             Vector3 e = pivotTargetRotation.eulerAngles;
-            e.y = 0;    
+            e.y = 0;
 
             transform.rotation = Quaternion.Lerp(transform.rotation, targetRotation, Time.fixedDeltaTime / 0.25f);
             pivot.localEulerAngles = Vector3.Lerp(pivot.localEulerAngles, e, Time.fixedDeltaTime / 0.25f);
 
-            pivotAngle = 0;    
-            lookAngle = transform.eulerAngles.y; 
+            pivotAngle = 0;
+            lookAngle = transform.eulerAngles.y;
         }
 
     }
@@ -199,18 +199,18 @@ public class CameraController : MonoBehaviour
         }
     }
 
-    public void CameraZoom(int zoomType, float fieldOfView) 
+    public void CameraZoom(int zoomType, float fieldOfView)
     {
         int smoothSpeed = 1;
 
         if (fieldOfView == Cam.GetComponent<Camera>().fieldOfView)
             return;
-    
 
-        switch (zoomType) 
+
+        switch (zoomType)
         {
             case 0:
-                if(isScoll)
+                if (isScoll)
                     return;
                 break;
             case 1:
@@ -227,21 +227,21 @@ public class CameraController : MonoBehaviour
         Cam.GetComponent<Camera>().fieldOfView = SlerpVector.z;
     }
 
-    void CameraCollision() 
+    void CameraCollision()
     {
         Vector3 desiredCameraPos = camParent.transform.parent.TransformPoint(dollyDir * maxDistance);
         RaycastHit hit;
         Debug.DrawRay(camParent.transform.position, desiredCameraPos, Color.red);
-       
+
         if (Physics.Linecast(camParent.transform.parent.position, desiredCameraPos, out hit))
         {
             saveDistance = distance;
             camParent.transform.localPosition = Vector3.Lerp(camParent.transform.localPosition, dollyDir * distance, Time.deltaTime * smooth);
-          
+
             distance = Mathf.Clamp(hit.distance * distanceOffset, minDistance, maxDistance);
         }
         else
-        {   
+        {
             setCameraDistance();
             distance = saveDistance;
         }
@@ -258,9 +258,9 @@ public class CameraController : MonoBehaviour
 
     #region ロックオンスターゲット
 
-  
 
-  
+
+
 
     #endregion
 
@@ -274,7 +274,7 @@ public class CameraController : MonoBehaviour
 #if ENABLE_INPUT_SYSTEM && STARTER_ASSETS_PACKAGES_CHECKED
             return _playerInput.currentControlScheme == "KeyboardMouse";
 #else
-				return false;
+            return false;
 #endif
         }
     }
