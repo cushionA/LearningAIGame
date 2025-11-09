@@ -67,6 +67,7 @@ namespace LearningAIGame.CombatSystem.Data
         {
             damage = info.damage;
             attackType = info.attackType;
+            hitResultType = HitResultType.Miss; // 初期値は空振り
         }
 
         /// <summary>
@@ -134,6 +135,19 @@ namespace LearningAIGame.CombatSystem.Data
             stance = reportInfo.stance;
             attackType = reportInfo.reportType == AttackReportType.WeakAttackStart ? AttackType.WeakAttack : AttackType.HeavyAttack;
         }
+
+        /// <summary>
+        /// 報告内容に従い現在の攻撃情報を作成する
+        /// 引数で内容を指定するオーバーロード
+        /// </summary>
+        /// <param name="reportInfo">報告データ</param>
+        public void SetInfo(int newDamage, StanceType newStance, AttackType newType)
+        {
+            damage = newDamage;
+            stance = newStance;
+            attackType = newType;
+        }
+
     }
 
 }

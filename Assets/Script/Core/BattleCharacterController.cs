@@ -388,6 +388,15 @@ namespace LearningAIGame.CombatSystem.Core
             _movementSystem.Move(moveVector * _actionSetting.MoveSpeed);
         }
 
+        /// <summary>
+        /// 外部から敵のTransformを設定する
+        /// </summary>
+        /// <param name="enemyTransform"></param>
+        public void SetTargetTransform(Transform enemyTransform)
+        {
+            _enemyTransform = enemyTransform;
+        }
+
         #region 購読用メソッド
 
         /// <summary>
