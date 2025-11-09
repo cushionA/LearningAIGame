@@ -42,6 +42,7 @@ namespace LearningAIGame.CombatSystem.Systems
         /// </summary>
         public void BlockingStart(StanceType stance)
         {
+            moveController.Stop();
             _info.SetInfo(stance, DefenseReportType.BlockingStart);
             NotifyObservers(_info);
         }
