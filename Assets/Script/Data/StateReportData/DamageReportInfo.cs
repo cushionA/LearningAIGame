@@ -116,10 +116,10 @@ namespace LearningAIGame.CombatSystem.Data
         /// <summary>
         /// 現在の防御状態を取得するための読み取り専用プロパティ
         /// </summary>
-        public DefenseType CurrentDefense { get; }
+        public DefenseType CurrentDefense { get { return _defenseType; } }
 
         /// <summary>
-        /// 報告内容に従い現在の攻撃情報を作成する
+        /// 報告内容に従い現在の防御情報を作成する
         /// </summary>
         /// <param name="reportInfo">報告データ</param>
         public void SetInfo(in DefenseReportInfo reportInfo, float startTime, float duration)
@@ -145,7 +145,7 @@ namespace LearningAIGame.CombatSystem.Data
         }
 
         /// <summary>
-        /// 報告内容に従い現在の攻撃情報を作成する
+        /// 報告内容に従い現在の防御情報を作成する
         /// 回避アクションの情報を受け付けるオーバーロード
         /// </summary>
         /// <param name="reportInfo">報告データ</param>
@@ -164,6 +164,17 @@ namespace LearningAIGame.CombatSystem.Data
         }
 
         /// <summary>
+        /// 入力に基づいて防御情報を作成する
+        /// </summary>
+        /// <param name="reportInfo">報告データ</param>
+        public void SetInfo(DefenseType type, float startTime, float duration)
+        {
+            _defenseType = type;
+            _defenseStartTime = Time.time + startTime;
+            _defenseDuration = duration;
+        }
+
+        /// <summary>
         /// 攻撃に対する防御が成功したかを返すメソッド
         /// </summary>
         /// <param name="attackInfo"></param>
@@ -172,9 +183,10 @@ namespace LearningAIGame.CombatSystem.Data
         /// <returns>攻撃の実行結果</returns>
         public HitResultType IsDefenseSuccess(in AttackInfo attackInfo, StanceType defenseStance)
         {
-            // ガード方向ない場合は無条件で被弾
-            if (defenseStance != StanceType.None)
+            // ガード方向か防御タイプがない場合は無条件で被弾
+            if (defenseStance == StanceType.None || _defenseType == DefenseType.None)
             {
+                Debug.Log($"[DefenseInfo] 防御なし");
                 return HitResultType.Hit;
             }
 
@@ -183,10 +195,11 @@ namespace LearningAIGame.CombatSystem.Data
 
             // 効果時間内であるかを確認する
             bool hasEffect = (Time.time >= _defenseStartTime) && (Time.time <= _defenseStartTime + _defenseDuration);
+            Debug.Log($"[DefenseInfo] 防御判定: hasEffect={hasEffect}, Time={Time.time}, Start={_defenseStartTime}, Duration={_defenseDuration}");
 
             // 防御方向があっているかを確認する
             // 左右の防御方向は対応が逆になるので注意
-            bool matchStance = ((defenseStance != attackInfo.stance) && (defenseStance != StanceType.Up)) ||
+            bool matchStance = ((defenseStance != attackInfo.stance) && (defenseStance != StanceType.Up && attackInfo.stance != StanceType.Up)) ||
                 ((defenseStance == attackInfo.stance) && (defenseStance == StanceType.Up));
 
             // 防御タイプごとに結果を設定
@@ -195,10 +208,12 @@ namespace LearningAIGame.CombatSystem.Data
                 // ガード時
                 case DefenseType.Guard:
                     result = (attackInfo.attackType == AttackType.WeakAttack && matchStance) ? HitResultType.Guard : result;
+                    Debug.Log($"[DefenseInfo] ガード判定: hasEffect={hasEffect}, matchStance={matchStance}, Result={result}");
                     break;
                 // 回避時
                 case DefenseType.Avoid:
                     result = hasEffect ? HitResultType.Avoid : result;
+                    Debug.Log($"[DefenseInfo] 回避判定: hasEffect={hasEffect}, Result={result}");
                     break;
                 // ブロッキング時
                 case DefenseType.Blocking:

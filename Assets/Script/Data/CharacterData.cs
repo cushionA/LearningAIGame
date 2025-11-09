@@ -95,6 +95,7 @@ namespace LearningAIGame.CombatSystem.Data
         /// </summary>
         public void TakeDamage(int amount)
         {
+            UnityEngine.Debug.Log($"É_ÉÅÅ[ÉW{amount}");
             Hp = Math.Max(0, Hp - amount);
         }
 

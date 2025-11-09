@@ -1,0 +1,352 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1608713875908027462
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 339966074585724595}
+  - component: {fileID: 8928151325456068157}
+  - component: {fileID: 349681841015920590}
+  - component: {fileID: 6692230204749926986}
+  - component: {fileID: 6611308697803848810}
+  - component: {fileID: 7316521069974937297}
+  - component: {fileID: 4707729168288797696}
+  - component: {fileID: 5742205269617136821}
+  - component: {fileID: 211668648542769802}
+  - component: {fileID: 7119122595720074968}
+  - component: {fileID: 7086580523174503949}
+  m_Layer: 6
+  m_Name: ControllerTestPlayer
+  m_TagString: Player
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &339966074585724595
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1608713875908027462}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 3624796616479207702}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8928151325456068157
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1608713875908027462}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1c4db7e4754be094680a8f6440556c43, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.CombatSystem.Core.StateSystem
+  _actionSetting: {fileID: 11400000, guid: 33f863fd9e1bdde42b0af4b08acff609, type: 2}
+  _attackSystem: {fileID: 6692230204749926986}
+  _defenseSystem: {fileID: 7316521069974937297}
+  _movementSystem: {fileID: 4707729168288797696}
+  _hitSystem: {fileID: 7086580523174503949}
+  _damageSystem: {fileID: 5742205269617136821}
+  _showDebugInfo: 0
+  _debugWindowPosition: {x: 10, y: 10}
+  _debugWindowSize: {x: 450, y: 1000}
+  _logDebugInfo: 0
+  _logInterval: 1
+--- !u!54 &349681841015920590
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1608713875908027462}
+  serializedVersion: 5
+  m_Mass: 70
+  m_LinearDamping: 0
+  m_AngularDamping: 5
+  m_CenterOfMass: {x: 0, y: -0.5, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 1
+  m_Constraints: 116
+  m_CollisionDetection: 1
+--- !u!114 &6692230204749926986
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1608713875908027462}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f46e4bd7a6b7d9d44b3876e0f9e75514, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.CombatSystem.Systems.AttackSystem
+  moveController: {fileID: 211668648542769802}
+--- !u!114 &6611308697803848810
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1608713875908027462}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 42d39fbe001183b4dab893171cb466ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.CombatSystem.Core.BattleCharacterController
+  _actionSetting: {fileID: 11400000, guid: 33f863fd9e1bdde42b0af4b08acff609, type: 2}
+  _attackSystem: {fileID: 6692230204749926986}
+  _defenseSystem: {fileID: 7316521069974937297}
+  _movementSystem: {fileID: 4707729168288797696}
+  _hitSystem: {fileID: 7086580523174503949}
+  _stateSystem: {fileID: 8928151325456068157}
+  _enemyTransform: {fileID: 0}
+  _rotationSpeed: 360
+  _rotationThreshold: 1
+  _myPosition: {x: 0, y: 0, z: 0}
+--- !u!114 &7316521069974937297
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1608713875908027462}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b43e96d3f1285ed408bf12a12699c141, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.CombatSystem.Systems.DefenseSystem
+  moveController: {fileID: 211668648542769802}
+--- !u!114 &4707729168288797696
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1608713875908027462}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a780733bd797ca4e900e4c74701c231, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.CombatSystem.Systems.MovementSystem
+  moveController: {fileID: 211668648542769802}
+--- !u!114 &5742205269617136821
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1608713875908027462}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f58a58771e0be1a4291b2f24cd156d66, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.CombatSystem.Systems.DamageSystem
+  moveController: {fileID: 211668648542769802}
+  _stateSystem: {fileID: 8928151325456068157}
+--- !u!114 &211668648542769802
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1608713875908027462}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f571d6c82e7808e4aa88f13cf324adaf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.CombatSystem.Core.MoveController
+  _rb: {fileID: 349681841015920590}
+  _groundCheckDistance: 0.1
+  _groundLayer:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  _useLocalDirection: 1
+--- !u!82 &7119122595720074968
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1608713875908027462}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 0}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 1
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+--- !u!114 &7086580523174503949
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1608713875908027462}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb77cef2272d9d94c9f7c2b4b908e16a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: GameCode::LearningAIGame.CombatSystem.Systems.HitSystem
+  moveController: {fileID: 211668648542769802}
+  _enemyDamageSystem: {fileID: 5742205269617136821}
+  _collider: {fileID: 6006367118503600942}
+--- !u!1 &5419207452218409305
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3624796616479207702}
+  - component: {fileID: 6006367118503600942}
+  m_Layer: 6
+  m_Name: HitObj
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3624796616479207702
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5419207452218409305}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 339966074585724595}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!135 &6006367118503600942
+SphereCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5419207452218409305}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 0
+  serializedVersion: 3
+  m_Radius: 0.5
+  m_Center: {x: 0, y: 0, z: 0}
