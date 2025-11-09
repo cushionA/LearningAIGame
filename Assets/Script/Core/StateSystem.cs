@@ -3,7 +3,6 @@ using LearningAIGame.CombatSystem.Setting;
 using LearningAIGame.CombatSystem.Systems;
 using LearningAIGame.CombatSystem.Utilities;
 using LLMDataArchitect;
-using LLMDataArchitectTest;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using R3;
@@ -234,14 +233,14 @@ namespace LearningAIGame.CombatSystem.Core
         #region Publicプロパティ
 
         /// <summary>
-        /// 読み取り専用のHP
+        /// HP
         ///</summary>
-        public int Hp { get { return (_characterData.Hp >= 0 ? _characterData.Hp : 0); } }
+        public int Hp { get { return (_characterData.Hp >= 0 ? _characterData.Hp : 0); } set { _characterData.Hp = value; } }
 
         /// <summary>
         /// 読み取り専用の残りエネルギー（枯渇中は常に 0）
         ///</summary>
-        public int Energy { get { return (int)(_characterData.IsEnergyExhaust ? 0 : _characterData.Energy); } }
+        public int Energy { get { return (int)(_characterData.IsEnergyExhaust ? 0 : _characterData.Energy); } set { _characterData.Energy = value; } }
 
         /// <summary>
         /// 読み取り専用の攻撃情報
@@ -437,6 +436,7 @@ namespace LearningAIGame.CombatSystem.Core
                 // 死んでいたら死亡状態に移行
                 if (_characterData.IsDead)
                 {
+                    Debug.Log($"[{nameof(StateSystem)}] 死亡状態に移行しました。");
                     ChangeState(ActionState.死亡);
                     return;
                 }
@@ -444,10 +444,12 @@ namespace LearningAIGame.CombatSystem.Core
                 // 弱攻撃の場合
                 if (damageReport.AttackType == AttackType.WeakAttack)
                 {
+                    Debug.Log($"[{nameof(StateSystem)}] 小怯み状態に移行しました。");
                     ChangeState(ActionState.小怯み);
                 }
                 else
                 {
+                    Debug.Log($"[{nameof(StateSystem)}] 大怯み状態に移行しました。");
                     ChangeState(ActionState.大怯み);
                 }
             }
@@ -457,16 +459,17 @@ namespace LearningAIGame.CombatSystem.Core
                 // ガード成功
                 if (damageReport.DefenseAction == ActionState.ガード)
                 {
+                    Debug.Log($"[{nameof(StateSystem)}] ガード成功状態に移行しました。");
                     ChangeState(ActionState.ガード成功);
                 }
 
                 // ブロッキング成功
                 else if (damageReport.DefenseAction == ActionState.ブロッキング)
                 {
+                    Debug.Log($"[{nameof(StateSystem)}] ブロッキング成功状態に移行しました。");
                     ChangeState(ActionState.ブロッキング成功);
 
-                    // ブロッキング成功時10パーセントエネルギー回復
-                    // リテラルは設定データに置き換え予定
+                    // ブロッキング成功時エネルギー回復
                     _characterData.RecoverEnergyByRate(_actionSetting.BlockingSuccessEnergyRecovery);
                 }
             }

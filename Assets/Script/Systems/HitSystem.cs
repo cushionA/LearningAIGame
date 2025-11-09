@@ -99,7 +99,7 @@ namespace LearningAIGame.CombatSystem.Systems
             _collider.enabled = true;
 
             // UŒ‚Œ‹‰Ê‚Ì‰Šú‰»
-            _info.SetResult(HitResultType.Miss);
+            _info.InitializeDamage(attackInfo);
 
             // UŒ‚î•ñ‚ğ•Û‘¶
             _currentAttack = attackInfo;
@@ -245,6 +245,7 @@ namespace LearningAIGame.CombatSystem.Systems
         {
             Debug.Log($"[HitSystem] UŒ‚’†: {IsAttacking}, UŒ‚ID: {_currentAttackId}, Œ‹‰Ê: {_info.hitResultType}");
         }
+
 #endif
 
         #endregion
