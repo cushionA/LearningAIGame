@@ -40,7 +40,6 @@ namespace LearningAIGame.CombatSystem.Core
         /// <summary>
         /// アクション設定データ
         /// </summary>
-        [SerializeField]
         private ActionSetting _actionSetting;
 
         /// <summary>
@@ -104,6 +103,7 @@ namespace LearningAIGame.CombatSystem.Core
 
         private void Start()
         {
+            _actionSetting = _stateSystem.actionSetting;
             // 被ダメージによる行動キャンセルイベント
             _stateSystem.CurrentState
                 .Where(state => (state & ActionState.強制行動キャンセル) > 0)
@@ -283,7 +283,7 @@ namespace LearningAIGame.CombatSystem.Core
         /// </summary>
         public void LightBlocking(StanceType stance)
         {
-            BlockingReleaseAfterDelay(_actionSetting.WeakAttackStartFrame - 2, stance).Forget();
+            BlockingReleaseAfterDelay(Math.Max(_actionSetting.WeakAttackStartFrame - 2, 0), stance).Forget();
         }
 
         /// <summary>
@@ -291,7 +291,7 @@ namespace LearningAIGame.CombatSystem.Core
         /// </summary>
         public void HeavyBlocking(StanceType stance)
         {
-            BlockingReleaseAfterDelay(_actionSetting.HeavyAttackStartFrame - 2, stance).Forget();
+            BlockingReleaseAfterDelay(Math.Max(_actionSetting.HeavyAttackStartFrame - 2, 0), stance).Forget();
         }
 
         /// <summary>
@@ -367,7 +367,7 @@ namespace LearningAIGame.CombatSystem.Core
             // 正常に待機が終わればキャンセル実行
             if (!isCancel)
             {
-                HeavyAttackCancel();
+                LightAttackAct(_stateSystem.CurrentStance.CurrentValue).Forget();
             }
         }
 

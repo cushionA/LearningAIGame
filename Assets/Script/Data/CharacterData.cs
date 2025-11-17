@@ -95,8 +95,9 @@ namespace LearningAIGame.CombatSystem.Data
         /// </summary>
         public void TakeDamage(int amount)
         {
-            UnityEngine.Debug.Log($"ダメージ{amount}");
             Hp = Math.Max(0, Hp - amount);
+            // UnityEngine.Debug.Log($"[TakeDamage()内部]ダメージ{amount} 残りHP：{Hp}");
+            //  UnityEngine.Debug.Log($"[TakeDamage] インスタンスID: {this.GetHashCode()}, Before: {beforeHp}, After: {Hp}, Amount: {amount}");
         }
 
         /// <summary>
