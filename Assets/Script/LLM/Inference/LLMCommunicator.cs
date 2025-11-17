@@ -54,53 +54,53 @@ namespace LLMDataArchitect
         [Header("LLM設定")]
         [SerializeField]
         [Tooltip("LLM通信に使用するLLMCharacterコンポーネント")]
-        private LLMCharacter _llmCharacter;
+        protected LLMCharacter _llmCharacter;
 
         [SerializeField]
         [Tooltip("LLMリクエストのタイムアウト時間（秒）")]
-        private float _timeoutSeconds = 30f;
+        protected float _timeoutSeconds = 30f;
 
         [SerializeField]
         [Tooltip("LLMの最適設定を自動適用するか")]
-        private bool _autoConfigureLLM = true;
+        protected bool _autoConfigureLLM = true;
 
         [SerializeField]
         [Tooltip("JSON Schema Grammarを使用するか")]
-        private bool _useGrammar = true;
+        protected bool _useGrammar = true;
 
         [Header("更新設定")]
         [SerializeField]
         [Tooltip("戦術判断を自動更新するか")]
-        private bool _autoUpdate = true;
+        protected bool _autoUpdate = true;
 
         [SerializeField]
         [Tooltip("戦術判断の更新間隔（秒）")]
         [Range(1f, 60f)]
-        private float _updateInterval = 5f;
+        protected float _updateInterval = 5f;
 
         [SerializeField]
         [Tooltip("自動更新を開始するまでの遅延時間（秒）")]
-        private float _startDelay = 2f;
+        protected float _startDelay = 2f;
 
         [Header("データソース設定")]
         [SerializeField]
         [Tooltip("プレイヤーの状態システムへの参照")]
-        private StateSystem _playerStateSystem;
+        protected StateSystem _playerStateSystem;
 
         [SerializeField]
         [Tooltip("NPCの状態システムへの参照")]
-        private StateSystem _npcStateSystem;
+        protected StateSystem _npcStateSystem;
 
         [SerializeField]
         [Tooltip("NPCのAI")]
-        private RuleBaseInjection _ruleBaseAI;
+        protected RuleBaseInjection _ruleBaseAI;
 
         // 内部状態
-        private LLMInputData _inputData;
-        private PromptGeneratorBase _promptGenerator;
-        private bool _isInitialized = false;
-        private bool _isProcessing = false;
-        private CancellationTokenSource _updateLoopCts;
+        protected LLMInputData _inputData;
+        protected PromptGeneratorBase _promptGenerator;
+        protected bool _isInitialized = false;
+        protected bool _isProcessing = false;
+        protected CancellationTokenSource _updateLoopCts;
 
         #region パブリックプロパティ
 
@@ -128,7 +128,7 @@ namespace LLMDataArchitect
 
         #region Unity Lifecycle
 
-        private void Start()
+        private void Awake()
         {
             Initialize();
             _ruleBaseAI.InjectionData(_inputData);
@@ -260,7 +260,7 @@ namespace LLMDataArchitect
         /// コミュニケーターを初期化
         /// プロンプト生成器、LLM設定、データソースを設定
         /// </summary>
-        private void Initialize()
+        protected virtual void Initialize()
         {
             if (_isInitialized)
             {
@@ -347,12 +347,12 @@ namespace LLMDataArchitect
         /// </summary>
         private void ConfigureLLMOptimal()
         {
-            _llmCharacter.stream = true;       // ストリーミングレスポンスを有効化（推奨）
-            _llmCharacter.cachePrompt = true;  // プロンプトキャッシュを有効化（推奨）
+            _llmCharacter.stream = true;       // ストリーミングレスポンスを有効化
+            _llmCharacter.cachePrompt = true;  // プロンプトキャッシュを有効化
             _llmCharacter.llm.contextSize = 2048; // コンテキストサイズを2048に設定
             _llmCharacter.seed = 0; // シード値を0に設定（ランダム性をなくす）
 
-            Debug.Log("LLM最適設定を適用しました (stream: true, cachePrompt: true)");
+            Debug.Log("LLM最適設定を適用しました (cachePrompt: true)");
         }
 
         /// <summary>
@@ -419,7 +419,7 @@ namespace LLMDataArchitect
         /// 全ての例外はSuppressされ、適切にログ出力される
         /// </summary>
         /// <param name="cancellationToken">キャンセルトークン</param>
-        private async UniTask RequestTacticalDecisionAsync(CancellationToken cancellationToken)
+        protected virtual async UniTask RequestTacticalDecisionAsync(CancellationToken cancellationToken)
         {
             // 処理中の場合はスキップ
             if (_isProcessing)
@@ -472,7 +472,7 @@ namespace LLMDataArchitect
         /// </summary>
         /// <param name="cancellationToken">キャンセルトークン</param>
         /// <returns>LLMが生成した戦術データ。失敗時はnull</returns>
-        private async UniTask<StrategyData> RequestAsync(CancellationToken cancellationToken = default)
+        protected virtual async UniTask<StrategyData> RequestAsync(CancellationToken cancellationToken = default)
         {
             // プロンプト生成
             string prompt = _promptGenerator.GeneratePromptByData(_inputData);

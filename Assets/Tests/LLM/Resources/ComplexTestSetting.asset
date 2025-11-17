@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a32e61c2317ceb4bbf46697d3758678, type: 3}
+  m_Name: ComplexTestSetting
+  m_EditorClassIdentifier: UnitTest::LearningAIGame.CombatSystem.Tests.CombatSimulationTestData
+  _strategies:
+  - _analysisResult: No analysis due to default tactics.
+    _basicTactic: Aggressive
+    _attackCriteria: Cumulative Probability
+    _continuousAttackCriteria: Speed Priority
+    _defenseCriteria: Counterattack Focus
+    _continuousDefenseCriteria: Counterattack Focus
+  - _analysisResult: No analysis due to default tactics.
+    _basicTactic: Adaptive
+    _attackCriteria: Recent Pattern Focus
+    _continuousAttackCriteria: Cumulative Probability
+    _defenseCriteria: Cumulative Probability
+    _continuousDefenseCriteria: Recent Pattern Focus
+  - _analysisResult: No analysis due to default tactics.
+    _basicTactic: Defensive
+    _attackCriteria: Return Priority
+    _continuousAttackCriteria: Energy Efficiency
+    _defenseCriteria: Risk Avoidance
+    _continuousDefenseCriteria: Cumulative Probability
+  - _analysisResult: No analysis due to default tactics.
+    _basicTactic: Disruptive
+    _attackCriteria: Speed Priority
+    _continuousAttackCriteria: Feint Focus
+    _defenseCriteria: Evasive Counter Priority
+    _continuousDefenseCriteria: Dispersion Focus
+  - _analysisResult: No analysis due to default tactics.
+    _basicTactic: Aggressive
+    _attackCriteria: Recent Pattern Focus
+    _continuousAttackCriteria: Return Priority
+    _defenseCriteria: Counterattack Focus
+    _continuousDefenseCriteria: Evasive Counter Priority
+  _currentIndex: 0
+  strategyParameters: {fileID: 11400000, guid: 816d306b15ed6ab42afbaaf48020d2f5, type: 2}

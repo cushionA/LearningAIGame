@@ -165,7 +165,7 @@ namespace LearningAIGame.CombatSystem.Core
                 GUILayout.EndHorizontal();
 
                 // プログレスバー風の表示
-                float progress = remainingBuffer / _actionSetting.AvoidAttackInputDuration;
+                float progress = remainingBuffer / actionSetting.AvoidAttackInputDuration;
                 GUILayout.BeginHorizontal();
                 GUILayout.Label($"受付ゲージ:", GUILayout.Width(150));
                 GUILayout.HorizontalSlider(progress, 0f, 1f, GUILayout.Width(150));
