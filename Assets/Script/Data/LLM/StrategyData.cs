@@ -1,3 +1,4 @@
+using NaughtyAttributes;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -9,6 +10,7 @@ namespace LLMDataArchitect
     /// <summary>
     /// LLMにより作成される戦略データ
     /// </summary>
+    [Serializable]
     public class StrategyData
     {
         #region 静的配列と列挙型
@@ -84,35 +86,134 @@ namespace LLMDataArchitect
 
         #endregion
 
+        #region ValueDropdown用メソッド
+
         /// <summary>
-        /// 基本戦術
+        /// 基本戦術のドロップダウンリスト
         /// </summary>
-        public string AnalysisResult { get; set; }
+        private static DropdownList<string> GetBasicTactics()
+        {
+            return new DropdownList<string>
+            {
+                { "攻撃型", "Aggressive" },
+                { "防御型", "Defensive" },
+                { "対応型", "Adaptive" },
+                { "攪乱型", "Disruptive" },
+                { "持久型", "Endurance" }
+            };
+        }
+
+        /// <summary>
+        /// 攻撃時判断基準のドロップダウンリスト
+        /// </summary>
+        private static DropdownList<string> GetAttackCriteria()
+        {
+            return new DropdownList<string>
+            {
+                { "累積確率重視", "Cumulative Probability" },
+                { "直近パターン重視", "Recent Pattern Focus" },
+                { "速度重視", "Speed Priority" },
+                { "リターン重視", "Return Priority" },
+                { "フェイント重視", "Feint Focus" },
+                { "分散重視", "Dispersion Focus" },
+                { "エネルギー効率重視", "Energy Efficiency" }
+            };
+        }
+
+        /// <summary>
+        /// 防御時判断基準のドロップダウンリスト
+        /// </summary>
+        private static DropdownList<string> GetDefenseCriteria()
+        {
+            return new DropdownList<string>
+            {
+                { "累積確率重視", "Cumulative Probability" },
+                { "直近パターン重視", "Recent Pattern Focus" },
+                { "エネルギー重視", "Energy Efficiency" },
+                { "反撃", "Counterattack Focus" },
+                { "カウンター", "Evasive Counter Priority" },
+                { "生存重視", "Risk Avoidance" },
+                { "分散重視", "Dispersion Focus" }
+            };
+        }
+
+        #endregion
+
+        #region フィールドとプロパティ
+
+        /// <summary>
+        /// 分析結果
+        /// </summary>
+        [SerializeField]
+        [ResizableTextArea]
+        private string _analysisResult = "No analysis due to default tactics.";
+        public string AnalysisResult
+        {
+            get => _analysisResult;
+            set => _analysisResult = value;
+        }
 
         /// <summary>
         /// 基本戦術
         /// </summary>
-        public string BasicTactic { get; set; }
+        [SerializeField]
+        [Dropdown("GetBasicTactics")]
+        private string _basicTactic;
+        public string BasicTactic
+        {
+            get => _basicTactic;
+            set => _basicTactic = value;
+        }
 
         /// <summary>
         /// 攻撃時判断基準
         /// </summary>
-        public string AttackCriteria { get; set; }
+        [SerializeField]
+        [Dropdown("GetAttackCriteria")]
+        private string _attackCriteria;
+        public string AttackCriteria
+        {
+            get => _attackCriteria;
+            set => _attackCriteria = value;
+        }
 
         /// <summary>
         /// 攻撃継続時判断基準
         /// </summary>
-        public string ContinuousAttackCriteria { get; set; }
+        [SerializeField]
+        [Dropdown("GetAttackCriteria")]
+        private string _continuousAttackCriteria;
+        public string ContinuousAttackCriteria
+        {
+            get => _continuousAttackCriteria;
+            set => _continuousAttackCriteria = value;
+        }
 
         /// <summary>
         /// 防御時判断基準
         /// </summary>
-        public string DefenseCriteria { get; set; }
+        [SerializeField]
+        [Dropdown("GetDefenseCriteria")]
+        private string _defenseCriteria;
+        public string DefenseCriteria
+        {
+            get => _defenseCriteria;
+            set => _defenseCriteria = value;
+        }
 
         /// <summary>
         /// 連続防御時判断基準
         /// </summary>
-        public string ContinuousDefenseCriteria { get; set; }
+        [SerializeField]
+        [Dropdown("GetDefenseCriteria")]
+        private string _continuousDefenseCriteria;
+        public string ContinuousDefenseCriteria
+        {
+            get => _continuousDefenseCriteria;
+            set => _continuousDefenseCriteria = value;
+        }
+
+        #endregion
 
         /// <summary>
         /// 文字列からAttackCriteriaTypeを取得
@@ -141,10 +242,10 @@ namespace LLMDataArchitect
         }
 
         /// <summary>
-        /// 文字列（列挙型のメンバー名）を ActionCriteriaType 列挙型に変換。
+        /// 文字列(列挙型のメンバー名)を ActionCriteriaType 列挙型に変換。
         /// </summary>
         /// <param name="result">変換結果の ActionCriteriaType</param>
-        /// <param name="ignoreCase">大文字と小文字を区別しない場合は true（デフォルトは true）</param>
+        /// <param name="ignoreCase">大文字と小文字を区別しない場合は true(デフォルトは true)</param>
         /// <returns>変換に成功した場合は true、それ以外は false</returns>
         public static bool TryGetActionCriteriaTypeFromString(string criteriaMemberName, out ActionCriteriaType result, bool ignoreCase = true)
         {
@@ -171,13 +272,13 @@ namespace LLMDataArchitect
         }
 
         /// <summary>
-        /// JSON文字列から戦略データを解析（日本語版）
+        /// JSON文字列から戦略データを解析(日本語版)
         /// </summary>
         public static StrategyData FromJson(string json)
         {
-            // 簡易的なJSON解析（実際にはNewtonsoft.Jsonなどを使用することを推奨）
+            // 簡易的なJSON解析(実際にはNewtonsoft.Jsonなどを使用することを推奨)
             var strategy = new StrategyData();
-            // プロパティの抽出（簡易実装）
+            // プロパティの抽出(簡易実装)
             strategy.AnalysisResult = ExtractJsonValue(json, "分析結果");
             strategy.BasicTactic = ExtractJsonValue(json, "基本戦術");
             strategy.AttackCriteria = ExtractJsonValue(json, "攻撃時判断基準");
@@ -188,7 +289,7 @@ namespace LLMDataArchitect
         }
 
         /// <summary>
-        /// JSON文字列から戦略データを安全に解析（英語版）
+        /// JSON文字列から戦略データを安全に解析(英語版)
         /// 例外を発生させず、成功/失敗を返します。
         /// </summary>
         /// <param name="json">JSON文字列</param>
@@ -197,7 +298,7 @@ namespace LLMDataArchitect
         {
             try
             {
-                // 簡易的なJSON解析（実際にはNewtonsoft.Jsonなどを使用することを推奨）
+                // 簡易的なJSON解析(実際にはNewtonsoft.Jsonなどを使用することを推奨)
                 var strategy = new StrategyData();
 
                 // プロパティの抽出
@@ -222,14 +323,14 @@ namespace LLMDataArchitect
             }
             catch (Exception ex)
             {
-                // 例外が発生した場合もfalseを返す（デバッグ用にログ出力）
+                // 例外が発生した場合もfalseを返す(デバッグ用にログ出力)
                 Debug.LogWarning($"JSON解析中に例外が発生しました: {ex.Message}");
                 return (false, null);
             }
         }
 
         /// <summary>
-        /// JSON文字列から戦略データを解析（英語版）
+        /// JSON文字列から戦略データを解析(英語版)
         /// 例外が発生する可能性があるため、TryFromJsonEnglishの使用を推奨
         /// </summary>
         public static StrategyData FromJsonEnglish(string json)

@@ -76,8 +76,8 @@ namespace LLMDataArchitect
         public HitSituation(in DamageReportInfo reportInfo)
         {
             // ƒvƒƒpƒeƒB‚Éˆø”‚ğ‘ã“ü
-            HitState = reportInfo.DefenseAction;
-            DamageState = reportInfo.AttackType == AttackType.WeakAttack ? ActionState.ãUŒ‚ : ActionState.‹­UŒ‚;
+            HitState = reportInfo.AttackType == AttackType.WeakAttack ? ActionState.ãUŒ‚ : ActionState.‹­UŒ‚;
+            DamageState = reportInfo.DefenseAction;
             GetDamage = reportInfo.Damage;
         }
     }

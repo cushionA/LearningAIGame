@@ -83,8 +83,35 @@ namespace LearningAIGame.CombatSystem.Systems
         /// <param name="stance"></param>
         public void MockSetting(DefenseType type, StanceType stance, float duration)
         {
-            _defenseMockInfo.SetInfo(type, Time.time, duration);
+            _defenseMockInfo.SetInfo(type, Time.time - 1, duration);
             _mockStance = stance;
+        }
+
+        /// <summary>
+        /// モックに情報を設定する。
+        /// 行動タイプで指定するオーバーロード
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="stance"></param>
+        public void MockSetting(ActionState actionState, StanceType stance, float duration = 999)
+        {
+            DefenseType type = actionState switch
+            {
+                ActionState.ガード => DefenseType.Guard,
+                ActionState.ブロッキング => DefenseType.Blocking,
+                ActionState.回避 => DefenseType.Avoid,
+                _ => DefenseType.None,
+            };
+
+            if (type == DefenseType.None)
+            {
+                Debug.LogWarning($"[{nameof(DamageSystemMock)}] 無効なActionStateが指定されました: {actionState}");
+                return;
+            }
+
+            _defenseMockInfo.SetInfo(type, Time.time - 1, duration);
+            _mockStance = stance;
+            Debug.Log($"[{nameof(DamageSystemMock)}] モック設定: 防御タイプ={type}, 防御方向={stance}, 継続時間={duration}");
         }
 
         #region 被ダメージ処理
@@ -135,6 +162,11 @@ namespace LearningAIGame.CombatSystem.Systems
 
             // StateSystemに通知
             NotifyObservers(_info);
+
+            Debug.Log($"[{nameof(DamageSystem)}] 攻撃結果をStateSystemに通知しました。 " +
+                $"攻撃結果: {hitReport.hitResultType}, " +
+                $"被ダメージ: {hitReport.damage}, " +
+                $"防御状態: {_lastHitAction}");
         }
 
         #endregion

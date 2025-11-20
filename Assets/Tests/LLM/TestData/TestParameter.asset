@@ -1,0 +1,131 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 405103e16fc30d141a0b37d10a2a555e, type: 3}
+  m_Name: TestParameter
+  m_EditorClassIdentifier: GameCode::LearningAIGame.CombatSystem.Data.AIParameterContainer
+  aggressive:
+    attackFrequency: 0.655
+    comboAttackProbability: 0.85
+    minAttackInterval: 0.5
+    maxAttackInterval: 2
+    opportunityAttackRate: 0
+    stepUsageRate: 0.5
+    punishRate: 0.69
+    minEnergyRatio: 0.256
+    lightAttackMinEnergy: 0.118
+    heavyAttackMinEnergy: 0.2
+    rushMinEnergy: 0.446
+    comboMinEnergy: 0.3
+    movementAggressiveness: 0.5
+    preferredCombatDistanceRange: {x: 3.6756756, y: 7}
+    dangerDistanceThreshold: 2
+    forwardMovementFrequency: 0.6
+    backwardMovementFrequency: 0.7
+    leftMovementFrequency: 0.5
+    rightMovementFrequency: 0.3
+    stanceChangeFrequency: 0.4
+    minStanceChangeInterval: 1.5
+  defensive:
+    attackFrequency: 0.446
+    comboAttackProbability: 0.452
+    minAttackInterval: 0.5
+    maxAttackInterval: 2
+    opportunityAttackRate: 0
+    stepUsageRate: 0.5
+    punishRate: 1
+    minEnergyRatio: 0.449
+    lightAttackMinEnergy: 0.184
+    heavyAttackMinEnergy: 0.326
+    rushMinEnergy: 0.924
+    comboMinEnergy: 0.411
+    movementAggressiveness: 0.5
+    preferredCombatDistanceRange: {x: 4, y: 7}
+    dangerDistanceThreshold: 2
+    forwardMovementFrequency: 0.6
+    backwardMovementFrequency: 0.7
+    leftMovementFrequency: 0.5
+    rightMovementFrequency: 0.3
+    stanceChangeFrequency: 0.4
+    minStanceChangeInterval: 1.5
+  adaptive:
+    attackFrequency: 0.715
+    comboAttackProbability: 0.655
+    minAttackInterval: 0.5
+    maxAttackInterval: 2
+    opportunityAttackRate: 0
+    stepUsageRate: 0.5
+    punishRate: 0.623
+    minEnergyRatio: 0.366
+    lightAttackMinEnergy: 0.174
+    heavyAttackMinEnergy: 0.383
+    rushMinEnergy: 0.2
+    comboMinEnergy: 0.411
+    movementAggressiveness: 0.5
+    preferredCombatDistanceRange: {x: 4, y: 7}
+    dangerDistanceThreshold: 2
+    forwardMovementFrequency: 0.6
+    backwardMovementFrequency: 0.7
+    leftMovementFrequency: 0.5
+    rightMovementFrequency: 0.3
+    stanceChangeFrequency: 0.4
+    minStanceChangeInterval: 1.5
+  disruptive:
+    attackFrequency: 0.5
+    comboAttackProbability: 0.3
+    minAttackInterval: 0.5
+    maxAttackInterval: 2
+    opportunityAttackRate: 0
+    stepUsageRate: 0.5
+    punishRate: 0.5
+    minEnergyRatio: 0.3
+    lightAttackMinEnergy: 0.5
+    heavyAttackMinEnergy: 0.5
+    rushMinEnergy: 0.2
+    comboMinEnergy: 0.6
+    movementAggressiveness: 0.5
+    preferredCombatDistanceRange: {x: 4, y: 7}
+    dangerDistanceThreshold: 2
+    forwardMovementFrequency: 0.6
+    backwardMovementFrequency: 0.7
+    leftMovementFrequency: 0.5
+    rightMovementFrequency: 0.3
+    stanceChangeFrequency: 0.4
+    minStanceChangeInterval: 1.5
+  endurance:
+    attackFrequency: 0.5
+    comboAttackProbability: 0.263
+    minAttackInterval: 0.5
+    maxAttackInterval: 2
+    opportunityAttackRate: 0
+    stepUsageRate: 0.266
+    punishRate: 0.424
+    minEnergyRatio: 0.424
+    lightAttackMinEnergy: 0.37
+    heavyAttackMinEnergy: 0.759
+    rushMinEnergy: 1
+    comboMinEnergy: 0.712
+    movementAggressiveness: 0.5
+    preferredCombatDistanceRange: {x: 4, y: 7}
+    dangerDistanceThreshold: 2
+    forwardMovementFrequency: 0.6
+    backwardMovementFrequency: 0.7
+    leftMovementFrequency: 0.5
+    rightMovementFrequency: 0.3
+    stanceChangeFrequency: 0.4
+    minStanceChangeInterval: 1.5
+  defaultStrategyData:
+    _analysisResult: No analysis due to default tactics.
+    _basicTactic: Adaptive
+    _attackCriteria: Cumulative Probability
+    _continuousAttackCriteria: Cumulative Probability
+    _defenseCriteria: Cumulative Probability
+    _continuousDefenseCriteria: Cumulative Probability
