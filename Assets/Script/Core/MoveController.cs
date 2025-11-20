@@ -88,6 +88,14 @@ namespace LearningAIGame.CombatSystem.Core
         /// <param name="moveDuration">ˆÚ“®Œp‘±ŠÔ</param>
         public void AddForce(Vector3 moveVector, float moveDuration)
         {
+            // ˆÚ“®ŠÔ‚ª0ˆÈ‰º‚Ìê‡‚Í‘¦À‚É’â~
+            if (moveDuration <= 0f)
+            {
+                Debug.LogWarning($"[MoveController] Invalid moveDuration: {moveDuration}. Movement will be ignored.");
+                _moveType = MoveType.None;
+                return;
+            }
+
             // Y²¬•ª‚Í–³‹‚µ‚Ä…•½•ûŒü‚Ì‚İ•Û
             Vector3 localDirection = new Vector3(moveVector.x, 0f, moveVector.z);
 

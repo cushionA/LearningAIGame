@@ -194,9 +194,10 @@ namespace LLMDataArchitect
         /// <param name="npc"></param>
         public LLMInputData(StateSystem player, StateSystem npc, StrategyResult resultData)
         {
-            player.Deconstruct(out _playerData, out _playerLog);
 
-            npc.Deconstruct(out _npcData, out _npcLog);
+            (_playerData, _playerLog) = player.CreateLLMSourceData();
+
+            (_npcData, _npcLog) = npc.CreateLLMSourceData();
 
             CurrentStrategy = null;
 

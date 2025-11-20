@@ -34,12 +34,12 @@ namespace LearningAIGame.CombatSystem.Systems
         /// <summary>
         /// 攻撃実行情報
         /// </summary>
-        private HitReportInfo _info;
+        protected HitReportInfo _info;
 
         /// <summary>
         /// 実行中の攻撃情報
         /// </summary>
-        private AttackInfo _currentAttack;
+        protected AttackInfo _currentAttack;
 
         /// <summary>
         /// 敵の防御システム
@@ -47,18 +47,18 @@ namespace LearningAIGame.CombatSystem.Systems
         /// 当たり判定にヒットしたら攻撃結果判定メソッドを呼ぶ
         /// </summary>
         [SerializeField]
-        private DamageSystemBase _enemyDamageSystem;
+        protected DamageSystemBase _enemyDamageSystem;
 
         /// <summary>
         /// 自分の攻撃判定のコライダー
         /// </summary>
         [SerializeField]
-        private Collider _collider;
+        protected Collider _collider;
 
         /// <summary>
         /// 攻撃の一意なID（新しい攻撃ごとにインクリメント）
         /// </summary>
-        private int _currentAttackId;
+        protected int _currentAttackId;
 
         /// <summary>
         /// 現在攻撃判定が有効かどうか
@@ -67,7 +67,7 @@ namespace LearningAIGame.CombatSystem.Systems
 
         #region 初期化・破棄
 
-        private void Awake()
+        protected void Awake()
         {
             _currentAttackId = 0;
 
@@ -90,7 +90,7 @@ namespace LearningAIGame.CombatSystem.Systems
         /// </summary>
         /// <param name="attackInfo">攻撃情報</param>
         /// <param name="attackDurationFrame">攻撃判定の持続フレーム数</param>
-        public void DamageStart(in AttackInfo attackInfo, int attackDurationFrame)
+        public virtual void DamageStart(in AttackInfo attackInfo, int attackDurationFrame)
         {
             // 攻撃IDをインクリメント（既存の攻撃を自動的に無効化）
             int attackId = ++_currentAttackId;
@@ -131,7 +131,7 @@ namespace LearningAIGame.CombatSystem.Systems
         /// </summary>
         /// <param name="waitFrame">待機フレーム数</param>
         /// <param name="attackId">この攻撃の一意なID</param>
-        private async UniTaskVoid AttackFrameWaitAsync(int waitFrame, int attackId)
+        protected async UniTaskVoid AttackFrameWaitAsync(int waitFrame, int attackId)
         {
 
             // フレーム数で正確に待機
@@ -157,7 +157,7 @@ namespace LearningAIGame.CombatSystem.Systems
         /// <summary>
         /// 攻撃ヒット時の処理
         /// </summary>
-        private void OnTriggerEnter(Collider other)
+        protected void OnTriggerEnter(Collider other)
         {
             AttackHit();
         }
@@ -165,7 +165,7 @@ namespace LearningAIGame.CombatSystem.Systems
         /// <summary>
         /// 攻撃ヒット時の処理
         /// </summary>
-        private void OnTriggerStay(Collider other)
+        protected void OnTriggerStay(Collider other)
         {
             AttackHit();
         }
@@ -173,7 +173,7 @@ namespace LearningAIGame.CombatSystem.Systems
         /// <summary>
         /// ヒット時の処理
         /// </summary>
-        private void AttackHit()
+        protected void AttackHit()
         {
             // すでにヒット済み（Miss/Avoid以外）なら処理しない
             if (!IsFirstHit())
@@ -181,8 +181,12 @@ namespace LearningAIGame.CombatSystem.Systems
                 return;
             }
 
+            Debug.Log("[HitSystem] 攻撃がヒットしました。敵のDamageSystemに攻撃を伝えます。");
+
             // 敵のダメージシステムに攻撃を伝え、結果を取得
             HitResultType result = _enemyDamageSystem.Damage(_currentAttack);
+
+            Debug.Log($"[HitSystem] 敵のDamageSystemからの攻撃結果: {result}");
 
             // ヒット結果を更新
             _info.SetResult(result);
@@ -194,7 +198,7 @@ namespace LearningAIGame.CombatSystem.Systems
         /// <summary>
         /// 初回ヒット判定（まだヒットしていないか）
         /// </summary>
-        private bool IsFirstHit()
+        protected bool IsFirstHit()
         {
             return _info.hitResultType == HitResultType.Miss ||
                    _info.hitResultType == HitResultType.Avoid;
@@ -203,8 +207,10 @@ namespace LearningAIGame.CombatSystem.Systems
         /// <summary>
         /// ヒット結果に応じた処理
         /// </summary>
-        private void ProcessHitResult(HitResultType result)
+        protected virtual void ProcessHitResult(HitResultType result)
         {
+            Debug.Log($"[HitSystem] ヒット結果に応じた処理を行います: {result}");
+
             switch (result)
             {
                 case HitResultType.Block:
@@ -226,13 +232,14 @@ namespace LearningAIGame.CombatSystem.Systems
         /// <summary>
         /// 自分の攻撃結果を自分のStateSystemと敵のDamageSystemに通知する
         /// </summary>
-        private void AttackResultReport()
+        protected void AttackResultReport()
         {
             NotifyObservers(_info);
 
             // 空振り以外なら敵にも通知する
             if (_info.hitResultType != HitResultType.Miss)
             {
+                Debug.Log("[HitSystem] 攻撃結果を敵のDamageSystemに通知します。");
                 _enemyDamageSystem.DamageReport(_info);
             }
         }
@@ -241,7 +248,7 @@ namespace LearningAIGame.CombatSystem.Systems
 
 #if UNITY_EDITOR
         [ContextMenu("攻撃判定の状態を表示")]
-        private void DebugPrintState()
+        protected void DebugPrintState()
         {
             Debug.Log($"[HitSystem] 攻撃中: {IsAttacking}, 攻撃ID: {_currentAttackId}, 結果: {_info.hitResultType}");
         }

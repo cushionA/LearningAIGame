@@ -45,19 +45,19 @@ namespace LLMDataArchitect.Test
 
         // === 状況評価の閾値 ===
         /// <summary>圧倒的優位と判定するHP差</summary>
-        private const float k_HpDominantThreshold = 50f;
+        private const float k_HpDominantThreshold = 30f;
 
         /// <summary>優位と判定するHP差</summary>
-        private const float k_HpAdvantageThreshold = 20f;
+        private const float k_HpAdvantageThreshold = 10f;
 
         /// <summary>劣勢と判定するHP差</summary>
-        private const float k_HpDisadvantageThreshold = -20f;
+        private const float k_HpDisadvantageThreshold = -10f;
 
         /// <summary>危機的状況と判定するHP差</summary>
-        private const float k_HpCriticalThreshold = -50f;
+        private const float k_HpCriticalThreshold = -30f;
 
         /// <summary>圧倒的優位と判定するエネルギー差</summary>
-        private const float k_EnergyDominantThreshold = 20f;
+        private const float k_EnergyDominantThreshold = 40f;
 
         /// <summary>優位と判定するエネルギー差</summary>
         private const float k_EnergyAdvantageThreshold = 30f;
@@ -66,7 +66,7 @@ namespace LLMDataArchitect.Test
         private const float k_EnergyDisadvantageThreshold = -30f;
 
         /// <summary>危機的状況と判定するエネルギー差</summary>
-        private const float k_EnergyCriticalThreshold = -20f;
+        private const float k_EnergyCriticalThreshold = -40f;
 
         /// <summary>互角と判定するHP差の上限</summary>
         private const float k_HpEvenThreshold = 20f;
@@ -76,16 +76,16 @@ namespace LLMDataArchitect.Test
 
         // === パフォーマンス評価の閾値 ===
         /// <summary>大成功と判定するダメージ収支</summary>
-        private const float k_PerformanceHighlySuccessfulThreshold = 50f;
+        private const float k_PerformanceHighlySuccessfulThreshold = 35f;
 
         /// <summary>成功と判定するダメージ収支</summary>
-        private const float k_PerformanceSuccessfulThreshold = 20f;
+        private const float k_PerformanceSuccessfulThreshold = 15f;
 
         /// <summary>大失敗と判定するダメージ収支</summary>
-        private const float k_PerformanceMajorFailureThreshold = -50f;
+        private const float k_PerformanceMajorFailureThreshold = -35f;
 
         /// <summary>失敗と判定するダメージ収支</summary>
-        private const float k_PerformanceFailureThreshold = -20f;
+        private const float k_PerformanceFailureThreshold = -15f;
 
         #endregion
 
@@ -177,7 +177,7 @@ namespace LLMDataArchitect.Test
 
                 if (hasRecentAttackData)
                 {
-                    prompt.AppendLine($"**Recent Turns**: Heavy {strongAttackCount}×, Light {lightAttackCount}×, Feint {strongAttackCancelCount}×");
+                    prompt.AppendLine($"**Recent Turns**: HeavyAttackCount {strongAttackCount}, LightAttackCount {lightAttackCount}, FeintCount {strongAttackCancelCount}");
                 }
             }
 
@@ -207,6 +207,7 @@ namespace LLMDataArchitect.Test
 
                 foreach (var situation in damageSpan)
                 {
+                    UnityEngine.Debug.Log($"Damage Situation: {situation.DamageState}AttackerSituation:{situation.HitState}");
                     switch (situation.DamageState)
                     {
                         case ActionState.横回避:
@@ -215,10 +216,10 @@ namespace LLMDataArchitect.Test
                         case ActionState.後ろ回避:
                             backwardDodgeCount++;
                             break;
-                        case ActionState.ブロッキング成功:
+                        case ActionState.ブロッキング:
                             blockingCount++;
                             break;
-                        case ActionState.ガード成功:
+                        case ActionState.ガード:
                             guardCount++;
                             break;
                     }
@@ -228,7 +229,7 @@ namespace LLMDataArchitect.Test
 
                 if (hasRecentDefenseData)
                 {
-                    prompt.AppendLine($"**Recent Turns**: Parry {blockingCount}×, Guard {guardCount}×, Counter {horizontalDodgeCount}×, Dodge {backwardDodgeCount}×");
+                    prompt.AppendLine($"**Recent Turns**: BlockingCount {blockingCount}, GuardCount {guardCount}, CounterCount {horizontalDodgeCount}, DodgeCount {backwardDodgeCount}");
                 }
             }
 
@@ -328,24 +329,91 @@ namespace LLMDataArchitect.Test
 
         /// <summary>
         /// HP差とエネルギー差から戦況を評価
+        /// HPを主軸とし、エネルギーは補助的に評価する
         /// </summary>
         /// <param name="hpDiff">HP差（自分 - 敵）</param>
         /// <param name="energyDiff">エネルギー差（自分 - 敵）</param>
         /// <returns>状況評価タグ</returns>
         private string EvaluateSituation(float hpDiff, float energyDiff)
         {
-            if (hpDiff > k_HpDominantThreshold && energyDiff > k_EnergyDominantThreshold)
-                return "【DOMINANT POSITION】";
-            else if (hpDiff > k_HpAdvantageThreshold || energyDiff > k_EnergyAdvantageThreshold)
-                return "【ADVANTAGE】";
-            else if (hpDiff < k_HpCriticalThreshold && energyDiff < k_EnergyCriticalThreshold)
-                return "【CRITICAL DANGER】";
-            else if (hpDiff < k_HpDisadvantageThreshold || energyDiff < k_EnergyDisadvantageThreshold)
-                return "【DISADVANTAGE】";
-            else if (Math.Abs(hpDiff) <= k_HpEvenThreshold && Math.Abs(energyDiff) <= k_EnergyEvenThreshold)
-                return "【EVENLY MATCHED】";
+            // ===== HPを主軸とした評価 =====
 
-            return "【ADVANTAGE】"; // デフォルト
+            // 1. HP圧倒的有利 + エネルギーも有利 → 支配的
+            if (hpDiff > k_HpDominantThreshold && energyDiff > k_EnergyDominantThreshold)
+            {
+                return "【DOMINANT POSITION】";
+            }
+
+            // 2. HP圧倒的不利 + エネルギーも不利 → 危機的
+            if (hpDiff < k_HpCriticalThreshold && energyDiff < k_EnergyCriticalThreshold)
+            {
+                return "【CRITICAL DANGER】";
+            }
+
+            // 3. HP差で主要判定（エネルギーは微調整のみ）
+            if (hpDiff > k_HpDominantThreshold)
+            {
+                // HP圧倒的有利だがエネルギーは普通以下
+                return "【ADVANTAGE】";
+            }
+
+            if (hpDiff > k_HpAdvantageThreshold)
+            {
+                // HP有利
+                if (energyDiff >= 0)
+                {
+                    return "【ADVANTAGE】";
+                }
+                else
+                {
+                    // HP有利だがエネルギー不利 → 五分に近い
+                    return "【SLIGHT ADVANTAGE】";
+                }
+            }
+
+            if (hpDiff < k_HpCriticalThreshold)
+            {
+                // HP危機的だがエネルギーは有利
+                return "【DISADVANTAGE】";
+            }
+
+            if (hpDiff < k_HpDisadvantageThreshold)
+            {
+                // HP不利
+                if (energyDiff > k_EnergyAdvantageThreshold)
+                {
+                    // HP不利だがエネルギー大幅有利 → 不利寄りだが挽回可能
+                    return "【SLIGHT DISADVANTAGE】";
+                }
+                else
+                {
+                    return "【DISADVANTAGE】";
+                }
+            }
+
+            // 4. HP差が小さい場合 → 五分
+            if (Math.Abs(hpDiff) <= k_HpEvenThreshold)
+            {
+                if (Math.Abs(energyDiff) <= k_EnergyEvenThreshold)
+                {
+                    return "【EVENLY MATCHED】";
+                }
+                else if (energyDiff > k_EnergyAdvantageThreshold)
+                {
+                    return "【SLIGHT ADVANTAGE】";
+                }
+                else if (energyDiff < k_EnergyDisadvantageThreshold)
+                {
+                    return "【SLIGHT DISADVANTAGE】";
+                }
+                else
+                {
+                    return "【EVENLY MATCHED】";
+                }
+            }
+
+            // 5. デフォルト（ここには来ないはず）
+            return "【EVENLY MATCHED】";
         }
 
         /// <summary>

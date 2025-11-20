@@ -282,6 +282,7 @@ namespace LearningAIGame.CombatSystem.AI
         public override void InjectionData(LLMInputData data)
         {
             _llmData = data;
+            // 行動の結果を記録するためにLLMからインスタンスを受け取る
             _strategyResult = _llmData.StrategyResult;
             Debug.Log($"[{nameof(StrategyAI)}] 戦術データを注入しました");
 
@@ -367,7 +368,7 @@ namespace LearningAIGame.CombatSystem.AI
                         // ヒット時の追撃行動
                         // 連続攻撃判定
                         if (_currentParameter.ShouldComboAttack() &&
-                            _myStateSystem.Energy >= _currentParameter.comboMinEnergy)
+                            _myStateSystem.EnergyRatio >= _currentParameter.comboMinEnergy)
                         {
                             AttackAct();
 
@@ -403,13 +404,13 @@ namespace LearningAIGame.CombatSystem.AI
                         {
                             // 弱ブロッキング成功 + エネルギー十分なら強攻撃で確定反撃
                             if (hitReport.attackType == AttackType.WeakAttack
-                            && _myStateSystem.Energy >= _currentParameter.heavyAttackMinEnergy)
+                            && _myStateSystem.EnergyRatio >= _currentParameter.heavyAttackMinEnergy)
                             {
                                 _myController.HeavyAttackAct(GetAttackStance(_myStateSystem.CurrentStance.CurrentValue)).Forget();
                             }
 
                             // 強攻撃ブロック時の確定反撃行動
-                            else if (_myStateSystem.Energy >= _currentParameter.lightAttackMinEnergy)
+                            else if (_myStateSystem.EnergyRatio >= _currentParameter.lightAttackMinEnergy)
                             {
                                 _myController.LightAttackAct(GetAttackStance(_myStateSystem.CurrentStance.CurrentValue)).Forget();
                             }
@@ -422,7 +423,7 @@ namespace LearningAIGame.CombatSystem.AI
                         _strategyResult.AddResult(_currentCondition, true);
 
                         // ガード時の確定反撃行動
-                        if (_myStateSystem.Energy >= _currentParameter.lightAttackMinEnergy && _currentParameter.ShouldPunish())
+                        if (_myStateSystem.EnergyRatio >= _currentParameter.lightAttackMinEnergy && _currentParameter.ShouldPunish())
                         {
                             _myController.LightAttackAct(GetAttackStance(_myStateSystem.CurrentStance.CurrentValue)).Forget();
                         }
@@ -434,7 +435,7 @@ namespace LearningAIGame.CombatSystem.AI
 
                         // エネルギー十分で乱数が噛み合えば敵の強攻撃空振りに攻撃を合わせる
                         if (hitReport.attackType == AttackType.HeavyAttack &&
-                            _myStateSystem.Energy >= _currentParameter.rushMinEnergy &&
+                            _myStateSystem.EnergyRatio >= _currentParameter.rushMinEnergy &&
                             _currentParameter.ShouldOpportunityAttack())
                         {
                             _myController.AvoidAttackAct(MovementReportType.FrontStep).Forget();
@@ -450,7 +451,7 @@ namespace LearningAIGame.CombatSystem.AI
                     case HitResultType.Miss:
 
                         // エネルギー十分で乱数が噛み合えば敵の空振りに攻撃を合わせる
-                        if (_myStateSystem.Energy >= _currentParameter.rushMinEnergy &&
+                        if (_myStateSystem.EnergyRatio >= _currentParameter.rushMinEnergy &&
                             _currentParameter.ShouldOpportunityAttack())
                         {
                             _myController.AvoidAttackAct(MovementReportType.FrontStep).Forget();
@@ -672,7 +673,7 @@ namespace LearningAIGame.CombatSystem.AI
                 return false;
 
             // エネルギーチェック（ステップにもエネルギーが必要）
-            if (_myStateSystem.Energy < _currentParameter.minEnergyRatio)
+            if (_myStateSystem.EnergyRatio < _currentParameter.minEnergyRatio)
             {
                 // 次回ステップ時間を延長
                 _nextStepTime = Time.time + k_MinStepInterval;
@@ -740,7 +741,7 @@ namespace LearningAIGame.CombatSystem.AI
                 return;
 
             // エネルギーチェック
-            if (_myStateSystem.Energy < _currentParameter.minEnergyRatio)
+            if (_myStateSystem.EnergyRatio < _currentParameter.minEnergyRatio)
             {
                 // 次回攻撃時間を延長
                 _nextAttackTime = _currentTime + _currentParameter.GetNextAttackDelay();
