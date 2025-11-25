@@ -548,7 +548,7 @@ namespace LearningAIGame.CombatSystem.AI
             }
 
             // ‹——£‚ÉŠî‚Ã‚¢‚ÄˆÚ“®‚ğŒˆ’è
-            DecideMovementByDistance((_enemyStateSystem.transform.position - transform.position).sqrMagnitude);
+            DecideMovementByDistance((_enemyStateSystem.Position - _myStateSystem.Position).sqrMagnitude);
         }
 
         /// <summary>
@@ -1101,7 +1101,7 @@ namespace LearningAIGame.CombatSystem.AI
             if (_enemyStateSystem != null)
             {
                 float distance = transform != null && _enemyStateSystem.transform != null
-                    ? Vector3.Distance(transform.position, _enemyStateSystem.transform.position)
+                    ? Vector3.Distance(_myStateSystem.Position, _enemyStateSystem.Position)
                     : 0f;
                 sb.AppendLine($"“G: {_enemyStateSystem.CurrentState.CurrentValue} | \‚¦: {_enemyStateSystem.CurrentStance.CurrentValue} | ‹——£: {distance:F1}m");
             }
