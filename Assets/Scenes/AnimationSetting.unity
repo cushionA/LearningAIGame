@@ -256,7 +256,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1c4db7e4754be094680a8f6440556c43, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.CombatSystem.Core.StateSystem
-  _actionSetting: {fileID: 11400000, guid: 33f863fd9e1bdde42b0af4b08acff609, type: 2}
+  actionSetting: {fileID: 11400000, guid: 33f863fd9e1bdde42b0af4b08acff609, type: 2}
   _attackSystem: {fileID: 1040958328}
   _defenseSystem: {fileID: 1040958327}
   _movementSystem: {fileID: 1040958326}
@@ -699,7 +699,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.CombatSystem.Systems.HitSystem
   moveController: {fileID: 1040958325}
-  _enemyDamageSystem: {fileID: 0}
+  _enemyDamageSystem: {fileID: 2136735251}
   _collider: {fileID: 1040958330}
 --- !u!58 &1678130402
 CircleCollider2D:
@@ -892,6 +892,17 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2136735251 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1134377440771772164, guid: e9b076b3e7f2cbb4b96e09c17bf4f4f7, type: 3}
+  m_PrefabInstance: {fileID: 8503656028606764523}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f58a58771e0be1a4291b2f24cd156d66, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.CombatSystem.Systems.DamageSystem
 --- !u!1001 &8503656028606764523
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -916,6 +927,10 @@ PrefabInstance:
       propertyPath: _hitSystem
       value: 
       objectReference: {fileID: 1678130401}
+    - target: {fileID: 4326633254594565132, guid: e9b076b3e7f2cbb4b96e09c17bf4f4f7, type: 3}
+      propertyPath: actionSetting
+      value: 
+      objectReference: {fileID: 11400000, guid: 33f863fd9e1bdde42b0af4b08acff609, type: 2}
     - target: {fileID: 8431574843176989603, guid: e9b076b3e7f2cbb4b96e09c17bf4f4f7, type: 3}
       propertyPath: m_LocalPosition.x
       value: 4.0746684
