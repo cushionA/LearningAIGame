@@ -225,6 +225,12 @@ namespace LearningAIGame.CombatSystem.Core
         [SerializeField]
         protected DamageSystemBase _damageSystem;
 
+        /// <summary>
+        /// 位置管理クラス
+        /// </summary>
+        [SerializeField]
+        protected PositionCache _positionCache;
+
         #endregion
 
         #endregion
@@ -257,6 +263,13 @@ namespace LearningAIGame.CombatSystem.Core
         /// 一つ前の行動状態
         /// </summary>
         public ActionState LastState { get; protected set; }
+
+        public Vector3 Position { get { return _positionCache.Position; } }
+
+        /// <summary>
+        /// 位置情報を外部に公開する。
+        /// </summary>
+        public PositionCache PositionCache { get { return _positionCache; } }
 
         #region アニメーション管理リアクティブプロパティ
 
@@ -362,9 +375,12 @@ namespace LearningAIGame.CombatSystem.Core
         /// </summary>
         public void SetNeutral()
         {
+            if (CurrentState.CurrentValue != ActionState.ガード)
+            {
+                _moveStunTime = Time.time + actionSetting[CurrentState.CurrentValue];
+                Debug.Log($"[{nameof(StateSystem)}] 行動硬直時間が {_moveStunTime - Time.time} 秒に設定されました。");
+            }
             ChangeState(ActionState.ガード);
-            _moveStunTime = Time.time + actionSetting[CurrentState.CurrentValue];
-            Debug.Log($"[{nameof(StateSystem)}] 行動硬直時間が {_moveStunTime - Time.time} 秒に設定されました。");
         }
 
         /// <summary>
@@ -384,27 +400,37 @@ namespace LearningAIGame.CombatSystem.Core
         }
 
         /// <summary>
-        /// LLMへの出力データ作成用のデコンストラクタ
+        /// LLMへの出力データ作成用の処理
+        /// データが作成されていなければ作成する
         /// ここからまず参照を取る
         /// </summary>
         /// <param name="characterData"></param>
         /// <param name="logData"></param>
         public (CharacterData, LLMLogData) CreateLLMSourceData()
         {
-            //  Debug.Log($"[CreateLLMSourceData] 呼び出し元: {new System.Diagnostics.StackTrace()}");
-            //   Debug.Log($"[CreateLLMSourceData] 既存の_characterData: {(_characterData != null ? _characterData.GetHashCode().ToString() : "null")}");
-
-            // フィールドの初期化
-            _llmLogData = new LLMLogData(7, 7, 7);
-
-            // 一時的な初期化対応。
-            // いずれ設定ファイルに置き換え
-            _characterData = new CharacterData(100, 100);
-
-            //  Debug.Log($"[CreateLLMSourceData] 新規作成した_characterData: {_characterData.GetHashCode()}");
-
+            CreateData();
             return (_characterData, _llmLogData);
         }
+
+        /// <summary>
+        /// キャラデータと行動記録データを作成する
+        /// </summary>
+        private void CreateData()
+        {
+            if (_llmLogData == null)
+            {
+                // フィールドの初期化
+                _llmLogData = new LLMLogData(7, 7, 7);
+            }
+
+            if (_characterData == null)
+            {
+                // 一時的な初期化対応。
+                // いずれ設定ファイルに置き換え
+                _characterData = new CharacterData(100, 100);
+            }
+        }
+
 
         #endregion
 
@@ -665,12 +691,16 @@ namespace LearningAIGame.CombatSystem.Core
                 Debug.LogError($"[{nameof(StateSystem)}] ActionSettingが設定されていません！");
             }
 
+            CreateData();
+
             // リアクティブプロパティの初期化と破棄登録
             CurrentState = new ReactiveProperty<ActionState>(ActionState.ガード).AddTo(this);
             MoveVector = new ReactiveProperty<Vector3>(Vector3.zero).AddTo(this);
             CurrentStance = new ReactiveProperty<StanceType>(StanceType.Up).AddTo(this);
 
             SubscribeSystems();
+
+
         }
 
         /// <summary>
@@ -720,6 +750,7 @@ namespace LearningAIGame.CombatSystem.Core
             _movementSystem = GetComponent<MovementSystem>();
             _hitSystem = GetComponent<HitSystem>();
             _damageSystem = GetComponent<DamageSystemBase>();
+            _positionCache = GetComponent<PositionCache>();
             UnityEditor.EditorUtility.SetDirty(this);
         }
 #endif
