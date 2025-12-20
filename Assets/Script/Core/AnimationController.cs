@@ -1,6 +1,8 @@
-﻿using UnityEngine;
-using R3;
+﻿using R3;
 using System;
+using System.Collections.Generic;
+using UnityEngine;
+using static LearningAIGame.CombatSystem.Core.StateSystem;
 
 //==============================================ファイルヘッダ===========================================================
 // AnimationController
@@ -54,6 +56,47 @@ namespace LearningAIGame.CombatSystem.Core
         [SerializeField]
         private Animator _animator;
 
+        private int _lastStateHash;
+
+        private HashSet<int> _neutralStateHashes = new HashSet<int>();
+
+
+        /// <summary>
+        /// アニメーションステートのハッシュ値から名前へのマッピング
+        /// </summary>
+        private Dictionary<int, string> _stateHashToName = new Dictionary<int, string>
+{
+    { Animator.StringToHash("BlockedWeakAttack"), "BlockedWeakAttack" },
+    { Animator.StringToHash("BlockingSuccess_Left"), "BlockingSuccess_Left" },
+    { Animator.StringToHash("BlockingSuccess_Right"), "BlockingSuccess_Right" },
+    { Animator.StringToHash("BlockingSuccess_Up"), "BlockingSuccess_Up" },
+    { Animator.StringToHash("Blocking_Left"), "Blocking_Left" },
+    { Animator.StringToHash("Blocking_Right"), "Blocking_Right" },
+    { Animator.StringToHash("Blocking_Up"), "Blocking_Up" },
+    { Animator.StringToHash("Death"), "Death" },
+    { Animator.StringToHash("FrontAvoid"), "FrontAvoid" },
+    { Animator.StringToHash("GuardSuccess_Left"), "GuardSuccess_Left" },
+    { Animator.StringToHash("GuardSuccess_Right"), "GuardSuccess_Right" },
+    { Animator.StringToHash("GuardSuccess_Up"), "GuardSuccess_Up" },
+    { Animator.StringToHash("Guard_Left"), "Guard_Left" },
+    { Animator.StringToHash("Guard_Right"), "Guard_Right" },
+    { Animator.StringToHash("Guard_Up"), "Guard_Up" },
+    { Animator.StringToHash("GuardedWeakAttack"), "GuardedWeakAttack" },
+    { Animator.StringToHash("HeavyAttackCancel_Left"), "HeavyAttackCancel_Left" },
+    { Animator.StringToHash("HeavyAttackCancel_Right"), "HeavyAttackCancel_Right" },
+    { Animator.StringToHash("HeavyAttackCancel_Up"), "HeavyAttackCancel_Up" },
+    { Animator.StringToHash("HeavyAttack_Left"), "HeavyAttack_Left" },
+    { Animator.StringToHash("HeavyAttack_Right"), "HeavyAttack_Right" },
+    { Animator.StringToHash("HeavyAttack_Up"), "HeavyAttack_Up" },
+    { Animator.StringToHash("LargeStagger"), "LargeStagger" },
+    { Animator.StringToHash("SideAvoid"), "SideAvoid" },
+    { Animator.StringToHash("SmallStagger"), "SmallStagger" },
+    { Animator.StringToHash("WeakAttack_Left"), "WeakAttack_Left" },
+    { Animator.StringToHash("WeakAttack_Right"), "WeakAttack_Right" },
+    { Animator.StringToHash("WeakAttack_Up"), "WeakAttack_Up" }
+};
+
+
         #endregion
 
         #region Animatorパラメータ名の定数定義
@@ -83,6 +126,10 @@ namespace LearningAIGame.CombatSystem.Core
                 return;
             }
 
+            _neutralStateHashes.Add(Animator.StringToHash("Guard_Right"));
+            _neutralStateHashes.Add(Animator.StringToHash("Guard_Left"));
+            _neutralStateHashes.Add(Animator.StringToHash("Guard_Up"));
+
             // ReactivePropertyの購読設定
             SubscribeStateSystem();
         }
@@ -102,6 +149,15 @@ namespace LearningAIGame.CombatSystem.Core
                 {
                     // ActionStateをint値としてAnimatorに設定
                     _animator.SetInteger(k_PARAM_ACTION_STATE, (int)Math.Log((int)state, 2));
+                    // 即座にAnimatorを更新して遷移を反映
+                    _animator.Update(0f);
+
+
+                    //if (gameObject.name == "NPC")
+                    //{
+                    //    _actionList.Add($"State：{state}");
+                    //    Debug.Log($"[AnimationController] 行動状態遷移: {string.Join(",", _actionList)}");
+                    //}
                 })
                 .AddTo(this);
 
@@ -112,6 +168,8 @@ namespace LearningAIGame.CombatSystem.Core
                     // 移動ベクトルのX,Z成分をAnimatorに設定
                     _animator.SetFloat(k_PARAM_MOVE_X, moveVector.x);
                     _animator.SetFloat(k_PARAM_MOVE_Z, moveVector.z);
+                    // 即座にAnimatorを更新して遷移を反映
+                    _animator.Update(0f);
                 })
                 .AddTo(this);
 
@@ -121,8 +179,61 @@ namespace LearningAIGame.CombatSystem.Core
                 {
                     // StanceTypeをint値としてAnimatorに設定
                     _animator.SetInteger(k_PARAM_STANCE, (int)stance);
+                    // 即座にAnimatorを更新して遷移を反映
+                    _animator.Update(0f);
                 })
                 .AddTo(this);
+        }
+
+        List<String> _actionList = new List<string>();
+        List<String> _stateList = new List<string>();
+
+        private void LateUpdate()
+        {
+            if (_animator == null)
+                return;
+
+            int currentHash = _animator.GetCurrentAnimatorStateInfo(0).shortNameHash;
+
+            if (currentHash == _lastStateHash)
+                return;
+
+            if (gameObject.name == "Player")
+            {
+                _stateList.Add($"State：{GetStateName(currentHash)} + 状態：{_stateSystem.CurrentState.CurrentValue}");
+                Debug.Log($"[AnimationController] アニメーションステート遷移: {string.Join(",", _stateList)}");
+            }
+
+            // ステートが変わった && Neutralに戻った
+            if (IsNeutralState(currentHash))
+            {
+                Debug.Log($"[AnimationController] Neutralステートに遷移 {_stateSystem.CurrentState.CurrentValue}");
+                _stateSystem.SetNeutral();
+            }
+
+            _lastStateHash = currentHash;
+        }
+
+        private bool IsNeutralState(int stateHash)
+        {
+            Debug.Log($"[AnimationController] 状態確認: current={GetStateName(stateHash)}, last={GetStateName(_lastStateHash)}");
+            // Neutralステートのハッシュ値を取得
+            return _neutralStateHashes.Contains(stateHash) && !_neutralStateHashes.Contains(_lastStateHash);
+        }
+
+
+        #endregion
+
+        #region ユーティリティ
+
+        /// <summary>
+        /// アニメーションステートのハッシュ値から名前を取得
+        /// </summary>
+        /// <param name="hash">アニメーションステートのハッシュ値</param>
+        /// <returns>ステート名。見つからない場合は"Unknown"</returns>
+        public string GetStateName(int hash)
+        {
+            return _stateHashToName.TryGetValue(hash, out string name) ? name : "Unknown";
         }
 
         #endregion

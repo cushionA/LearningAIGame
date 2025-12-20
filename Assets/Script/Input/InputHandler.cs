@@ -283,7 +283,7 @@ namespace LearningAIGame.CombatSystem
 
             // 2D入力を3D空間の移動ベクトルに変換
             // X: 左右、Z: 前後、Y: 高さ(移動では使用しない)
-            Vector3 moveDirection = new Vector3(_moveInput.x, 0f, _moveInput.y);
+            Vector3 moveDirection = new Vector3(_moveInput.x, 0, _moveInput.y);
 
             // キャラクターコントローラーへ移動命令を送信
             _characterController.MoveAct(moveDirection);

@@ -132,7 +132,7 @@ namespace LearningAIGame.CombatSystem.Data
         public Vector2 preferredCombatDistanceRange = new Vector2(4f, 7f);
 
         [Tooltip("危険距離の閾値（メートル）この距離より近いと離脱行動を取る")]
-        [Range(0.5f, 5f)]
+        [Range(0f, 5f)]
         [ShowIf("IsDefensiveOrEndurance")]
         public float dangerDistanceThreshold = 2f;
 

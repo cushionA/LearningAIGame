@@ -227,6 +227,107 @@ namespace LearningAIGame.CombatSystem.Data
             Debug.Log("持久戦型プリセットを初期化しました");
         }
 
+        #region 移動比率正規化
+
+        /// <summary>
+        /// 全プリセットの移動方向比率を正規化
+        /// </summary>
+        [Button("全プリセットの移動比率を正規化", EButtonEnableMode.Editor)]
+        private void NormalizeAllMovementFrequencies()
+        {
+            NormalizeMovementFrequency(aggressive, "攻撃的");
+            NormalizeMovementFrequency(defensive, "防御的");
+            NormalizeMovementFrequency(adaptive, "バランス型");
+            NormalizeMovementFrequency(disruptive, "攪乱型");
+            NormalizeMovementFrequency(endurance, "持久戦型");
+
+            Debug.Log("全プリセットの移動方向比率を正規化しました");
+        }
+
+        /// <summary>
+        /// 単一プリセットの移動方向比率を正規化（合計1.0）
+        /// </summary>
+        /// <param name="param">対象のAIParameter</param>
+        /// <param name="presetName">ログ用プリセット名</param>
+        private void NormalizeMovementFrequency(AIParameter param, string presetName)
+        {
+            if (param == null)
+            {
+                Debug.LogWarning($"{presetName}プリセットがnullです");
+                return;
+            }
+
+            float total = param.forwardMovementFrequency
+                        + param.backwardMovementFrequency
+                        + param.leftMovementFrequency
+                        + param.rightMovementFrequency;
+
+            if (total <= 0f)
+            {
+                Debug.LogWarning($"{presetName}プリセット: 移動比率の合計が0以下です。均等配分に設定します。");
+                param.forwardMovementFrequency = 0.25f;
+                param.backwardMovementFrequency = 0.25f;
+                param.leftMovementFrequency = 0.25f;
+                param.rightMovementFrequency = 0.25f;
+                return;
+            }
+
+            // 正規化（小数3桁で丸め）
+            param.forwardMovementFrequency = RoundToThreeDecimals(param.forwardMovementFrequency / total);
+            param.backwardMovementFrequency = RoundToThreeDecimals(param.backwardMovementFrequency / total);
+            param.leftMovementFrequency = RoundToThreeDecimals(param.leftMovementFrequency / total);
+            param.rightMovementFrequency = RoundToThreeDecimals(param.rightMovementFrequency / total);
+
+            // 丸め誤差補正（合計が1.0になるよう最大値で調整）
+            float newTotal = param.forwardMovementFrequency
+                           + param.backwardMovementFrequency
+                           + param.leftMovementFrequency
+                           + param.rightMovementFrequency;
+
+            float diff = 1f - newTotal;
+            if (Mathf.Abs(diff) > 0.0001f)
+            {
+                // 最大の要素に誤差を加算
+                AdjustLargestFrequency(param, diff);
+            }
+
+            Debug.Log($"{presetName}プリセット: 移動比率を正規化 " +
+                      $"(前:{param.forwardMovementFrequency:F3} 後:{param.backwardMovementFrequency:F3} " +
+                      $"左:{param.leftMovementFrequency:F3} 右:{param.rightMovementFrequency:F3})");
+        }
+
+        /// <summary>
+        /// 小数3桁で丸める
+        /// </summary>
+        private float RoundToThreeDecimals(float value)
+        {
+            return Mathf.Round(value * 1000f) / 1000f;
+        }
+
+        /// <summary>
+        /// 丸め誤差を最大要素に加算して合計1.0に調整
+        /// </summary>
+        private void AdjustLargestFrequency(AIParameter param, float diff)
+        {
+            float max = Mathf.Max(
+                param.forwardMovementFrequency,
+                param.backwardMovementFrequency,
+                param.leftMovementFrequency,
+                param.rightMovementFrequency
+            );
+
+            if (param.forwardMovementFrequency >= max)
+                param.forwardMovementFrequency = RoundToThreeDecimals(param.forwardMovementFrequency + diff);
+            else if (param.backwardMovementFrequency >= max)
+                param.backwardMovementFrequency = RoundToThreeDecimals(param.backwardMovementFrequency + diff);
+            else if (param.leftMovementFrequency >= max)
+                param.leftMovementFrequency = RoundToThreeDecimals(param.leftMovementFrequency + diff);
+            else
+                param.rightMovementFrequency = RoundToThreeDecimals(param.rightMovementFrequency + diff);
+        }
+
+        #endregion
+
         #endregion
 
         #region ユーティリティメソッド
