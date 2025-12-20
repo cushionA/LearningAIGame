@@ -104,6 +104,8 @@ namespace LearningAIGame.CombatSystem.Systems
             // 攻撃情報を保存
             _currentAttack = attackInfo;
 
+            Debug.Log($"[{DateTime.Now}][HitSystem:{gameObject.transform.parent.name}] 攻撃開始: attackId={attackId}, currentAttackId={_currentAttackId}");
+
             // 判定持続フレーム消化後に当たり判定を消す
             AttackFrameWaitAsync(attackDurationFrame, attackId).Forget();
         }
@@ -137,6 +139,8 @@ namespace LearningAIGame.CombatSystem.Systems
             // フレーム数で正確に待機
             bool isCancel = await UniTask.DelayFrame(waitFrame, cancellationToken: destroyCancellationToken).SuppressCancellationThrow();
 
+            Debug.Log($"[{DateTime.Now}][HitSystem:{gameObject.transform.parent.name}] 攻撃持続フレーム終了: attackId={attackId}, currentAttackId={_currentAttackId}");
+
             // この攻撃がまだ有効かチェック（新しい攻撃が始まっていないか）
             // キャンセルもチェック
             if (attackId != _currentAttackId || isCancel)
@@ -154,13 +158,13 @@ namespace LearningAIGame.CombatSystem.Systems
 
         #region 衝突判定
 
-        /// <summary>
-        /// 攻撃ヒット時の処理
-        /// </summary>
-        protected void OnTriggerEnter(Collider other)
-        {
-            AttackHit();
-        }
+        ///// <summary>
+        ///// 攻撃ヒット時の処理
+        ///// </summary>
+        //protected void OnTriggerEnter(Collider other)
+        //{
+        //    AttackHit();
+        //}
 
         /// <summary>
         /// 攻撃ヒット時の処理
@@ -169,6 +173,8 @@ namespace LearningAIGame.CombatSystem.Systems
         {
             AttackHit();
         }
+
+        int _hitCount;
 
         /// <summary>
         /// ヒット時の処理
@@ -181,12 +187,18 @@ namespace LearningAIGame.CombatSystem.Systems
                 return;
             }
 
-            Debug.Log("[HitSystem] 攻撃がヒットしました。敵のDamageSystemに攻撃を伝えます。");
+            _hitCount++;
 
             // 敵のダメージシステムに攻撃を伝え、結果を取得
             HitResultType result = _enemyDamageSystem.Damage(_currentAttack);
 
-            Debug.Log($"[HitSystem] 敵のDamageSystemからの攻撃結果: {result}");
+            // 無効判定は処理しない
+            if (result == HitResultType.ignore)
+            {
+                return;
+            }
+
+            Debug.Log($"[HitSystem] 敵のDamageSystemからの攻撃結果: {result} ヒット回数:{_hitCount} 攻撃回数:{_currentAttackId}");
 
             // ヒット結果を更新
             _info.SetResult(result);
@@ -200,8 +212,9 @@ namespace LearningAIGame.CombatSystem.Systems
         /// </summary>
         protected bool IsFirstHit()
         {
-            return _info.hitResultType == HitResultType.Miss ||
-                   _info.hitResultType == HitResultType.Avoid;
+            Debug.Log($"[HitSystem] ヒット判定: 現在のヒット結果: {_info.hitResultType}");
+            return (_info.hitResultType == HitResultType.Miss ||
+                   _info.hitResultType == HitResultType.Avoid);
         }
 
         /// <summary>
@@ -218,6 +231,8 @@ namespace LearningAIGame.CombatSystem.Systems
                     // 防御成功。判定を即座に終了
                     _collider.enabled = false;
                     AttackResultReport();
+                    _currentAttackId++; // 攻撃を終了扱いにする
+                    Debug.Log($"[{DateTime.Now}][HitSystem:{gameObject.transform.parent.name}] 防御成功で攻撃判定を終了します。攻撃IDをインクリメント: {_currentAttackId}");
                     break;
 
                 case HitResultType.Hit:

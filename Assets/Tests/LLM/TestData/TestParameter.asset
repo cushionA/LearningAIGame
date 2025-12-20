@@ -41,17 +41,17 @@ MonoBehaviour:
     maxAttackInterval: 2
     opportunityAttackRate: 0
     stepUsageRate: 0.5
-    punishRate: 1
+    punishRate: 0.913
     minEnergyRatio: 0.449
     lightAttackMinEnergy: 0.184
     heavyAttackMinEnergy: 0.326
     rushMinEnergy: 0.924
     comboMinEnergy: 0.411
-    movementAggressiveness: 0.5
+    movementAggressiveness: 0.683
     preferredCombatDistanceRange: {x: 4, y: 7}
     dangerDistanceThreshold: 2
-    forwardMovementFrequency: 0.6
-    backwardMovementFrequency: 0.7
+    forwardMovementFrequency: 0.557
+    backwardMovementFrequency: 0.678
     leftMovementFrequency: 0.5
     rightMovementFrequency: 0.3
     stanceChangeFrequency: 0.4
@@ -125,7 +125,7 @@ MonoBehaviour:
   defaultStrategyData:
     _analysisResult: No analysis due to default tactics.
     _basicTactic: Adaptive
-    _attackCriteria: Cumulative Probability
+    _attackCriteria: Speed Priority
     _continuousAttackCriteria: Cumulative Probability
     _defenseCriteria: Cumulative Probability
     _continuousDefenseCriteria: Cumulative Probability

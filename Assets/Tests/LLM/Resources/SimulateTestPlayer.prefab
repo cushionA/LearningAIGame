@@ -23,6 +23,7 @@ GameObject:
   - component: {fileID: 335107068563618715}
   - component: {fileID: 3213751867893614305}
   - component: {fileID: 3158734962083107792}
+  - component: {fileID: 1260230932774677248}
   m_Layer: 7
   m_Name: CharacterB
   m_TagString: Player
@@ -105,8 +106,8 @@ MonoBehaviour:
   dontDestroyOnLoad: 1
   contextSize: 1500
   batchSize: 512
-  model: gemma-2-2b-battle-ai-Q5_K_M.gguf
-  chatTemplate: gemma
+  model: qwen3-1.7b-battle-ai-stage4-Q8_0.gguf
+  chatTemplate: qwen3
   lora: 
   loraWeights: 
   flashAttention: 0
@@ -116,9 +117,9 @@ MonoBehaviour:
   SSLKey: 
   SSLKeyPath: 
   minContextLength: 0
-  maxContextLength: 8192
+  maxContextLength: 40960
   embeddingsOnly: 0
-  embeddingLength: 2304
+  embeddingLength: 2048
 --- !u!114 &3569596207634755779
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -232,9 +233,7 @@ MonoBehaviour:
   _hitSystem: {fileID: 3213751867893614305}
   _stateSystem: {fileID: 3158734962083107792}
   _enemyTransform: {fileID: 6195519763770341357}
-  _rotationSpeed: 360
-  _rotationThreshold: 1
-  _myPosition: {x: 0, y: 0, z: 0}
+  _minDistanceToEnemy: 1.5
 --- !u!114 &8110152943244152809
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -332,6 +331,7 @@ MonoBehaviour:
   moveController: {fileID: 8607536696333703354}
   _enemyDamageSystem: {fileID: 6843604965300922310}
   _collider: {fileID: 2535920882363310161}
+  isHit: 1
 --- !u!114 &3158734962083107792
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -344,17 +344,30 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bcf45cf71bf54ab4fb22e93afc287138, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UnitTest::DebugStateSystem
-  actionSetting: {fileID: 11400000, guid: 36fa5c87f5edf894b95ab418cd206d23, type: 2}
+  actionSetting: {fileID: 11400000, guid: 33f863fd9e1bdde42b0af4b08acff609, type: 2}
   _attackSystem: {fileID: 6416655412840677673}
   _defenseSystem: {fileID: 335107068563618715}
   _movementSystem: {fileID: 8110152943244152809}
   _hitSystem: {fileID: 3213751867893614305}
   _damageSystem: {fileID: 2066740443075098670}
+  _positionCache: {fileID: 1260230932774677248}
   _showDebugInfo: 1
   _debugWindowPosition: {x: 10, y: 10}
   _debugWindowSize: {x: 450, y: 800}
   _logDebugInfo: 0
   _logInterval: 1
+--- !u!114 &1260230932774677248
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 647744396381824224}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: be8771e46c3dd9f45ad352793fa17ac7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: GameCode::LearningAIGame.CombatSystem.PositionCache
 --- !u!1 &648738064741445108
 GameObject:
   m_ObjectHideFlags: 0
@@ -373,6 +386,7 @@ GameObject:
   - component: {fileID: 6103821901578521311}
   - component: {fileID: 6843604965300922310}
   - component: {fileID: 4480193600423545113}
+  - component: {fileID: 4273962296782432028}
   m_Layer: 7
   m_Name: SimulateTestPlayer
   m_TagString: Player
@@ -409,12 +423,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bcf45cf71bf54ab4fb22e93afc287138, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UnitTest::DebugStateSystem
-  actionSetting: {fileID: 11400000, guid: 36fa5c87f5edf894b95ab418cd206d23, type: 2}
+  actionSetting: {fileID: 11400000, guid: 33f863fd9e1bdde42b0af4b08acff609, type: 2}
   _attackSystem: {fileID: 8858309908124155469}
   _defenseSystem: {fileID: 1248278881906549046}
   _movementSystem: {fileID: 4655698884030934573}
   _hitSystem: {fileID: 4480193600423545113}
   _damageSystem: {fileID: 6843604965300922310}
+  _positionCache: {fileID: 4273962296782432028}
   _showDebugInfo: 0
   _debugWindowPosition: {x: 10, y: 10}
   _debugWindowSize: {x: 450, y: 800}
@@ -478,9 +493,7 @@ MonoBehaviour:
   _hitSystem: {fileID: 4480193600423545113}
   _stateSystem: {fileID: 2903125275757684487}
   _enemyTransform: {fileID: 2897504039927151382}
-  _rotationSpeed: 360
-  _rotationThreshold: 1
-  _myPosition: {x: 0, y: 0, z: 0}
+  _minDistanceToEnemy: 1.5
 --- !u!114 &1248278881906549046
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -555,6 +568,19 @@ MonoBehaviour:
   moveController: {fileID: 6103821901578521311}
   _enemyDamageSystem: {fileID: 2066740443075098670}
   _collider: {fileID: 4663663212136851601}
+  isHit: 1
+--- !u!114 &4273962296782432028
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 648738064741445108}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: be8771e46c3dd9f45ad352793fa17ac7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: GameCode::LearningAIGame.CombatSystem.PositionCache
 --- !u!1 &2243038765529846180
 GameObject:
   m_ObjectHideFlags: 0

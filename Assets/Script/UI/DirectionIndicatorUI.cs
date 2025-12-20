@@ -50,6 +50,10 @@ namespace LearningAIGame.UI
         [SerializeField] private float _activeStanceScale = 1.15f;                         // 現在の構え方向の拡大率
         [SerializeField] private float _stanceChangeDuration = 0.15f;                      // スケール変更時間
 
+        [Header("購読対象のキャラクター")]
+        [SerializeField]
+        private GameObject _indicateCharacter;
+
         #endregion
 
         #region 内部データ
@@ -102,8 +106,8 @@ namespace LearningAIGame.UI
             // 初期状態を設定
             ResetAll();
 
-            StateSystem myStateSystem = GetComponentInParent<StateSystem>();
-            AttackSystem myAttackSystem = GetComponentInParent<AttackSystem>();
+            StateSystem myStateSystem = _indicateCharacter.GetComponent<StateSystem>();
+            AttackSystem myAttackSystem = _indicateCharacter.GetComponent<AttackSystem>();
 
             Setup(myStateSystem, myAttackSystem);
         }

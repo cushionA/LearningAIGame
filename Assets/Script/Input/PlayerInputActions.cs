@@ -283,7 +283,7 @@ namespace LearningAIGame.Input
                 {
                     ""name"": """",
                     ""id"": ""4de78c3d-9e3e-4a9d-bffa-ba415fd66526"",
-                    ""path"": ""<Gamepad>/buttonWest"",
+                    ""path"": ""<Gamepad>/leftShoulder"",
                     ""interactions"": """",
                     ""processors"": """",
                     ""groups"": """",

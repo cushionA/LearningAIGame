@@ -1,239 +1,264 @@
-using Cysharp.Threading.Tasks;
+ï»¿using Cysharp.Threading.Tasks;
 using LearningAIGame.CombatSystem.Data;
 using LearningAIGame.CombatSystem.Setting;
 using LearningAIGame.CombatSystem.Systems;
 using R3;
 using System;
-using System.Threading.Tasks;
-using Unity.Burst;
 using UnityEngine;
 using static LearningAIGame.CombatSystem.Core.StateSystem;
 
-//==============================================ƒtƒ@ƒCƒ‹ƒwƒbƒ_===========================================================
+//==============================================ãƒ•ã‚¡ã‚¤ãƒ«ãƒ˜ãƒƒãƒ€===========================================================
 // StateSystemDebug
 // 
-// ŠT—v: StateSystem‚ÌƒfƒoƒbƒOî•ñ•\¦‹@”\‚ğ’ñ‹Ÿ‚·‚épartialƒNƒ‰ƒX
+// æ¦‚è¦: StateSystemã®ãƒ‡ãƒãƒƒã‚°æƒ…å ±è¡¨ç¤ºæ©Ÿèƒ½ã‚’æä¾›ã™ã‚‹partialã‚¯ãƒ©ã‚¹
 // 
-// §ìÒ: ¬‚³‚ÈÀ•z’c
+// åˆ¶ä½œè€…: å°ã•ãªåº§å¸ƒå›£
 // 
-// ‹@”\à–¾:
-// StateSystem‚ÌƒfƒoƒbƒOî•ñ‚ğGUI•\¦‚¨‚æ‚ÑƒƒOo—Í‚·‚éB
-// ƒŠƒAƒ‹ƒ^ƒCƒ€‚Åó‘Ô‘JˆÚAƒGƒlƒ‹ƒM[As“®‰Â”\ƒtƒ‰ƒOAd’¼ŠÔ‚È‚Ç‚ğ‰Â‹‰»B
-// ‰ñ”ğUŒ‚‚ÌÀs‰Â”Û”»’è‚ÆÚ×‚Èƒoƒbƒtƒ@ó•tó‹µ‚ğ•\¦‚·‚éB
-// ƒGƒfƒBƒ^ã‚Å‚ÌƒfƒoƒbƒOì‹Æ‚ğŒø—¦‰»‚·‚é‚½‚ß‚ÌŠJ”­x‰‡ƒc[ƒ‹B
+// æ©Ÿèƒ½èª¬æ˜:
+// StateSystemã®ãƒ‡ãƒãƒƒã‚°æƒ…å ±ã‚’GUIè¡¨ç¤ºãŠã‚ˆã³ãƒ­ã‚°å‡ºåŠ›ã™ã‚‹ã€‚
+// ãƒªã‚¢ãƒ«ã‚¿ã‚¤ãƒ ã§çŠ¶æ…‹é·ç§»ã€ã‚¨ãƒãƒ«ã‚®ãƒ¼ã€è¡Œå‹•å¯èƒ½ãƒ•ãƒ©ã‚°ã€ç¡¬ç›´æ™‚é–“ãªã©ã‚’å¯è¦–åŒ–ã€‚
+// å›é¿æ”»æ’ƒã®å®Ÿè¡Œå¯å¦åˆ¤å®šã¨è©³ç´°ãªãƒãƒƒãƒ•ã‚¡å—ä»˜çŠ¶æ³ã‚’è¡¨ç¤ºã™ã‚‹ã€‚
+// ã‚¨ãƒ‡ã‚£ã‚¿ä¸Šã§ã®ãƒ‡ãƒãƒƒã‚°ä½œæ¥­ã‚’åŠ¹ç‡åŒ–ã™ã‚‹ãŸã‚ã®é–‹ç™ºæ”¯æ´ãƒ„ãƒ¼ãƒ«ã€‚
 // 
-// “ü—ÍŒ³ƒNƒ‰ƒX: StateSystem(©ƒNƒ‰ƒX)
-// o—ÍæƒNƒ‰ƒX: ‚È‚µ(ƒfƒoƒbƒO•\¦ê—p)
+// å…¥åŠ›å…ƒã‚¯ãƒ©ã‚¹: StateSystem(è‡ªã‚¯ãƒ©ã‚¹)
+// å‡ºåŠ›å…ˆã‚¯ãƒ©ã‚¹: ãªã—(ãƒ‡ãƒãƒƒã‚°è¡¨ç¤ºå°‚ç”¨)
 // 
-// ‚»‚Ì‘¼:
-// UNITY_EDITORƒfƒBƒŒƒNƒeƒBƒu‚É‚æ‚èƒGƒfƒBƒ^ŠÂ‹«‚Å‚Ì‚İ“®ì
-// ContextMenu‚É‚æ‚éè“®ƒfƒoƒbƒO‹@”\‚à’ñ‹Ÿ
+// ãã®ä»–:
+// UNITY_EDITORãƒ‡ã‚£ãƒ¬ã‚¯ãƒ†ã‚£ãƒ–ã«ã‚ˆã‚Šã‚¨ãƒ‡ã‚£ã‚¿ç’°å¢ƒã§ã®ã¿å‹•ä½œ
+// ContextMenuã«ã‚ˆã‚‹æ‰‹å‹•ãƒ‡ãƒãƒƒã‚°æ©Ÿèƒ½ã‚‚æä¾›
 //=====================================================================================================================
 namespace LearningAIGame.CombatSystem.Core
 {
     /// <summary>
-    /// ƒoƒgƒ‹ƒLƒƒƒ‰ƒNƒ^[ƒRƒ“ƒgƒ[ƒ‰[
-    /// Ó”C”ÍˆÍF“ü—Íó•tA“ü—Íˆ—AˆÚ“®ˆ—
+    /// ãƒãƒˆãƒ«ã‚­ãƒ£ãƒ©ã‚¯ã‚¿ãƒ¼ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ©ãƒ¼
+    /// è²¬ä»»ç¯„å›²ï¼šå…¥åŠ›å—ä»˜ã€å…¥åŠ›å‡¦ç†ã€ç§»å‹•å‡¦ç†
     /// </summary>
     public class BattleCharacterController : MonoBehaviour
     {
         /// <summary>
-        /// ƒAƒNƒVƒ‡ƒ“İ’èƒf[ƒ^
+        /// ã‚¢ã‚¯ã‚·ãƒ§ãƒ³è¨­å®šãƒ‡ãƒ¼ã‚¿
         /// </summary>
         private ActionSetting _actionSetting;
 
         /// <summary>
-        /// UŒ‚ÀsƒNƒ‰ƒX
+        /// æ”»æ’ƒå®Ÿè¡Œã‚¯ãƒ©ã‚¹
         /// </summary>
         [SerializeField]
         private AttackSystem _attackSystem;
 
         /// <summary>
-        /// –hŒäÀsƒNƒ‰ƒX
+        /// é˜²å¾¡å®Ÿè¡Œã‚¯ãƒ©ã‚¹
         /// </summary>
         [SerializeField]
         private DefenseSystem _defenseSystem;
 
         /// <summary>
-        /// ˆÚ“®ÀsƒNƒ‰ƒX
+        /// ç§»å‹•å®Ÿè¡Œã‚¯ãƒ©ã‚¹
         /// </summary>
         [SerializeField]
         private MovementSystem _movementSystem;
 
         /// <summary>
-        /// ƒ_ƒ[ƒW”»’è‚ÌŠÇ—ƒNƒ‰ƒX
+        /// ãƒ€ãƒ¡ãƒ¼ã‚¸åˆ¤å®šã®ç®¡ç†ã‚¯ãƒ©ã‚¹
         /// </summary>
         [SerializeField]
         private HitSystem _hitSystem;
 
         /// <summary>
-        /// ó‘ÔŠÇ—ƒVƒXƒeƒ€
+        /// çŠ¶æ…‹ç®¡ç†ã‚·ã‚¹ãƒ†ãƒ 
         /// </summary>
         [SerializeField]
         private StateSystem _stateSystem;
 
         /// <summary>
-        /// “G‚ÌTransform
+        /// æ•µã®Transform
         /// </summary>
         [SerializeField]
         private Transform _enemyTransform;
 
         /// <summary>
-        /// ‰ñ“]‘¬“xi“x/•bj
+        /// æ•µã¨ã®æœ€å°è·é›¢
+        /// ã“ã‚Œä»¥ä¸Šã¯è¿‘ã¥ã‹ãªã„
         /// </summary>
         [SerializeField]
-        private float _rotationSpeed = 360f;
+        private float _minDistanceToEnemy = 1.5f;
 
         /// <summary>
-        /// ‰ñ“]‚ğ’â~‚·‚éŠp“x‚Ìè‡’li“xj
+        /// è‡ªåˆ†ã®ä½ç½®ã®ã‚­ãƒ£ãƒƒã‚·ãƒ¥
         /// </summary>
-        [SerializeField]
-        private float _rotationThreshold = 1f;
+        private PositionCache _myPosition;
 
         /// <summary>
-        /// ©•ª‚ÌˆÊ’u‚ÌƒLƒƒƒbƒVƒ…
+        /// æ•µã®ä½ç½®ã®ã‚­ãƒ£ãƒƒã‚·ãƒ¥
         /// </summary>
-        [SerializeField]
-        private Vector3 _myPosition;
+        private PositionCache _enemyPosition;
 
         /// <summary>
-        /// “G‚ÌˆÊ’u‚ÌƒLƒƒƒbƒVƒ…
+        /// ã“ã‚ŒãŒçœŸã®é–“ã¯æ•µã®æ–¹å‘ã‚’å‘ã
         /// </summary>
-        private Vector3 _enemyPosition;
+        private bool _lookEnemyEnabled = true;
 
         private void Start()
         {
+            _enemyPosition = _enemyTransform.GetComponent<PositionCache>();
+            _myPosition = GetComponent<PositionCache>();
+
             _actionSetting = _stateSystem.actionSetting;
-            // ”íƒ_ƒ[ƒW‚É‚æ‚és“®ƒLƒƒƒ“ƒZƒ‹ƒCƒxƒ“ƒg
+
+            // è¢«ãƒ€ãƒ¡ãƒ¼ã‚¸ã«ã‚ˆã‚‹è¡Œå‹•ã‚­ãƒ£ãƒ³ã‚»ãƒ«ã‚¤ãƒ™ãƒ³ãƒˆ
             _stateSystem.CurrentState
-                .Where(state => (state & ActionState.‹­§s“®ƒLƒƒƒ“ƒZƒ‹) > 0)
+                .Where(state => (state & ActionState.å¼·åˆ¶è¡Œå‹•ã‚­ãƒ£ãƒ³ã‚»ãƒ«) > 0)
                 .Subscribe(_ => OnStunCancel())
                 .AddTo(this);
         }
 
         private void Update()
         {
-            // ©•ª‚ÌˆÊ’u‚ğ–ˆƒtƒŒ[ƒ€ƒLƒƒƒbƒVƒ…
-            _myPosition = transform.position;
+            LookAtEnemy();
 
-            // “G‚ÌˆÊ’u‚ğ–ˆƒtƒŒ[ƒ€ƒLƒƒƒbƒVƒ…
-            _enemyPosition = _enemyTransform.position;
-
-            // “G•ûŒü‚É‰ñ“]‚µ‚ÄŒü‚«’¼‚éB
-            RotateTowardsEnemy();
+            // æ•µã«å‘ãç›´ã‚Œã‚‹çŠ¶æ…‹ã§ã‚ã‚Œã°ãƒ•ãƒ©ã‚°ã‚’ç«‹ã¦ã‚‹
+            // ãƒ•ãƒ©ã‚°ã‚’æŠ˜ã‚‹ã“ã¨ã¯ã—ãªã„
+            if ((_stateSystem.CurrentState.CurrentValue & ActionState.æ•µã¸ã®è‡ªå‹•è»¢å›å¯èƒ½) > 0)
+            {
+                _lookEnemyEnabled = true;
+            }
         }
 
         /// <summary>
-        /// ãUŒ‚Às
+        /// å³åº§ã«æ•µã®æ–¹å‘ã‚’å‘ã
+        /// </summary>
+        private void LookAtEnemy()
+        {
+            if (_enemyTransform == null)
+                return;
+
+            // æ•µã«å‘ãç›´ã‚Œãªã„çŠ¶æ…‹ã§ã‚ã‚Œã°ä½•ã‚‚ã—ãªã„
+            if (!_lookEnemyEnabled)
+            {
+                return;
+            }
+
+            Vector3 direction = _enemyPosition.Position - _myPosition.Position;
+            direction.y = 0f;
+
+            if (direction.sqrMagnitude < 0.001f)
+                return;
+
+            transform.rotation = Quaternion.LookRotation(direction);
+        }
+
+        /// <summary>
+        /// æ•µã¨è¿‘ã™ãã‚‹å ´åˆã«æŠ¼ã—å‡ºã™
+        /// </summary>
+        private void PushAwayFromEnemy()
+        {
+            if (_enemyTransform == null)
+                return;
+
+            Vector3 toEnemy = _enemyPosition.Position - _myPosition.Position;
+            toEnemy.y = 0f;
+
+            float distanceSqr = toEnemy.sqrMagnitude;
+            float minDistanceSqr = _minDistanceToEnemy * _minDistanceToEnemy;
+
+            if (distanceSqr < minDistanceSqr && distanceSqr > 0.001f)
+            {
+                float distance = Mathf.Sqrt(distanceSqr);
+                float pushDistance = _minDistanceToEnemy - distance;
+                Vector3 pushDirection = -toEnemy / distance; // normalized
+
+                transform.position += pushDirection * pushDistance;
+            }
+        }
+
+        /// <summary>
+        /// å¼±æ”»æ’ƒå®Ÿè¡Œ
         /// </summary>
         public async UniTaskVoid LightAttackAct(StanceType stance)
         {
-
-            // ƒfƒoƒbƒOƒƒO
             Debug.Log($"LightAttackAct called - CanAttack: {_stateSystem.CanAttack}, CanAvoidAttack: {_stateSystem.CanAvoidAttack}");
 
-            // UŒ‚‰Â”\‚Èó‘Ô‚©‚ğŠm”F
             if (!_stateSystem.CanAttack && !_stateSystem.CanAvoidAttack)
             {
                 return;
             }
 
-            // w’è‚ª‚È‚¯‚ê‚ÎŒ»İ‚Ì\‚¦•ûŒü‚ğg‚¤
             stance = stance == StanceType.None ? _stateSystem.CurrentStance.CurrentValue : stance;
 
-            // ƒRƒXƒgƒGƒlƒ‹ƒM[‚ğÁ”ï
             int cost = _actionSetting.WeakAttackEnergyCost;
             _stateSystem.UseEnergy(cost);
 
-            // UŒ‚ƒpƒ‰ƒ[ƒ^‚Ìæ“¾
             int damage = _actionSetting.WeakAttackDamage;
-            Vector3 stepVector = GetNormalToEnemy() * _actionSetting.WeakAttackStepSpeed;
+            Vector3 stepVector = Vector3.forward * _actionSetting.WeakAttackStepSpeed;
             float stepDuration = _actionSetting.WeakAttackStepDuration;
 
-            // UŒ‚Às
             _attackSystem.WeakAttack(damage, stance, stepVector, stepDuration, _actionSetting.WeakAttackStartFrame);
 
-            // UŒ‚”»’è”­¶ƒtƒŒ[ƒ€‚Ü‚Å‘Ò‹@
             bool isCancel = await UniTask.DelayFrame(_actionSetting.WeakAttackStartFrame, cancellationToken: destroyCancellationToken).SuppressCancellationThrow();
-
-            // UŒ‚Œp‘±’†‚Å‚ ‚ê‚Î”»’è‚ğo‚·
-            if (!isCancel && (_stateSystem.CurrentState.CurrentValue & ActionState.ãUŒ‚Œn“) > 0)
+            _lookEnemyEnabled = false;// æ”»æ’ƒåˆ¤å®šä¸­ã¯æ•µã®æ–¹å‘ã‚’å‘ã‹ãªã„
+            if (!isCancel && (_stateSystem.CurrentState.CurrentValue & ActionState.å¼±æ”»æ’ƒç³»çµ±) > 0)
             {
                 _hitSystem.DamageStart(_stateSystem.CurrentAttackInfo, _actionSetting.WeakAttackDurationFrame);
             }
         }
 
         /// <summary>
-        /// ‹­UŒ‚Às
-        /// UŒ‚”»’è”­¶ƒtƒŒ[ƒ€Á‰»Œã‚É”»’è‚ğ”­¶‚³‚¹‚é
+        /// å¼·æ”»æ’ƒå®Ÿè¡Œ
         /// </summary>
         public async UniTaskVoid HeavyAttackAct(StanceType stance)
         {
-            // UŒ‚‰Â”\‚Èó‘Ô‚©‚ğŠm”F
+
             if (!_stateSystem.CanAttack)
             {
                 return;
             }
 
-            // w’è‚ª‚È‚¯‚ê‚ÎŒ»İ‚Ì\‚¦•ûŒü‚ğg‚¤
             stance = stance == StanceType.None ? _stateSystem.CurrentStance.CurrentValue : stance;
 
-            // ƒRƒXƒgƒGƒlƒ‹ƒM[‚ğÁ”ï
             int cost = _actionSetting.HeavyAttackEnergyCost;
             _stateSystem.UseEnergy(cost);
 
-            // UŒ‚ƒpƒ‰ƒ[ƒ^‚Ìæ“¾
             int damage = _actionSetting.HeavyAttackDamage;
-            Vector3 stepVector = GetNormalToEnemy() * _actionSetting.HeavyAttackStepSpeed;
+            Vector3 stepVector = Vector3.forward * _actionSetting.HeavyAttackStepSpeed;
             float stepDuration = _actionSetting.HeavyAttackStepDuration;
 
-            // UŒ‚Às
             _attackSystem.HeavyAttack(damage, stance, stepVector, stepDuration, _actionSetting.HeavyAttackStartFrame);
 
-            // UŒ‚”»’è”­¶ƒtƒŒ[ƒ€‚Ü‚Å‘Ò‹@
             bool isCancel = await UniTask.DelayFrame(_actionSetting.HeavyAttackStartFrame, cancellationToken: destroyCancellationToken).SuppressCancellationThrow();
+            _lookEnemyEnabled = false;// æ”»æ’ƒåˆ¤å®šä¸­ã¯æ•µã®æ–¹å‘ã‚’å‘ã‹ãªã„
 
-            // UŒ‚Œp‘±’†‚Å‚ ‚ê‚Î”»’è‚ğo‚·
-            if (!isCancel && _stateSystem.CurrentState.CurrentValue == ActionState.‹­UŒ‚)
+            if (!isCancel && _stateSystem.CurrentState.CurrentValue == ActionState.å¼·æ”»æ’ƒ)
             {
                 _hitSystem.DamageStart(_stateSystem.CurrentAttackInfo, _actionSetting.HeavyAttackDurationFrame);
             }
         }
 
         /// <summary>
-        /// ‹­UŒ‚ƒLƒƒƒ“ƒZƒ‹
+        /// å¼·æ”»æ’ƒã‚­ãƒ£ãƒ³ã‚»ãƒ«
         /// </summary>
         public void HeavyAttackCancel()
         {
-            // ‹­UŒ‚Às’†A‚©‚ÂƒLƒƒƒ“ƒZƒ‹‰Â”\ó‘Ô‚©‚ğŠm”F
-            if (_stateSystem.CurrentState.CurrentValue != ActionState.‹­UŒ‚ || !_stateSystem.CanCancelHeavyAttack)
+            if (_stateSystem.CurrentState.CurrentValue != ActionState.å¼·æ”»æ’ƒ || !_stateSystem.CanCancelHeavyAttack)
             {
                 return;
             }
 
-            // ƒLƒƒƒ“ƒZƒ‹ƒRƒXƒg‚ğÁ”ï
             int cost = _actionSetting.HeavyAttackCancelEnergyCost;
             _stateSystem.UseEnergy(cost);
 
-            // ƒLƒƒƒ“ƒZƒ‹Às
             _attackSystem.HeavyAttackCancel();
-
-            // UŒ‚”»’è‚ÌI—¹‚ğs‚¤
             _hitSystem.DamageStop(true);
         }
 
         /// <summary>
-        /// ‹­UŒ‚ƒtƒFƒCƒ“ƒgiAI—pj
+        /// å¼·æ”»æ’ƒãƒ•ã‚§ã‚¤ãƒ³ãƒˆï¼ˆAIç”¨ï¼‰
         /// </summary>
         public async UniTaskVoid HeavyAttackFeint(StanceType stance)
         {
-            // ‹­UŒ‚‚ğŠJn
             HeavyAttackAct(stance).Forget();
 
-            // 1•b‘Ò‹@
             bool IsCancel = await UniTask.Delay(TimeSpan.FromSeconds(1f), cancellationToken: destroyCancellationToken).SuppressCancellationThrow();
 
-            // ³í‚É‘Ò‹@‚ªI‚í‚ê‚ÎƒLƒƒƒ“ƒZƒ‹Às
             if (!IsCancel)
             {
                 HeavyAttackCancel();
@@ -241,71 +266,59 @@ namespace LearningAIGame.CombatSystem.Core
         }
 
         /// <summary>
-        /// ƒK[ƒh•ûŒü•ÏX
+        /// ã‚¬ãƒ¼ãƒ‰æ–¹å‘å¤‰æ›´
         /// </summary>
-        /// <param name="guardDirection">ƒK[ƒh•ûŒüƒxƒNƒgƒ‹</param>
         public void GuardDirectionChange(StanceType stance)
         {
-            // ƒK[ƒh•ûŒü•ÏX‰Â”\‚Èó‘Ô‚©Aw’è‚ª—LŒø‚©‚ğŠm”F
             if (!_stateSystem.CanChangeGuardDirection || stance == StanceType.None)
             {
                 return;
             }
 
-            // ƒK[ƒh•ûŒü•ÏXÀs
             _defenseSystem.GuardStanceChange(stance);
         }
 
         /// <summary>
-        /// ƒuƒƒbƒLƒ“ƒOÀs
+        /// ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°å®Ÿè¡Œ
         /// </summary>
         public void BlockingAct(StanceType stance)
         {
-            // ƒuƒƒbƒLƒ“ƒO‰Â”\‚Èó‘Ô‚©‚ğŠm”F
             if (!_stateSystem.CanBlock)
             {
                 return;
             }
 
-            // w’è‚ª‚È‚¯‚ê‚ÎŒ»İ‚Ì\‚¦•ûŒü‚ğg‚¤
             stance = stance == StanceType.None ? _stateSystem.CurrentStance.CurrentValue : stance;
 
-            // ƒRƒXƒgƒGƒlƒ‹ƒM[‚ğÁ”ï
             int cost = _actionSetting.BlockingEnergyCost;
             _stateSystem.UseEnergy(cost);
 
-            // ƒuƒƒbƒLƒ“ƒOÀs
             _defenseSystem.BlockingStart(stance);
         }
 
         /// <summary>
-        /// AI—p‚ÌãUŒ‚ƒuƒƒbƒLƒ“ƒOÀs
+        /// AIç”¨ã®å¼±æ”»æ’ƒãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°å®Ÿè¡Œ
         /// </summary>
         public void LightBlocking(StanceType stance)
         {
-            BlockingReleaseAfterDelay(Math.Max(_actionSetting.WeakAttackStartFrame - 2, 0), stance).Forget();
+            BlockingReleaseAfterDelay(Math.Max(_actionSetting.WeakAttackStartFrame - 1, 0), stance).Forget();
         }
 
         /// <summary>
-        /// AI—p‚Ì‹­UŒ‚ƒuƒƒbƒLƒ“ƒOÀs
+        /// AIç”¨ã®å¼·æ”»æ’ƒãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°å®Ÿè¡Œ
         /// </summary>
         public void HeavyBlocking(StanceType stance)
         {
-            BlockingReleaseAfterDelay(Math.Max(_actionSetting.HeavyAttackStartFrame - 2, 0), stance).Forget();
+            BlockingReleaseAfterDelay(Math.Max(_actionSetting.HeavyAttackStartFrame - 1, 0), stance).Forget();
         }
 
         /// <summary>
-        /// w’èƒtƒŒ[ƒ€‚¾‚¯’x‚ç‚¹‚Ä‚©‚çƒuƒƒbƒLƒ“ƒOÀs
+        /// æŒ‡å®šãƒ•ãƒ¬ãƒ¼ãƒ ã ã‘é…ã‚‰ã›ã¦ã‹ã‚‰ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°å®Ÿè¡Œ
         /// </summary>
-        /// <param name="delay"></param>
-        /// <param name="stance"></param>
-        /// <returns></returns>
         private async UniTaskVoid BlockingReleaseAfterDelay(int delay, StanceType stance)
         {
-            // w’èŠÔ‘Ò‹@
             bool isCancel = await UniTask.DelayFrame(delay, cancellationToken: destroyCancellationToken).SuppressCancellationThrow();
 
-            // ³í‚É‘Ò‹@‚ªI‚í‚ê‚ÎƒuƒƒbƒLƒ“ƒOÀs
             if (!isCancel)
             {
                 BlockingAct(stance);
@@ -313,58 +326,61 @@ namespace LearningAIGame.CombatSystem.Core
         }
 
         /// <summary>
-        /// ‰ñ”ğÀs
+        /// å›é¿å®Ÿè¡Œ
+        /// å¾Œã‚å›é¿ã¯å¼·ã™ãã‚‹ã®ã§åˆ¶é™å¤šã‚
         /// </summary>
-        /// <param name="moveVector">ˆÚ“®•ûŒüƒxƒNƒgƒ‹</param>
         public void AvoidAct(MovementReportType type)
         {
-            // ‰ñ”ğ‰Â”\‚Èó‘Ô‚©‚ğŠm”F
             if (!_stateSystem.CanAvoid)
             {
                 return;
             }
 
-            // ƒGƒlƒ‹ƒM[‚ª0‚È‚ç‰ñ”ğ«”\‚ª—‚¿‚é
-            if (_stateSystem.Energy == 0)
+            // ãƒãƒƒã‚¯ã‚¹ãƒ†ãƒƒãƒ—ã¯ã‚¨ãƒãƒ«ã‚®ãƒ¼æ¶ˆè²»å¢—å¤§
+            // ã‚¨ãƒãƒ«ã‚®ãƒ¼åˆ‡ã‚Œæ™‚ã¯æ€§èƒ½å¤§å¹…ä½ä¸‹
+            if (type == MovementReportType.BackStep)
             {
-                // ‰ñ”ğÀs
-                _movementSystem.Avoid(type, _actionSetting.AvoidSpeed * 0.7f, _actionSetting.AvoidDuration * 0.7f);
+                if (_stateSystem.Energy == 0)
+                {
+                    _movementSystem.Avoid(type, _actionSetting.BackAvoidSpeed * 0.7f, _actionSetting.BackAvoidDuration * 0.7f);
+                }
+                else
+                {
+                    _movementSystem.Avoid(type, _actionSetting.BackAvoidSpeed, _actionSetting.BackAvoidDuration);
+                    _stateSystem.UseEnergy(_actionSetting.BackAvoidEnergyCost);
+                }
             }
             else
             {
-                // ‰ñ”ğÀs
-                _movementSystem.Avoid(type, _actionSetting.AvoidSpeed, _actionSetting.AvoidDuration);
-
-                // ƒRƒXƒgÁ”ï
-                _stateSystem.UseEnergy(_actionSetting.AvoidEnergyCost);
+                if (_stateSystem.Energy == 0)
+                {
+                    _movementSystem.Avoid(type, _actionSetting.AvoidSpeed * 0.7f, _actionSetting.AvoidDuration * 0.7f);
+                }
+                else
+                {
+                    _movementSystem.Avoid(type, _actionSetting.AvoidSpeed, _actionSetting.AvoidDuration);
+                    _stateSystem.UseEnergy(_actionSetting.AvoidEnergyCost);
+                }
             }
         }
 
         /// <summary>
-        /// ‰ñ”ğUŒ‚iAI—pj
+        /// å›é¿æ”»æ’ƒï¼ˆAIç”¨ï¼‰
         /// </summary>
-        /// <param name="moveVector">ˆÚ“®•ûŒüƒxƒNƒgƒ‹</param>
         public async UniTaskVoid AvoidAttackAct(MovementReportType type)
         {
-            // ‰ñ”ğ‰Â”\‚Èó‘Ô‚©‚ğŠm”F
             if (!_stateSystem.CanAvoid && type == MovementReportType.BackStep)
             {
                 return;
             }
 
-            // ƒRƒXƒgÁ”ï
             _stateSystem.UseEnergy(_actionSetting.AvoidEnergyCost);
-
-            // ‰ñ”ğÀs
             _movementSystem.Avoid(type, _actionSetting.AvoidSpeed, _actionSetting.AvoidDuration);
 
-            // ‰ñ”ğUŒ‚‚ÌÀs—P—\‚ğ“ü‚ê‚é
             float waitTime = _actionSetting.AvoidAttackInputDuration * 0.7f;
 
-            // Às—P—\•ª‘Ò‹@
             bool isCancel = await UniTask.Delay(TimeSpan.FromSeconds(waitTime), cancellationToken: destroyCancellationToken).SuppressCancellationThrow();
 
-            // ³í‚É‘Ò‹@‚ªI‚í‚ê‚ÎƒLƒƒƒ“ƒZƒ‹Às
             if (!isCancel)
             {
                 LightAttackAct(_stateSystem.CurrentStance.CurrentValue).Forget();
@@ -372,98 +388,72 @@ namespace LearningAIGame.CombatSystem.Core
         }
 
         /// <summary>
-        /// ˆÚ“®Às
+        /// ç§»å‹•å®Ÿè¡Œ
+        /// å¾Œæ–¹ãƒ™ã‚¯ãƒˆãƒ«ã¸ã®ç§»å‹•ã¯æ¸›é€Ÿã™ã‚‹
         /// </summary>
-        /// <param name="moveVector">ˆÚ“®•ûŒüƒxƒNƒgƒ‹</param>
         public void MoveAct(Vector3 moveVector)
         {
-            // ˆÚ“®‰Â”\‚Èó‘Ô‚©‚ğŠm”F
             if (!_stateSystem.CanMove)
             {
                 return;
             }
 
-            // ˆÚ“®ŠJn
-            // “GŠî€‚Ì‘Š‘ÎÀ•WŒn‚É•ÏŠ·‚µ‚Ä‚©‚çˆÚ“®
-            _movementSystem.Move(moveVector * _actionSetting.MoveSpeed);
+            // ç§»å‹•ãƒ™ã‚¯ãƒˆãƒ«ã‚’æ­£è¦åŒ–ã—ã¦æ–¹å‘ã‚’å–å¾—
+            Vector3 normalizedMove = moveVector.normalized;
+
+            // é€Ÿåº¦æ¸›è¡°ä¿‚æ•°ã‚’è¨ˆç®—
+            // å¾Œã‚ç§»å‹•ã¯é€Ÿåº¦ã‚’è½ã¨ã™
+            float speedFactor;
+            float backSpeedFactor = _actionSetting.BackMoveMultiplier;
+            const float forwardSpeedFactor = 1.0f;
+
+            if (normalizedMove.z >= 0)
+            {
+                // ZãŒ 0 ã¾ãŸã¯ æ­£ (å‰ã€æ¨ªã€æ–œã‚å‰) ã®å ´åˆã¯ã€é€Ÿåº¦ä¿‚æ•°ã¯å¸¸ã« 1.0
+                speedFactor = forwardSpeedFactor; // 1.0f
+            }
+            else
+            {
+                // ZãŒ è²  (å¾Œã‚ã€æ–œã‚å¾Œã‚) ã®å ´åˆã€æ»‘ã‚‰ã‹ã«æ¸›é€Ÿã™ã‚‹
+
+                // Zã®è² ã®æˆåˆ†ã‚’ 0ã€œ1 ã®ç¯„å›²ã«å¤‰æ›ã™ã‚‹ï¼ˆä¾‹: -1 -> 1, -0.5 -> 0.5, 0 -> 0ï¼‰
+                float backRatio = Mathf.Abs(normalizedMove.z);
+
+                // Lerpã§è£œé–“ (tãŒ0ã§1.0å€é€Ÿã€tãŒ1ã§0.7å€é€Ÿ)
+                // Lerp(1.0, 0.7, backRatio)
+                // - çœŸå¾Œã‚ (Z=-1, backRatio=1) ã®æ™‚: 0.7å€é€Ÿ
+                // - æ–œã‚å¾Œã‚ (Z=-0.5, backRatio=0.5) ã®æ™‚: 0.85å€é€Ÿ
+                // - çœŸæ¨ª (Z=0, backRatio=0) ã®æ™‚: 1.0å€é€Ÿ (å³å¯†ã«ã¯ã“ã®ãƒ–ãƒ­ãƒƒã‚¯ã«å…¥ã‚‰ãªã„ãŒã€é€£ç¶šæ€§ã‚’æŒãŸã›ã‚‹ãŸã‚)
+                speedFactor = Mathf.Lerp(forwardSpeedFactor, backSpeedFactor, backRatio);
+            }
+
+            // æœ€çµ‚é€Ÿåº¦ã‚’è¨ˆç®—
+            float speed = _actionSetting.MoveSpeed * speedFactor;
+
+            // ç§»å‹•å®Ÿè¡Œ
+            _movementSystem.Move(moveVector * speed);
         }
 
         /// <summary>
-        /// ŠO•”‚©‚ç“G‚ÌTransform‚ğİ’è‚·‚é
+        /// å¤–éƒ¨ã‹ã‚‰æ•µã®Transformã‚’è¨­å®šã™ã‚‹
         /// </summary>
-        /// <param name="enemyTransform"></param>
         public void SetTargetTransform(Transform enemyTransform)
         {
             _enemyTransform = enemyTransform;
         }
 
-        #region w“Ç—pƒƒ\ƒbƒh
-
         /// <summary>
-        /// ‹¯‚İ“™‚Ås“®ƒLƒƒƒ“ƒZƒ‹‚³‚ê‚½ê‡‚ÉƒR[ƒ‹ƒoƒbƒN‚³‚ê‚é
-        /// Às’†‚¾‚Á‚½s“®‚Ì‰e‹¿‚ğƒLƒƒƒ“ƒZƒ‹‚·‚é
+        /// æ€¯ã¿ç­‰ã§è¡Œå‹•ã‚­ãƒ£ãƒ³ã‚»ãƒ«ã•ã‚ŒãŸå ´åˆã«ã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯ã•ã‚Œã‚‹
         /// </summary>
         private void OnStunCancel()
         {
-            // ‹­§ƒLƒƒƒ“ƒZƒ‹‚Ìs“®‚ğŠm”FB
             ActionState last = _stateSystem.LastState;
+            Debug.Log($"[{gameObject.name}]ã‚¹ã‚¿ãƒ³è§£é™¤: {_stateSystem.CurrentState.CurrentValue} å‰å›{last}");
 
-            if ((last & ActionState.UŒ‚) > 0)
+            if ((last & ActionState.æ”»æ’ƒ) > 0)
             {
                 _hitSystem.DamageStop();
             }
         }
-
-        #endregion
-
-        /// <summary>
-        /// “G‚Ö‚Ì–@üƒxƒNƒgƒ‹‚ğæ“¾
-        /// </summary>
-        /// <returns>³‹K‰»‚³‚ê‚½“G‚Ö‚Ì•ûŒüƒxƒNƒgƒ‹</returns>
-        [BurstCompile]
-        private Vector3 GetNormalToEnemy()
-        {
-            if (_enemyTransform == null)
-            {
-                return transform.forward;
-            }
-
-            Vector3 direction = (_enemyPosition - _myPosition);
-            direction.y = 0f; // Y²‚Í–³‹
-            return direction.normalized;
-        }
-
-        /// <summary>
-        /// “G‚Ì•ûŒü‚ÉŒü‚«’¼‚éˆ—
-        /// </summary>
-        private void RotateTowardsEnemy()
-        {
-            if (_enemyTransform == null)
-                return;
-
-            // “G‚Ö‚Ì•ûŒüƒxƒNƒgƒ‹iY²–³‹j
-            Vector3 direction = _enemyPosition - _myPosition;
-            direction.y = 0f;
-
-            // ƒ[ƒƒxƒNƒgƒ‹ƒ`ƒFƒbƒN
-            if (direction.sqrMagnitude < 0.001f)
-                return;
-
-            // –Ú•WŠp“x
-            float targetAngle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
-            float currentAngle = transform.eulerAngles.y;
-
-            // Šp“x·i-180`180j
-            float delta = Mathf.DeltaAngle(currentAngle, targetAngle);
-
-            // è‡’lƒ`ƒFƒbƒN
-            if (Mathf.Abs(delta) < _rotationThreshold)
-                return;
-
-            // ‰ñ“]iÅ‘å‘¬“x§ŒÀ•t‚«j
-            float rotation = Mathf.Clamp(delta, -_rotationSpeed * Time.deltaTime, _rotationSpeed * Time.deltaTime);
-            transform.Rotate(0f, rotation, 0f, Space.Self);
-        }
-
     }
 }
