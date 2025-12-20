@@ -1,4 +1,5 @@
 using NaughtyAttributes;
+using System.Diagnostics.Contracts;
 using UnityEngine;
 using static LearningAIGame.CombatSystem.Core.StateSystem;
 
@@ -167,6 +168,7 @@ namespace LearningAIGame.CombatSystem.Setting
 
         #endregion
 
+
         #region ブロッキング設定
 
         [BoxGroup("ブロッキング")]
@@ -233,10 +235,40 @@ namespace LearningAIGame.CombatSystem.Setting
         [SerializeField] private float _avoidDuration = 0.4f;
 
         [BoxGroup("回避")]
+        [Label("後ろ回避移動速度")]
+        [Tooltip("後ろ回避中の移動速度")]
+        [MinValue(0f)]
+        [SerializeField] private float _backAvoidSpeed = 8f;
+
+        [BoxGroup("回避")]
+        [Label("後ろ移動継続時間")]
+        [Tooltip("後ろ回避による移動が継続する時間（秒）")]
+        [MinValue(0f)]
+        [SerializeField] private float _backAvoidDuration = 0.4f;
+
+        [BoxGroup("回避")]
         [Label("実行後硬直時間")]
         [Tooltip("回避後の硬直時間(秒)")]
         [MinValue(0f)]
         [SerializeField] private float _avoidStun = 0.2f;
+
+        [BoxGroup("回避")]
+        [Label("前回避実行後硬直時間")]
+        [Tooltip("前回避後の硬直時間(秒)")]
+        [MinValue(0f)]
+        [SerializeField] private float _frontAvoidStun = 0.2f;
+
+        [BoxGroup("回避")]
+        [Label("後ろ回避実行後硬直時間")]
+        [Tooltip("後ろ回避後の硬直時間(秒)")]
+        [MinValue(0f)]
+        [SerializeField] private float _backAvoidStun = 0.8f;
+
+        [BoxGroup("回避")]
+        [Label("後ろ回避の消費スタミナ倍率")]
+        [Tooltip("後ろ回避後のスタミナ消費倍率")]
+        [MinValue(0f)]
+        [SerializeField] private float _backAvoidUsageMultiplier = 0.8f;
 
         [BoxGroup("回避")]
         [Label("無敵判定発生遅延")]
@@ -267,18 +299,26 @@ namespace LearningAIGame.CombatSystem.Setting
 
         /// <summary>回避の消費エネルギー</summary>
         public int AvoidEnergyCost => _avoidEnergyCost;
+        /// <summary>後ろ回避の消費エネルギー</summary>
+        public int BackAvoidEnergyCost => (int)(_avoidEnergyCost * _backAvoidUsageMultiplier);
         /// <summary>回避時の移動速度</summary>
         public float AvoidSpeed => _avoidSpeed;
         /// <summary>回避の継続時間</summary>
         public float AvoidDuration => _avoidDuration;
-        /// <summary>回避の実行後硬直時間</summary>
-        public float AvoidStun => _avoidStun;
+        /// <summary>後ろ回避時の移動速度</summary>
+        public float BackAvoidSpeed => _backAvoidSpeed;
+        /// <summary>後ろ回避の継続時間</summary>
+        public float BackAvoidDuration => _backAvoidDuration;
         /// <summary>回避の無敵判定発生遅延時間</summary>
         public float AvoidInvincibleStartDelay => _avoidInvincibleStartDelay;
         /// <summary>回避の無敵判定継続時間</summary>
         public float AvoidInvincibleDuration => _avoidInvincibleDuration;
         /// <summary>回避攻撃の入力猶予時間</summary>
-        public float AvoidAttackInputDuration => _avoidDuration * 0.6f;
+        public float AvoidAttackInputDuration => _avoidDuration * 0.85f;
+
+        /// <summary>a攻撃可能な距離の二乗（計算用）</summary>
+        [Pure]
+        public float AttackableDistancePow => Mathf.Pow(_attackableDistance, 2);
 
         #endregion
 
@@ -302,10 +342,27 @@ namespace LearningAIGame.CombatSystem.Setting
         [MinValue(0f)]
         [SerializeField] private float _guardSuccessStun = 0.15f;
 
+        [BoxGroup("移動")]
+        [Label("攻撃可能距離")]
+        [Tooltip("攻撃可能な距離")]
+        [MinValue(0f)]
+        [SerializeField] private float _attackableDistance = 4f;
+
+        [BoxGroup("移動")]
+        [Label("後方移動時の減速倍率")]
+        [Tooltip("後ろさがりの速度倍率")]
+        [MinValue(0f)]
+        [SerializeField] private float _backMoveMultiplier = 0.5f;
+
         // === プロパティ（読み取り専用） ===
 
         /// <summary>通常移動速度</summary>
         public float MoveSpeed => _moveSpeed;
+
+        /// <summary>
+        /// 後ろ下がり時の移動速度倍率
+        /// </summary>
+        public float BackMoveMultiplier => _backMoveMultiplier;
 
         #endregion
 
@@ -317,6 +374,13 @@ namespace LearningAIGame.CombatSystem.Setting
         [MinValue(0f)]
         [SerializeField] private float _energyRecoveryRatePerSecond = 3f;
 
+
+        [BoxGroup("エネルギー回復")]
+        [Label("緊急時の自然回復倍率")]
+        [Tooltip("緊急時のエネルギー回復倍率")]
+        [MinValue(0f)]
+        [SerializeField] private float _energyRecoveryEmergencyMultiply = 4f;
+
         [BoxGroup("エネルギー回復")]
         [Label("ブロッキング成功時回復量（%）")]
         [Tooltip("ブロッキングに成功した際に即座に回復するエネルギーの割合（%）")]
@@ -327,6 +391,8 @@ namespace LearningAIGame.CombatSystem.Setting
 
         /// <summary>毎秒のエネルギー自然回復量（%）</summary>
         public float EnergyRecoveryRatePerSecond => _energyRecoveryRatePerSecond;
+        /// <summary>緊急時のエネルギー自然回復倍率</summary>
+        public float EnergyRecoveryEmergencyMultiply => _energyRecoveryEmergencyMultiply;
         /// <summary>ブロッキング成功時のエネルギー回復量（%）</summary>
         public float BlockingSuccessEnergyRecovery => _blockingSuccessEnergyRecovery;
 
@@ -350,9 +416,11 @@ namespace LearningAIGame.CombatSystem.Setting
                     case ActionState.ブロッキング:
                         return _blockingStun;
                     case ActionState.前回避:
+                        return _frontAvoidStun;
                     case ActionState.横回避:
-                    case ActionState.後ろ回避:
                         return _avoidStun;
+                    case ActionState.後ろ回避:
+                        return _backAvoidStun;
                     case ActionState.前回避攻撃:
                         return _forwardAvoidAttackStun;
                     case ActionState.横回避攻撃:

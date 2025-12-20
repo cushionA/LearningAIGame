@@ -19,7 +19,7 @@ MonoBehaviour:
   _weakAttackStun: 0
   _weakAttackStartFrame: 0
   _weakAttackDurationFrame: 60
-  _heavyAttackDamage: 15
+  _heavyAttackDamage: 12
   _heavyAttackEnergyCost: 12
   _heavyAttackStepSpeed: 0
   _heavyAttackStepDuration: 0
@@ -37,6 +37,7 @@ MonoBehaviour:
   _avoidSpeed: 0
   _avoidDuration: 1
   _avoidStun: 0.1
+  _backAvoidStun: 0.8
   _avoidInvincibleStartDelay: 0
   _avoidInvincibleDuration: 1
   _forwardAvoidAttackStun: 0
@@ -44,5 +45,6 @@ MonoBehaviour:
   _moveSpeed: 0
   _guardStun: 0
   _guardSuccessStun: 0
+  _attackableDistance: 4
   _energyRecoveryRatePerSecond: 7
   _blockingSuccessEnergyRecovery: 25

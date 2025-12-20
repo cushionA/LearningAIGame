@@ -18,6 +18,7 @@
 // 距離計算はSqrMagnitudeを使用し、平方根計算を避けることでパフォーマンスを最適化
 //=====================================================================================================================
 
+using NaughtyAttributes;
 using UnityEngine;
 
 namespace LearningAIGame.CombatSystem
@@ -32,6 +33,7 @@ namespace LearningAIGame.CombatSystem
         /// <summary>
         /// キャッシュされた位置
         /// </summary>
+        [ReadOnly]
         private Vector3 _cachedPosition;
 
         /// <summary>
@@ -238,6 +240,17 @@ namespace LearningAIGame.CombatSystem
         public bool IsInRange(PositionCache other, float range)
         {
             return Vector3.SqrMagnitude(other._cachedPosition - _cachedPosition) <= range * range;
+        }
+
+        /// <summary>
+        /// 指定した位置が特定の距離内にあるかチェック
+        /// </summary>
+        /// <param name="targetPosition">対象位置</param>
+        /// <param name="range">距離の二乗</param>
+        /// <returns>範囲内にある場合true</returns>
+        public bool IsInPowRange(Vector3 targetPosition, float range)
+        {
+            return Vector3.SqrMagnitude(targetPosition - _cachedPosition) <= range;
         }
 
         #endregion
