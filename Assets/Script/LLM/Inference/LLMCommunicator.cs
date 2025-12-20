@@ -5,11 +5,12 @@ using LLMDataArchitect.Test;
 using LLMUnity;
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
 //==============================================ファイルヘッダ===========================================================
-// LLMCommunicator
+// LLMCommunicator (UniTask 統合版)
 // 
 // 概要: LLMと通信し、戦術を生成する通信管理クラス
 // 
@@ -22,6 +23,12 @@ using Debug = UnityEngine.Debug;
 // プロンプト生成、JSON Schema Grammarによる出力制御、タイムアウト/キャンセル処理を統合管理。
 // StateSystemから取得した戦闘データをLLMInputDataに変換し、戦術判断の精度を向上。
 // 
+// **重要な変更点（UniTask 統合）:**
+// - async void を廃止（SetupSystemPrompt, Initialize）
+// - async UniTask に統一
+// - Warmup 完了まで確実に待機
+// - 初期化完了後に AI 稼働開始
+// 
 // 依存ライブラリ: LLMUnity, UniTask
 // 入力元クラス: StateSystem(プレイヤー/NPC), PromptGeneratorBase
 // 出力先クラス: StrategyData(AIControllerが参照)、RuleBaseInjection（戦術を注入されるルールベースAIの基底クラス）
@@ -30,6 +37,7 @@ using Debug = UnityEngine.Debug;
 // - 全ての非同期処理は例外を発生させず、ログ出力のみで継続動作
 // - 自動更新ループは任意のタイミングで開始/停止可能
 // - LLM設定の動的変更に対応し、実験的な調整が容易
+// - 初期化の完了を確実に待機（async UniTask による安全な初期化）
 // 
 // 通信フロー:
 // 1. LLMInputDataから戦闘データ取得
@@ -46,8 +54,19 @@ using Debug = UnityEngine.Debug;
 namespace LLMDataArchitect
 {
     /// <summary>
+    /// プロンプト生成タイプ
+    /// </summary>
+    public enum PromptGeneratorType
+    {
+        Debug,
+        Cache,
+        Cache_NLI  // 自然言語指示付き
+    }
+
+    /// <summary>
     /// LLM for Unityを使用し、戦術的な思考を生成するための通信コンポーネント 
     /// 一定間隔でLLMに戦術判断をリクエストし、結果を更新
+    /// 
     /// </summary>
     public class LLMCommunicator : MonoBehaviour
     {
@@ -67,6 +86,15 @@ namespace LLMDataArchitect
         [SerializeField]
         [Tooltip("JSON Schema Grammarを使用するか")]
         protected bool _useGrammar = true;
+
+        [Header("プロンプト生成設定")]
+        [SerializeField]
+        [Tooltip("使用するプロンプト生成器のタイプ")]
+        protected PromptGeneratorType _generatorType = PromptGeneratorType.Cache;
+
+        [SerializeField]
+        [Tooltip("自然言語指示タイプ（Cache_NLI選択時のみ有効）")]
+        protected NaturalLanguageInstructionType _nliType = NaturalLanguageInstructionType.None;
 
         [Header("更新設定")]
         [SerializeField]
@@ -124,14 +152,23 @@ namespace LLMDataArchitect
         /// </summary>
         public bool IsProcessing => _isProcessing;
 
+        /// <summary>
+        /// 現在のNLIタイプを取得
+        /// </summary>
+        public NaturalLanguageInstructionType CurrentNLIType => _nliType;
+
         #endregion
 
         #region Unity Lifecycle
 
         private void Awake()
         {
-            Initialize();
+            // 入力データの初期化（Warmup 完了後に実行）
+            _inputData = new LLMInputData(_playerStateSystem, _npcStateSystem, new StrategyResult());
             _ruleBaseAI.InjectionData(_inputData);
+
+            // 初期化を非同期で実行（Warmup 完了を待機）
+            InitializeAsync().Forget();
         }
 
         private void OnDestroy()
@@ -190,6 +227,22 @@ namespace LLMDataArchitect
             Debug.Log($"タイムアウト時間を {newTimeout}秒 に変更しました。");
         }
 
+        /// <summary>
+        /// NLIタイプを動的に変更
+        /// </summary>
+        /// <param name="newNLIType">新しいNLIタイプ</param>
+        public void SetNLIType(NaturalLanguageInstructionType newNLIType)
+        {
+            _nliType = newNLIType;
+
+            // NLI生成器の場合は内部タイプも更新
+            if (_promptGenerator is CachePromptGeneratorWithNLI nliGenerator)
+            {
+                nliGenerator.CurrentInstructionType = newNLIType;
+            }
+
+            Debug.Log($"NLIタイプを {CachePromptGeneratorWithNLI.GetInstructionDescription(newNLIType)} に変更しました。");
+        }
 
         #endregion
 
@@ -197,13 +250,14 @@ namespace LLMDataArchitect
 
         /// <summary>
         /// 自動更新ループを開始
-        /// 指定された間隔で戦術判断をリクエストし続けます。
+        /// 指定された間隔で戦術判断をリクエストし続ける
+        /// Initialize の完了を確認してから呼び出す
         /// </summary>
         public void StartAutoUpdate()
         {
             if (!_isInitialized)
             {
-                Debug.LogWarning("初期化されていません。先にInitialize()を呼び出してください。");
+                Debug.LogWarning("初期化されていません。先に初期化を待ってください。");
                 return;
             }
 
@@ -257,50 +311,55 @@ namespace LLMDataArchitect
         #region 初期化
 
         /// <summary>
-        /// コミュニケーターを初期化
+        /// コミュニケーターを非同期で初期化（UniTask版）
+        /// SetupSystemPrompt の Warmup 完了まで待機します
         /// プロンプト生成器、LLM設定、データソースを設定
         /// </summary>
-        protected virtual void Initialize()
+        protected virtual async UniTaskVoid InitializeAsync()
         {
-            if (_isInitialized)
+            try
             {
-                Debug.LogWarning("LLM Communicatorは既に初期化されています。");
-                return;
+                if (_isInitialized)
+                {
+                    Debug.LogWarning("LLM Communicatorは既に初期化されています。");
+                    return;
+                }
+
+                // プロンプト生成器を初期化
+                _promptGenerator = CreatePromptGenerator();
+                Debug.Log($"プロンプト生成器を初期化: {_generatorType}");
+
+                // LLMCharacterの存在チェック
+                if (_llmCharacter == null)
+                {
+                    Debug.LogError("LLMCharacterが設定されていません。Inspectorで設定してください。");
+                    return;
+                }
+
+                // LLMの最適設定を適用
+                if (_autoConfigureLLM)
+                    ConfigureLLMOptimal();
+
+                // JSON Schema Grammarを設定
+                if (_useGrammar)
+                    SetupGrammar();
+
+                // システムプロンプト設定（Warmup 完了を待機）
+                await SetupSystemPromptAsync();
+
+                _isInitialized = true;
+                Debug.Log("LLM Communicatorの初期化が完全に完了しました。");
+
+                // 自動更新が有効な場合、更新ループを開始
+                if (_autoUpdate)
+                {
+                    StartAutoUpdate();
+                }
             }
-
-            // プロンプト生成器を初期化
-            _promptGenerator = CreatePromptGenerator();
-            Debug.Log($"プロンプト生成器を初期化");
-
-            // LLMCharacterの存在チェック
-            if (_llmCharacter == null)
+            catch (Exception ex)
             {
-                Debug.LogError("LLMCharacterが設定されていません。Inspectorで設定してください。");
-                return;
-            }
-
-            // LLMの最適設定を適用
-            if (_autoConfigureLLM)
-                ConfigureLLMOptimal();
-
-            // JSON Schema Grammarを設定
-            if (_useGrammar)
-                SetupGrammar();
-
-            // システムプロンプトを設定
-            SetupSystemPrompt();
-
-            // 入力データの初期化
-            // TODO: 戦術結果はAI完成時にAIへの参照に書き換える
-            _inputData = new LLMInputData(_playerStateSystem, _npcStateSystem, new StrategyResult());
-
-            _isInitialized = true;
-            Debug.Log("LLM Communicatorの初期化が完了しました。");
-
-            // 自動更新が有効な場合、更新ループを開始
-            if (_autoUpdate)
-            {
-                StartAutoUpdate();
+                Debug.LogError($"LLM Communicator の初期化中に予期しないエラーが発生しました: {ex.Message}\n{ex.StackTrace}");
+                _isInitialized = false;
             }
         }
 
@@ -310,34 +369,38 @@ namespace LLMDataArchitect
         /// <returns>選択されたタイプに応じたプロンプト生成器</returns>
         private PromptGeneratorBase CreatePromptGenerator()
         {
-            // 現在はMainPromptGeneratorを使用
-            // 必要に応じて他の生成器に切り替え可能
-            return new CachePromptGenerator();
-
-            // 将来的にタイプ選択を有効化する場合:
-            //return _generatorType switch
-            //{
-            //    PromptGeneratorType.Japanese => new JapanesePromptGenerator(),
-            //    PromptGeneratorType.English => new EnglishPromptGenerator(),
-            //    PromptGeneratorType.Fixed_Eng => new FixedEnglishGenerator(),
-            //    PromptGeneratorType.Main => new MainPromptGenerator(),
-            //    _ => new JapanesePromptGenerator()
-            //};
+            return _generatorType switch
+            {
+                PromptGeneratorType.Debug => new DebugPromptGenerator(),
+                PromptGeneratorType.Cache => new CachePromptGenerator(),
+                PromptGeneratorType.Cache_NLI => new CachePromptGeneratorWithNLI(_nliType),
+                _ => new CachePromptGenerator()
+            };
         }
 
         /// <summary>
-        /// LLMのシステムプロンプトを設定
-        /// AIの役割と応答形式を定義
+        /// LLMのシステムプロンプトを設定（非同期版・UniTask対応）
+        /// Warmup の完了を確実に待機
+        /// AIの応答形式を定義
         /// </summary>
-        private void SetupSystemPrompt()
+        private async UniTask SetupSystemPromptAsync()
         {
-            _llmCharacter.SetPrompt(_promptGenerator.GenerateFixedSection());
-            _llmCharacter.playerName = "User";
-            _llmCharacter.AIName = "TacticAI";
+            try
+            {
+                _llmCharacter.SetPrompt(_promptGenerator.GenerateFixedSection());
+                _llmCharacter.playerName = "User";
+                _llmCharacter.AIName = "TacticAI";
 
-            _llmCharacter.Warmup(_promptGenerator.GenerateFixedSection());
+                // Warmup の完了を待機
+                await _llmCharacter.Warmup(_promptGenerator.GenerateFixedSection());
 
-            Debug.Log("システムプロンプトを設定しました。");
+                Debug.Log("システムプロンプトを設定しました（Warmup完了）。");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"システムプロンプト設定中にエラーが発生しました: {ex.Message}\n{ex.StackTrace}");
+                throw;
+            }
         }
 
         /// <summary>
@@ -347,7 +410,7 @@ namespace LLMDataArchitect
         /// </summary>
         private void ConfigureLLMOptimal()
         {
-            _llmCharacter.stream = true;       // ストリーミングレスポンスを有効化
+            //_llmCharacter.stream = true;       // ストリーミングレスポンスを有効化
             _llmCharacter.cachePrompt = true;  // プロンプトキャッシュを有効化
             _llmCharacter.llm.contextSize = 2048; // コンテキストサイズを2048に設定
             _llmCharacter.seed = 0; // シード値を0に設定（ランダム性をなくす）
@@ -362,7 +425,6 @@ namespace LLMDataArchitect
         private void SetupGrammar()
         {
             _llmCharacter.grammarJSONString = _promptGenerator.GenerateGrammar();
-            ;
 
             Debug.Log($"JSON Schema Grammar設定完了");
         }
@@ -445,7 +507,7 @@ namespace LLMDataArchitect
                 // 応答が無効な場合
                 if (strategy == null)
                 {
-                    Debug.LogError("LLMからの応答が無効でした。");
+                    Debug.LogError($"LLMからの応答が無効(Null)でした。");
                     return;
                 }
 
@@ -478,6 +540,8 @@ namespace LLMDataArchitect
             string prompt = _promptGenerator.GeneratePromptByData(_inputData);
             Debug.Log($"生成されたプロンプト (文字数: {prompt.Length}):\n{prompt}");
 
+            DateTime start = DateTime.Now;
+
             // LLMにリクエスト送信（タイムアウト＋キャンセル対応、例外抑制）
             var result = await _llmCharacter.Chat(prompt)
                 .AsUniTask()
@@ -501,7 +565,7 @@ namespace LLMDataArchitect
                 return null;
             }
 
-            Debug.Log($"LLM応答を受信 (文字数: {output.Length}):\n{output}");
+            Debug.Log($"LLM応答を受信 \n文字数: {output.Length} 処理時間：{(DateTime.Now - start).TotalSeconds}秒 \nプロンプト：{prompt} \n応答：{output}");
 
             // JSON解析（失敗時はnullを返す）
             var (isSuccess, strategy) = StrategyData.TryFromJsonEnglish(output);

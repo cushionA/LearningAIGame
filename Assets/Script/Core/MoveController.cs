@@ -96,13 +96,10 @@ namespace LearningAIGame.CombatSystem.Core
                 return;
             }
 
-            // Y軸成分は無視して水平方向のみ保持
-            Vector3 localDirection = new Vector3(moveVector.x, 0f, moveVector.z);
+            Debug.Log($"[MoveController] AddForce called with moveVector: {moveVector}, moveDuration: {moveDuration}");
 
-            // ローカル座標系の場合、ワールド座標に変換
-            _moveDirection = _useLocalDirection
-                ? transform.TransformDirection(localDirection)
-                : localDirection;
+            // Y軸成分は無視して水平方向のみ保持
+            _moveDirection = new Vector3(moveVector.x, 0f, moveVector.z);
 
             _moveStartTime = Time.time;
             _moveDuration = moveDuration;
@@ -114,6 +111,7 @@ namespace LearningAIGame.CombatSystem.Core
         /// </summary>
         public void Stop()
         {
+            _rb.linearVelocity = Vector3.zero;
             _moveType = MoveType.None;
         }
 
@@ -157,13 +155,13 @@ namespace LearningAIGame.CombatSystem.Core
                     float decayFactor = 1f - (normalizedTime * normalizedTime);
 
                     Vector3 horizontalVelocity = _moveDirection * decayFactor;
+                    horizontalVelocity = _useLocalDirection
+                ? transform.TransformDirection(horizontalVelocity)
+                : horizontalVelocity;
+                    horizontalVelocity.y = verticalVelocity;
 
                     // 水平方向の速度のみ適用、Y軸は保持
-                    _rb.linearVelocity = new Vector3(
-                        horizontalVelocity.x,
-                        verticalVelocity,
-                        horizontalVelocity.z
-                    );
+                    _rb.linearVelocity = horizontalVelocity;
 
                     // 移動継続時間を超えたら停止
                     if (elapsedTime >= _moveDuration)

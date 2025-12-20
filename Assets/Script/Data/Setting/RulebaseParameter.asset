@@ -1,0 +1,131 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 405103e16fc30d141a0b37d10a2a555e, type: 3}
+  m_Name: RulebaseParameter
+  m_EditorClassIdentifier: GameCode::LearningAIGame.CombatSystem.Data.AIParameterContainer
+  aggressive:
+    attackFrequency: 0.869
+    comboAttackProbability: 0.762
+    minAttackInterval: 1
+    maxAttackInterval: 3
+    opportunityAttackRate: 0.7
+    stepUsageRate: 0.281
+    punishRate: 0.851
+    minEnergyRatio: 0.2
+    lightAttackMinEnergy: 0.081
+    heavyAttackMinEnergy: 0.189
+    rushMinEnergy: 0.172
+    comboMinEnergy: 0.3
+    movementAggressiveness: 0.9
+    preferredCombatDistanceRange: {x: 2.2769952, y: 6}
+    dangerDistanceThreshold: 0
+    forwardMovementFrequency: 0.213
+    backwardMovementFrequency: 0.099
+    leftMovementFrequency: 0.344
+    rightMovementFrequency: 0.344
+    stanceChangeFrequency: 0.537
+    minStanceChangeInterval: 1
+  defensive:
+    attackFrequency: 0.3
+    comboAttackProbability: 0.2
+    minAttackInterval: 4
+    maxAttackInterval: 7
+    opportunityAttackRate: 0.4
+    stepUsageRate: 0.159
+    punishRate: 0.916
+    minEnergyRatio: 0.319
+    lightAttackMinEnergy: 0.356
+    heavyAttackMinEnergy: 0.504
+    rushMinEnergy: 0.908
+    comboMinEnergy: 0.648
+    movementAggressiveness: 1
+    preferredCombatDistanceRange: {x: 5.5516434, y: 15}
+    dangerDistanceThreshold: 1.37
+    forwardMovementFrequency: 0.1
+    backwardMovementFrequency: 0.299
+    leftMovementFrequency: 0.299
+    rightMovementFrequency: 0.302
+    stanceChangeFrequency: 0.3
+    minStanceChangeInterval: 2
+  adaptive:
+    attackFrequency: 0.5
+    comboAttackProbability: 0.4
+    minAttackInterval: 3
+    maxAttackInterval: 5
+    opportunityAttackRate: 0.6
+    stepUsageRate: 0.089
+    punishRate: 0.6
+    minEnergyRatio: 0.3
+    lightAttackMinEnergy: 0.199
+    heavyAttackMinEnergy: 0.33
+    rushMinEnergy: 0.315
+    comboMinEnergy: 0.402
+    movementAggressiveness: 0.793
+    preferredCombatDistanceRange: {x: 5.314554, y: 7.5258217}
+    dangerDistanceThreshold: 0.28
+    forwardMovementFrequency: 0.25
+    backwardMovementFrequency: 0.25
+    leftMovementFrequency: 0.25
+    rightMovementFrequency: 0.25
+    stanceChangeFrequency: 0.5
+    minStanceChangeInterval: 1.5
+  disruptive:
+    attackFrequency: 0.505
+    comboAttackProbability: 0.775
+    minAttackInterval: 3
+    maxAttackInterval: 5
+    opportunityAttackRate: 0.4
+    stepUsageRate: 0.704
+    punishRate: 0.575
+    minEnergyRatio: 0.201
+    lightAttackMinEnergy: 0.319
+    heavyAttackMinEnergy: 0.554
+    rushMinEnergy: 0.185
+    comboMinEnergy: 0.282
+    movementAggressiveness: 1
+    preferredCombatDistanceRange: {x: 3, y: 11.389671}
+    dangerDistanceThreshold: 0.2
+    forwardMovementFrequency: 0.166
+    backwardMovementFrequency: 0.165
+    leftMovementFrequency: 0.335
+    rightMovementFrequency: 0.334
+    stanceChangeFrequency: 0.963
+    minStanceChangeInterval: 0.23
+  endurance:
+    attackFrequency: 0.256
+    comboAttackProbability: 0.097
+    minAttackInterval: 4
+    maxAttackInterval: 7
+    opportunityAttackRate: 0.35
+    stepUsageRate: 0.041
+    punishRate: 0.493
+    minEnergyRatio: 0.573
+    lightAttackMinEnergy: 0.674
+    heavyAttackMinEnergy: 0.656
+    rushMinEnergy: 1
+    comboMinEnergy: 0.771
+    movementAggressiveness: 1
+    preferredCombatDistanceRange: {x: 8.760563, y: 15}
+    dangerDistanceThreshold: 1.8
+    forwardMovementFrequency: 0.034
+    backwardMovementFrequency: 0.473
+    leftMovementFrequency: 0.248
+    rightMovementFrequency: 0.245
+    stanceChangeFrequency: 0.315
+    minStanceChangeInterval: 2
+  defaultStrategyData:
+    _analysisResult: No analysis due to default tactics.
+    _basicTactic: Adaptive
+    _attackCriteria: Speed Priority
+    _continuousAttackCriteria: Cumulative Probability
+    _defenseCriteria: Recent Pattern Focus
+    _continuousDefenseCriteria: Cumulative Probability

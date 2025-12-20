@@ -102,6 +102,16 @@ namespace LLMDataArchitect
 
         #region Unity Lifecycle
 
+        private void Awake()
+        {
+            // 入力データの初期化（Warmup 完了後に実行）
+            _inputData = new LLMInputData(_playerStateSystem, _npcStateSystem, new StrategyResult());
+            _ruleBaseAI.InjectionData(_inputData);
+
+            // 初期化処理を呼び出し
+            Initialize();
+        }
+
         private void OnDestroy()
         {
             // 終了時にログを出力
@@ -115,7 +125,7 @@ namespace LLMDataArchitect
         /// <summary>
         /// 初期化処理をオーバーライドしてログセッションを開始
         /// </summary>
-        protected override void Initialize()
+        protected void Initialize()
         {
             // セッションログを初期化
             _sessionLog = new SessionLog
@@ -130,7 +140,7 @@ namespace LLMDataArchitect
             Debug.Log($"[LLMCommunicatorWithLogging] ログ記録を開始しました。出力先: {LogDirectoryPath}");
 
             // 親クラスの初期化を呼び出し
-            base.Initialize();
+            base.InitializeAsync().Forget();
         }
 
         /// <summary>
@@ -256,7 +266,7 @@ namespace LLMDataArchitect
                 return null;
             }
 
-            Debug.Log($"[Request #{logEntry.requestIndex}] LLM応答を受信 (文字数: {output.Length})");
+            Debug.Log($"[Request #{logEntry.requestIndex}] LLM応答を受信 (文字数: {output.Length}) \nプロンプト：{prompt} \n応答：{output}");
 
             // JSON解析
             var (isSuccess, strategy) = StrategyData.TryFromJsonEnglish(output);
