@@ -82,7 +82,7 @@ MonoBehaviour:
     volume: 1
     pitch: 1
     loop: 0
-    enableDebugLog: 0
+    enableDebugLog: 1
   - audioId: Blocking_Start
     audioClip: {fileID: 8300000, guid: ea908ab4924c77848bd098c1ffe7410f, type: 3}
     volume: 1

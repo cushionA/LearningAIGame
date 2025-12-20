@@ -101,7 +101,8 @@ namespace LearningAIGame.CombatSystem.Data
         Hit,
         Stun,// 敵攻撃により中断
         Cancel,// 自分でキャンセルした
-        Miss // 空振り。初期値
+        Miss, // 空振り。初期値
+        ignore // 無視（ヒット判定が無効）
     }
 
     /// <summary>
