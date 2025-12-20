@@ -63,6 +63,7 @@ namespace LearningAIGame.CombatSystem.Systems
         /// <returns>攻撃結果（ヒット、ガード、ブロッキング、回避など）</returns>
         public override HitResultType Damage(in AttackInfo attackInfo)
         {
+
             // 攻撃を受けた瞬間の防御状態をスナップショット
             _lastHitAction = _stateSystem.CurrentState.CurrentValue;
 
@@ -82,6 +83,12 @@ namespace LearningAIGame.CombatSystem.Systems
 
             // StateSystemに通知
             NotifyObservers(_info);
+
+            Debug.Log($"[{nameof(DamageSystem)}] DamageReport: " +
+                $"Damage={hitReport.damage}, " +
+                $"AttackType={hitReport.attackType}, " +
+                $"HitResultType={hitReport.hitResultType}, " +
+                $"LastHitAction={_lastHitAction}");
         }
 
         #endregion

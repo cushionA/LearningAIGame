@@ -26,7 +26,33 @@ namespace LLMDataArchitect.Test
         Main,
         Cache,
         Tuned,
-        Experimental
+        Experimental,
+
+        // === ルールベース系NLI ===
+        Cache_NLI_AggressiveFinisher,
+        Cache_NLI_AggressiveDisruptor,
+        Cache_NLI_DefensiveSurvivor,
+        Cache_NLI_DefensiveCounter,
+        Cache_NLI_BalancedAdaptive,
+        Cache_NLI_AnalyticalLearner,
+        Cache_NLI_EnduranceManager,
+
+        // === 自然言語系NLI ===
+        Cache_NLI_CorneredBeast,    // 追い詰められるほど攻撃的に
+        Cache_NLI_Finisher,          // 敵HPが減るほど攻撃的に
+        Cache_NLI_FrontRunner,       // リード時は安全に
+        Cache_NLI_PatternBreaker,    // 予測不能に動く
+        Cache_NLI_MomentumRider,     // 流れに乗る/変える
+        Cache_NLI_StaminaManager,    // エネルギー意識
+        Cache_NLI_CounterPuncher,    // 反撃重視
+        Cache_NLI_Berserker,         // 常時攻撃的
+        Cache_NLI_Tactician,         // 慎重・確実
+        Cache_NLI_WaterFlow,         // 状況適応（柔軟）
+
+        // === ランダム選択 ===
+        Cache_NLI_Random,            // ランダムにNLIタイプを選択
+        Cache_NLI_Random_RuleBased,  // ルールベース系からランダム
+        Cache_NLI_Random_Natural     // 自然言語系からランダム
     }
 
     /// <summary>
@@ -94,6 +120,9 @@ namespace LLMDataArchitect.Test
         // プロンプト生成インターフェイス
         private PromptGeneratorBase _promptGenerator;
 
+        // NLI付きジェネレーター（Cache_NLI系の場合に使用）
+        private CachePromptGeneratorWithNLI _nliGenerator;
+
         // テストデータ保持
         private Dictionary<TestSituationType, LLMInputData> _baseTestData;
 
@@ -139,24 +168,17 @@ namespace LLMDataArchitect.Test
             public double responseTimeSeconds;
             public string situationType;
             public string prompt;
-            public string systemPrompt;
             public string response;
-            public string grammar;
             public string error;
             public DateTime timestamp;
             public bool isSuccessful;
             public bool isValidJson;
-            public string calculationSummary;
             public string tacticsType;
             public double tokensPerSecond;
             public int responseTokenCount;
 
-            // RAG関連
-            public bool usedRAG;
-            public int ragResultCount;
-            public double ragSearchTimeMs;
-            public string[] ragResults;
-            public float[] ragDistances;
+            // NLI関連
+            public string nliType;
 
             public TestResult()
             {
@@ -195,6 +217,9 @@ namespace LLMDataArchitect.Test
             public double averageRAGSearchTimeMs;
             public Dictionary<string, int> ragCategoryUsage;
 
+            // NLI統計
+            public Dictionary<string, int> nliTypeCounts;
+
             public IntegratedTestResults()
             {
                 testResults = new List<TestResult>();
@@ -202,6 +227,7 @@ namespace LLMDataArchitect.Test
                 situationTypeCounts = new Dictionary<string, int>();
                 tacticTypeCounts = new Dictionary<string, int>();
                 ragCategoryUsage = new Dictionary<string, int>();
+                nliTypeCounts = new Dictionary<string, int>();
             }
         }
 
@@ -408,16 +434,40 @@ namespace LLMDataArchitect.Test
                 UnityEngine.Debug.Log($"LLM連続思考テスト初期化完了 - セッションID: {_currentSessionId}");
                 UnityEngine.Debug.Log($"プロンプト生成器: {generatorName}");
                 UnityEngine.Debug.Log($"RAG機能: {(_useRAG ? "有効" : "無効")}");
+
+                // NLI情報を表示
+                if (_nliGenerator != null)
+                {
+                    string nliInfo = IsRandomNLIType(_generatorType)
+                        ? "ランダム（各イテレーションで変更）"
+                        : CachePromptGeneratorWithNLI.GetInstructionDescription(_nliGenerator.CurrentInstructionType);
+                    UnityEngine.Debug.Log($"自然言語指示: {nliInfo}");
+                }
+
                 UnityEngine.Debug.Log($"基本テストデータ生成完了: {_baseTestData.Count}種類の戦況");
             }
         }
 
         /// <summary>
         /// プロンプト生成器を生成（依存性注入）
+        /// ★ここを編集して好きなインスタンスを生成可能 ★
         /// </summary>
         private PromptGeneratorBase CreatePromptGenerator(PromptGeneratorType type)
         {
-            Debug.Log("プロンプト生成を初期化");
+            Debug.Log($"プロンプト生成を初期化: {type}");
+
+            // NLI付きタイプの場合
+            if (IsNLIType(type))
+            {
+                var nliType = GetNLITypeFromGeneratorType(type);
+                _nliGenerator = new CachePromptGeneratorWithNLI(nliType);
+                Debug.Log($"  → CachePromptGeneratorWithNLI ({nliType}) を生成");
+                return _nliGenerator;
+            }
+
+            // 通常タイプの場合
+            _nliGenerator = null;
+
             return type switch
             {
                 PromptGeneratorType.Japanese => new JapanesePromptGenerator(),
@@ -433,6 +483,122 @@ namespace LLMDataArchitect.Test
         }
 
         /// <summary>
+        /// 指定タイプがNLI付きかどうかを判定
+        /// </summary>
+        private bool IsNLIType(PromptGeneratorType type)
+        {
+            return type switch
+            {
+                // ルールベース系
+                PromptGeneratorType.Cache_NLI_AggressiveFinisher => true,
+                PromptGeneratorType.Cache_NLI_AggressiveDisruptor => true,
+                PromptGeneratorType.Cache_NLI_DefensiveSurvivor => true,
+                PromptGeneratorType.Cache_NLI_DefensiveCounter => true,
+                PromptGeneratorType.Cache_NLI_BalancedAdaptive => true,
+                PromptGeneratorType.Cache_NLI_AnalyticalLearner => true,
+                PromptGeneratorType.Cache_NLI_EnduranceManager => true,
+
+                // 自然言語系
+                PromptGeneratorType.Cache_NLI_CorneredBeast => true,
+                PromptGeneratorType.Cache_NLI_Finisher => true,
+                PromptGeneratorType.Cache_NLI_FrontRunner => true,
+                PromptGeneratorType.Cache_NLI_PatternBreaker => true,
+                PromptGeneratorType.Cache_NLI_MomentumRider => true,
+                PromptGeneratorType.Cache_NLI_StaminaManager => true,
+                PromptGeneratorType.Cache_NLI_CounterPuncher => true,
+                PromptGeneratorType.Cache_NLI_Berserker => true,
+                PromptGeneratorType.Cache_NLI_Tactician => true,
+                PromptGeneratorType.Cache_NLI_WaterFlow => true,
+
+                // ランダム系
+                PromptGeneratorType.Cache_NLI_Random => true,
+                PromptGeneratorType.Cache_NLI_Random_RuleBased => true,
+                PromptGeneratorType.Cache_NLI_Random_Natural => true,
+
+                _ => false
+            };
+        }
+
+        /// <summary>
+        /// 指定タイプがランダムNLIかどうかを判定
+        /// </summary>
+        private bool IsRandomNLIType(PromptGeneratorType type)
+        {
+            return type == PromptGeneratorType.Cache_NLI_Random ||
+                   type == PromptGeneratorType.Cache_NLI_Random_RuleBased ||
+                   type == PromptGeneratorType.Cache_NLI_Random_Natural;
+        }
+
+        /// <summary>
+        /// PromptGeneratorTypeからNaturalLanguageInstructionTypeを取得
+        /// </summary>
+        private NaturalLanguageInstructionType GetNLITypeFromGeneratorType(PromptGeneratorType type)
+        {
+            return type switch
+            {
+                // ルールベース系
+                PromptGeneratorType.Cache_NLI_AggressiveFinisher => NaturalLanguageInstructionType.AggressiveFinisher,
+                PromptGeneratorType.Cache_NLI_AggressiveDisruptor => NaturalLanguageInstructionType.AggressiveDisruptor,
+                PromptGeneratorType.Cache_NLI_DefensiveSurvivor => NaturalLanguageInstructionType.DefensiveSurvivor,
+                PromptGeneratorType.Cache_NLI_DefensiveCounter => NaturalLanguageInstructionType.DefensiveCounter,
+                PromptGeneratorType.Cache_NLI_BalancedAdaptive => NaturalLanguageInstructionType.BalancedAdaptive,
+                PromptGeneratorType.Cache_NLI_AnalyticalLearner => NaturalLanguageInstructionType.AnalyticalLearner,
+                PromptGeneratorType.Cache_NLI_EnduranceManager => NaturalLanguageInstructionType.EnduranceManager,
+
+                // 自然言語系
+                PromptGeneratorType.Cache_NLI_CorneredBeast => NaturalLanguageInstructionType.CorneredBeast,
+                PromptGeneratorType.Cache_NLI_Finisher => NaturalLanguageInstructionType.Finisher,
+                PromptGeneratorType.Cache_NLI_FrontRunner => NaturalLanguageInstructionType.FrontRunner,
+                PromptGeneratorType.Cache_NLI_PatternBreaker => NaturalLanguageInstructionType.PatternBreaker,
+                PromptGeneratorType.Cache_NLI_MomentumRider => NaturalLanguageInstructionType.MomentumRider,
+                PromptGeneratorType.Cache_NLI_StaminaManager => NaturalLanguageInstructionType.StaminaManager,
+                PromptGeneratorType.Cache_NLI_CounterPuncher => NaturalLanguageInstructionType.CounterPuncher,
+                PromptGeneratorType.Cache_NLI_Berserker => NaturalLanguageInstructionType.Berserker,
+                PromptGeneratorType.Cache_NLI_Tactician => NaturalLanguageInstructionType.Tactician,
+                PromptGeneratorType.Cache_NLI_WaterFlow => NaturalLanguageInstructionType.WaterFlow,
+
+                // ランダム系は初期値（後でランダム選択）
+                PromptGeneratorType.Cache_NLI_Random => NaturalLanguageInstructionType.None,
+                PromptGeneratorType.Cache_NLI_Random_RuleBased => NaturalLanguageInstructionType.None,
+                PromptGeneratorType.Cache_NLI_Random_Natural => NaturalLanguageInstructionType.None,
+
+                _ => NaturalLanguageInstructionType.None
+            };
+        }
+
+        /// <summary>
+        /// ランダムなNLIタイプを取得
+        /// </summary>
+        private NaturalLanguageInstructionType GetRandomNLIType()
+        {
+            return GetRandomNLIType(_generatorType);
+        }
+
+        /// <summary>
+        /// 指定されたランダムタイプに応じたNLIタイプを取得
+        /// </summary>
+        private NaturalLanguageInstructionType GetRandomNLIType(PromptGeneratorType randomType)
+        {
+            NaturalLanguageInstructionType[] candidates;
+
+            switch (randomType)
+            {
+                case PromptGeneratorType.Cache_NLI_Random_RuleBased:
+                    candidates = CachePromptGeneratorWithNLI.GetRuleBasedTypes();
+                    break;
+                case PromptGeneratorType.Cache_NLI_Random_Natural:
+                    candidates = CachePromptGeneratorWithNLI.GetNaturalLanguageTypes();
+                    break;
+                default: // Cache_NLI_Random
+                    candidates = CachePromptGeneratorWithNLI.GetActiveInstructionTypes();
+                    break;
+            }
+
+            int randomIndex = UnityEngine.Random.Range(0, candidates.Length);
+            return candidates[randomIndex];
+        }
+
+        /// <summary>
         /// システムプロンプトを設定（RAG対応）
         /// </summary>
         private void SetupSystemPrompt()
@@ -444,8 +610,9 @@ Analyze battle data and the provided game rules to make strategic decisions in s
 Always respond with ONLY valid JSON, no markdown, no explanations.
 Use the provided game rules context to inform your tactical decisions.";
             }
-            else if (_generatorType == PromptGeneratorType.Cache)
+            else if (_generatorType == PromptGeneratorType.Cache || IsNLIType(_generatorType))
             {
+                // Cache系（NLI含む）は共通のFixedSectionを使用
                 _llmCharacter.SetPrompt(_promptGenerator.GenerateFixedSection());
             }
             else if (_generatorType == PromptGeneratorType.Tuned)
@@ -683,6 +850,21 @@ Use the provided game rules context to inform your tactical decisions.";
             }
         }
 
+        [ContextMenu("NLIタイプ一覧を表示")]
+        public void ShowNLITypes()
+        {
+            var allTypes = CachePromptGeneratorWithNLI.GetAllInstructionTypes();
+            var sb = new StringBuilder();
+            sb.AppendLine("=== 利用可能なNLIタイプ ===");
+            foreach (var nliType in allTypes)
+            {
+                string shortName = CachePromptGeneratorWithNLI.GetInstructionShortName(nliType);
+                string description = CachePromptGeneratorWithNLI.GetInstructionDescription(nliType);
+                sb.AppendLine($"  {shortName}: {description}");
+            }
+            UnityEngine.Debug.Log(sb.ToString());
+        }
+
         private IEnumerator RunContinuousTest()
         {
             _isTestRunning = true;
@@ -713,6 +895,18 @@ Use the provided game rules context to inform your tactical decisions.";
                     _currentTestData = newData;
                 }
 
+                // ランダムNLIモードの場合、各イテレーションでNLIタイプを変更
+                if (IsRandomNLIType(_generatorType) && _nliGenerator != null)
+                {
+                    var randomNLI = GetRandomNLIType();
+                    _nliGenerator.CurrentInstructionType = randomNLI;
+
+                    if (_showProgressInConsole)
+                    {
+                        UnityEngine.Debug.Log($"  NLIタイプ: {CachePromptGeneratorWithNLI.GetInstructionShortName(randomNLI)}");
+                    }
+                }
+
                 yield return StartCoroutine(ExecuteSingleTest(i));
 
                 if (i < _testIterations - 1)
@@ -736,9 +930,14 @@ Use the provided game rules context to inform your tactical decisions.";
         {
             var testResult = new TestResult
             {
-                iteration = iteration + 1,
-                usedRAG = _useRAG
+                iteration = iteration + 1
             };
+
+            // NLIタイプを記録
+            if (_nliGenerator != null)
+            {
+                testResult.nliType = CachePromptGeneratorWithNLI.GetInstructionShortName(_nliGenerator.CurrentInstructionType);
+            }
 
             var stopwatch = Stopwatch.StartNew();
 
@@ -747,8 +946,6 @@ Use the provided game rules context to inform your tactical decisions.";
 
             // RAG検索（非同期処理を同期的に待つ）
             string[] ragResults = new string[0];
-            float[] ragDistances = new float[0];
-            double ragSearchTimeMs = 0;
 
             if (_useRAG && _rag != null)
             {
@@ -760,13 +957,6 @@ Use the provided game rules context to inform your tactical decisions.";
 
                 var ragResult = ragTask.Result;
                 ragResults = ragResult.results;
-                ragDistances = ragResult.distances;
-                ragSearchTimeMs = ragResult.searchTimeMs;
-
-                testResult.ragResultCount = ragResults.Length;
-                testResult.ragSearchTimeMs = ragSearchTimeMs;
-                testResult.ragResults = ragResults;
-                testResult.ragDistances = ragDistances;
             }
 
             // RAG結果をプロンプトに統合
@@ -778,10 +968,6 @@ Use the provided game rules context to inform your tactical decisions.";
             if (_showDetailedTiming)
             {
                 UnityEngine.Debug.Log($"プロンプト生成完了: {fullPrompt.Length}文字 {EstimateTokenCount(fullPrompt)}トークン");
-                if (_useRAG)
-                {
-                    UnityEngine.Debug.Log($"RAG: {ragResults.Length}件の関連ルール追加 ({ragSearchTimeMs:F2}ms)");
-                }
             }
             if (iteration == 0)
             {
@@ -981,7 +1167,29 @@ Use the provided game rules context to inform your tactical decisions.";
 
                 bool hasRequiredFields;
 
-                if (_generatorType == PromptGeneratorType.English)
+                // Cache系（NLI含む）の場合はPascalCase形式をチェック
+                if (_generatorType == PromptGeneratorType.Cache ||
+                    _generatorType == PromptGeneratorType.Tuned ||
+                    IsNLIType(_generatorType))
+                {
+                    hasRequiredFields =
+                        parsedResponse.ContainsKey("AnalysisResult") &&
+                        parsedResponse.ContainsKey("BasicTactic") &&
+                        parsedResponse.ContainsKey("AttackCriteria") &&
+                        parsedResponse.ContainsKey("ContinuousAttackCriteria") &&
+                        parsedResponse.ContainsKey("DefenseCriteria") &&
+                        parsedResponse.ContainsKey("ContinuousDefenseCriteria");
+
+                    // 戦術タイプを記録
+                    if (parsedResponse.ContainsKey("BasicTactic"))
+                    {
+                        testResult.tacticsType = parsedResponse["BasicTactic"]?.ToString();
+                    }
+                }
+                else if (_generatorType == PromptGeneratorType.English ||
+                         _generatorType == PromptGeneratorType.Main ||
+                         _generatorType == PromptGeneratorType.Fixed_Eng ||
+                         _generatorType == PromptGeneratorType.Eng_Rag)
                 {
                     hasRequiredFields =
                         parsedResponse.ContainsKey("analysis_result") &&
@@ -990,9 +1198,16 @@ Use the provided game rules context to inform your tactical decisions.";
                         parsedResponse.ContainsKey("continuous_attack_judgment_criteria") &&
                         parsedResponse.ContainsKey("defense_judgment_criteria") &&
                         parsedResponse.ContainsKey("continuous_defense_judgment_criteria");
+
+                    // 戦術タイプを記録
+                    if (parsedResponse.ContainsKey("basic_tactics"))
+                    {
+                        testResult.tacticsType = parsedResponse["basic_tactics"]?.ToString();
+                    }
                 }
                 else
                 {
+                    // 日本語形式
                     hasRequiredFields =
                         parsedResponse.ContainsKey("分析結果") &&
                         parsedResponse.ContainsKey("基本戦術") &&
@@ -1000,6 +1215,12 @@ Use the provided game rules context to inform your tactical decisions.";
                         parsedResponse.ContainsKey("連続攻撃時判断基準") &&
                         parsedResponse.ContainsKey("防御時判断基準") &&
                         parsedResponse.ContainsKey("連続防御時判断基準");
+
+                    // 戦術タイプを記録
+                    if (parsedResponse.ContainsKey("基本戦術"))
+                    {
+                        testResult.tacticsType = parsedResponse["基本戦術"]?.ToString();
+                    }
                 }
 
                 if (!hasRequiredFields)
@@ -1009,7 +1230,7 @@ Use the provided game rules context to inform your tactical decisions.";
 
                 if (_showProgressInConsole)
                 {
-                    UnityEngine.Debug.Log($"応答検証: JSON形式={testResult.isValidJson}, 必須フィールド={hasRequiredFields}");
+                    UnityEngine.Debug.Log($"応答検証: JSON形式={testResult.isValidJson}, 必須フィールド={hasRequiredFields}, 戦術={testResult.tacticsType}");
                 }
             }
             catch (JsonException jsonEx)
@@ -1135,6 +1356,14 @@ Use the provided game rules context to inform your tactical decisions.";
                         results.tacticTypeCounts[result.tacticsType] = 0;
                     results.tacticTypeCounts[result.tacticsType]++;
                 }
+
+                // NLI統計
+                if (!string.IsNullOrEmpty(result.nliType))
+                {
+                    if (!results.nliTypeCounts.ContainsKey(result.nliType))
+                        results.nliTypeCounts[result.nliType] = 0;
+                    results.nliTypeCounts[result.nliType]++;
+                }
             }
 
             if (results.totalTests > 0)
@@ -1184,6 +1413,17 @@ Use the provided game rules context to inform your tactical decisions.";
             report.AppendLine($"有効なJSON応答: {results.validJsonResponses}");
             report.AppendLine($"JSON有効率: {results.jsonValidRate:P1}");
             report.AppendLine();
+
+            // NLI統計
+            if (results.nliTypeCounts.Count > 0)
+            {
+                report.AppendLine("【自然言語指示(NLI)統計】");
+                foreach (var kvp in results.nliTypeCounts)
+                {
+                    report.AppendLine($"  {kvp.Key}: {kvp.Value}回");
+                }
+                report.AppendLine();
+            }
 
             if (results.ragEnabled)
             {
@@ -1260,9 +1500,16 @@ Use the provided game rules context to inform your tactical decisions.";
                 report.AppendLine($"  JSON有効: {(result.isValidJson ? "有効" : "無効")}");
                 report.AppendLine($"  応答時間: {result.responseTimeSeconds:F2}秒");
 
-                if (result.usedRAG)
+                // 戦術タイプ
+                if (!string.IsNullOrEmpty(result.tacticsType))
                 {
-                    report.AppendLine($"  RAG検索: {result.ragResultCount}件 ({result.ragSearchTimeMs:F2}ms)");
+                    report.AppendLine($"  戦術タイプ: {result.tacticsType}");
+                }
+
+                // NLIタイプ
+                if (!string.IsNullOrEmpty(result.nliType))
+                {
+                    report.AppendLine($"  NLIタイプ: {result.nliType}");
                 }
 
                 if (result.tokensPerSecond > 0)
@@ -1296,7 +1543,7 @@ Use the provided game rules context to inform your tactical decisions.";
         private string CreateCsvReport(IntegratedTestResults results)
         {
             var csv = new StringBuilder();
-            csv.AppendLine("Iteration,Timestamp,SituationType,IsSuccessful,IsValidJson,ResponseTimeSeconds,TokensPerSecond,TokenCount,PromptLength,ResponseLength,UsedRAG,RAGResultCount,RAGSearchTimeMs,Error");
+            csv.AppendLine("Iteration,Timestamp,SituationType,IsSuccessful,IsValidJson,ResponseTimeSeconds,TokensPerSecond,TokenCount,PromptLength,ResponseLength,TacticsType,NLIType,Error");
 
             foreach (var result in results.testResults)
             {
@@ -1310,9 +1557,8 @@ Use the provided game rules context to inform your tactical decisions.";
                               $"{result.responseTokenCount}," +
                               $"{result.prompt?.Length ?? 0}," +
                               $"{result.response?.Length ?? 0}," +
-                              $"{result.usedRAG}," +
-                              $"{result.ragResultCount}," +
-                              $"{result.ragSearchTimeMs:F2}," +
+                              $"\"{result.tacticsType ?? ""}\"," +
+                              $"\"{result.nliType ?? ""}\"," +
                               $"\"{result.error ?? ""}\"");
             }
 
@@ -1328,6 +1574,12 @@ Use the provided game rules context to inform your tactical decisions.";
             summary.AppendLine($"成功: {results.successfulTests} / 失敗: {results.failedTests}");
             summary.AppendLine($"成功率: {results.successRate:P1}");
             summary.AppendLine($"JSON有効率: {results.jsonValidRate:P1}");
+
+            // NLI統計
+            if (results.nliTypeCounts.Count > 0)
+            {
+                summary.AppendLine($"NLIタイプ使用: {string.Join(", ", results.nliTypeCounts.Select(kvp => $"{kvp.Key}:{kvp.Value}"))}");
+            }
 
             if (results.ragEnabled)
             {
@@ -1821,7 +2073,7 @@ Use the provided game rules context to inform your tactical decisions.";
         public void ChangePromptGenerator()
         {
             // 次のタイプに切り替え
-            int nextType = ((int)_generatorType + 1) % 3;
+            int nextType = ((int)_generatorType + 1) % Enum.GetValues(typeof(PromptGeneratorType)).Length;
             _generatorType = (PromptGeneratorType)nextType;
 
             _promptGenerator = CreatePromptGenerator(_generatorType);

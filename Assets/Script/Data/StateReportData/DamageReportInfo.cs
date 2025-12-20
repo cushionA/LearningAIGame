@@ -151,16 +151,20 @@ namespace LearningAIGame.CombatSystem.Data
         /// <param name="reportInfo">報告データ</param>
         public void SetInfo(in MoveReportInfo reportInfo, float startTime, float duration)
         {
-            // 通常移動なら戻る
+            // 通常移動ならガード
             if (reportInfo.reportType == MovementReportType.NormalMove)
             {
-                return;
+                _defenseType = DefenseType.Guard;
+            }
+            else
+            {
+                // 回避情報を入れる
+                _defenseType = DefenseType.Avoid;
+                _defenseStartTime = Time.time + startTime;
+                _defenseDuration = duration;
             }
 
-            // 回避情報を入れる
-            _defenseType = DefenseType.Blocking;
-            _defenseStartTime = Time.time + startTime;
-            _defenseDuration = duration;
+
         }
 
         /// <summary>
@@ -208,10 +212,11 @@ namespace LearningAIGame.CombatSystem.Data
                 // ガード時
                 case DefenseType.Guard:
                     result = (attackInfo.attackType == AttackType.WeakAttack && matchStance) ? HitResultType.Guard : result;
-                    Debug.Log($"[DefenseInfo] ガード判定: hasEffect={hasEffect}, matchStance={matchStance}, Result={result}");
+                    Debug.Log($"[DefenseInfo] , matchStance={matchStance}, Result={result}");
                     break;
                 // 回避時
                 case DefenseType.Avoid:
+                    Debug.Log($"[DefenseInfo] 回避判定前: hasEffect={hasEffect}, Result={result}");
                     result = hasEffect ? HitResultType.Avoid : result;
                     Debug.Log($"[DefenseInfo] 回避判定: hasEffect={hasEffect}, Result={result}");
                     break;
