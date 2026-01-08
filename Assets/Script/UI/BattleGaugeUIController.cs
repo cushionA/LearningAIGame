@@ -41,7 +41,7 @@ namespace LearningAIGame.CombatSystem.UI
         #region フィールド
 
         [Header("参照設定")]
-        [SerializeField, Required]
+        [ReadOnly]
         [Tooltip("状態管理システムへの参照")]
         private StateSystem _stateSystem;
 
@@ -178,8 +178,9 @@ namespace LearningAIGame.CombatSystem.UI
         /// <summary>
         /// 開始時に購読を設定
         /// </summary>
-        private void Start()
+        public void Initialize(StateSystem stateSystem)
         {
+            _stateSystem = stateSystem;
             CacheInitialValues();
             SubscribeSystems();
             InitializeGauges();

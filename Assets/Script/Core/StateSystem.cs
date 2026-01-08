@@ -1,5 +1,6 @@
 ﻿using LearningAIGame.CombatSystem.Data;
 using LearningAIGame.CombatSystem.Setting;
+using LearningAIGame.CombatSystem.Singleton;
 using LearningAIGame.CombatSystem.Systems;
 using LearningAIGame.CombatSystem.Utilities;
 using LLMDataArchitect;
@@ -74,7 +75,7 @@ using UnityEngine;
 
 namespace LearningAIGame.CombatSystem.Core
 {
-    public partial class StateSystem : MonoBehaviour
+    public partial class StateSystem : MonoBehaviour, IGameHelper
     {
 
         #region 列挙型定義
@@ -302,41 +303,51 @@ namespace LearningAIGame.CombatSystem.Core
         /// </summary>
         public ReactiveProperty<StanceType> CurrentStance;
 
+        /// <summary>
+        /// ヘルス情報
+        /// </summary>
+        public CharacterData CharacterData => _characterData;
+
         #endregion
 
         #region 行動実行可能管理プロパティ
 
         /// <summary>
+        /// 行動ロック状態かどうか
+        /// </summary>
+        private bool _moveLocked;
+
+        /// <summary>
         /// 攻撃可能かどうか
         /// </summary>
-        public bool CanAttack { get { return !_characterData.IsEnergyExhaust && Time.time >= _moveStunTime && (CurrentState.CurrentValue & ActionState.攻撃可能) > 0; } }
+        public bool CanAttack => !_moveLocked && !_characterData.IsEnergyExhaust && Time.time >= _moveStunTime && (CurrentState.CurrentValue & ActionState.攻撃可能) > 0;
 
-        public bool CanAvoidAttack { get { return !_characterData.IsEnergyExhaust && ((CurrentState.CurrentValue & ActionState.回避攻撃可能) > 0) && Time.time <= _avoidAttackBufferLimit; } }
+        public bool CanAvoidAttack => !_moveLocked && !_characterData.IsEnergyExhaust && ((CurrentState.CurrentValue & ActionState.回避攻撃可能) > 0) && Time.time <= _avoidAttackBufferLimit;
 
         /// <summary>
         /// ガード方向切り替え可能かどうか
         /// </summary>
-        public bool CanChangeGuardDirection { get { return (CurrentState.CurrentValue & ActionState.ガード方向切り替え可能) > 0 && Time.time >= _moveStunTime; } }
+        public bool CanChangeGuardDirection => !_moveLocked && (CurrentState.CurrentValue & ActionState.ガード方向切り替え可能) > 0 && Time.time >= _moveStunTime;
 
         /// <summary>
         /// ブロッキング可能かどうか
         /// </summary>
-        public bool CanBlock { get { return !_characterData.IsEnergyExhaust && (CurrentState.CurrentValue & ActionState.ブロッキング可能) > 0 && Time.time >= _moveStunTime; } }
+        public bool CanBlock => !_moveLocked && !_characterData.IsEnergyExhaust && (CurrentState.CurrentValue & ActionState.ブロッキング可能) > 0 && Time.time >= _moveStunTime;
 
         /// <summary>
         /// 回避可能かどうか
         /// </summary>
-        public bool CanAvoid { get { return (CurrentState.CurrentValue & ActionState.回避可能) > 0 && Time.time >= _moveStunTime; } }
+        public bool CanAvoid => !_moveLocked && (CurrentState.CurrentValue & ActionState.回避可能) > 0 && Time.time >= _moveStunTime;
 
         /// <summary>
         /// 強攻撃をキャンセル可能かどうか
         /// </summary>
-        public bool CanCancelHeavyAttack { get { return !_characterData.IsEnergyExhaust && (CurrentState.CurrentValue & ActionState.強攻撃) > 0 && Time.frameCount <= _heavyCancelFrame && Time.time >= _moveStunTime; } }
+        public bool CanCancelHeavyAttack => !_moveLocked && !_characterData.IsEnergyExhaust && (CurrentState.CurrentValue & ActionState.強攻撃) > 0 && Time.frameCount <= _heavyCancelFrame && Time.time >= _moveStunTime;
 
         /// <summary>
         /// 移動可能かどうか
         /// </summary>
-        public bool CanMove { get { return (CurrentState.CurrentValue & ActionState.移動可能) > 0 && Time.time >= _moveStunTime; } }
+        public bool CanMove => !_moveLocked && (CurrentState.CurrentValue & ActionState.移動可能) > 0 && Time.time >= _moveStunTime;
 
         #endregion
 
@@ -347,6 +358,11 @@ namespace LearningAIGame.CombatSystem.Core
         /// </summary>
         public void Update()
         {
+            if (_characterData == null)
+            {
+                return;
+            }
+
             // 防御中のみエネルギー回復
             if ((CurrentState.Value & ActionState.スタミナ回復可能) == 0)
             {
@@ -425,31 +441,11 @@ namespace LearningAIGame.CombatSystem.Core
         /// </summary>
         /// <param name="characterData"></param>
         /// <param name="logData"></param>
-        public (CharacterData, LLMLogData) CreateLLMSourceData()
+        public void CreateLLMSourceData(CharacterData data, LLMLogData log)
         {
-            CreateData();
-            return (_characterData, _llmLogData);
+            _llmLogData = log;
+            _characterData = data;
         }
-
-        /// <summary>
-        /// キャラデータと行動記録データを作成する
-        /// </summary>
-        private void CreateData()
-        {
-            if (_llmLogData == null)
-            {
-                // フィールドの初期化
-                _llmLogData = new LLMLogData(7, 7, 7);
-            }
-
-            if (_characterData == null)
-            {
-                // 一時的な初期化対応。
-                // いずれ設定ファイルに置き換え
-                _characterData = new CharacterData(100, 100);
-            }
-        }
-
 
         #endregion
 
@@ -496,6 +492,7 @@ namespace LearningAIGame.CombatSystem.Core
                 {
                     Debug.Log($"[{nameof(StateSystem)}] 死亡状態に移行しました。");
                     ChangeState(ActionState.死亡);
+                    GameManager.Instance.DefeatedReport(this.gameObject);
                     return;
                 }
 
@@ -735,8 +732,6 @@ namespace LearningAIGame.CombatSystem.Core
                 Debug.LogError($"[{nameof(StateSystem)}] ActionSettingが設定されていません！");
             }
 
-            CreateData();
-
             // リアクティブプロパティの初期化と破棄登録
             CurrentState = new ReactiveProperty<ActionState>(ActionState.ガード).AddTo(this);
             MoveVector = new ReactiveProperty<Vector3>(Vector3.zero).AddTo(this);
@@ -744,8 +739,6 @@ namespace LearningAIGame.CombatSystem.Core
             _moveController = GetComponent<MoveController>();
 
             SubscribeSystems();
-
-
         }
 
         /// <summary>
@@ -786,6 +779,43 @@ namespace LearningAIGame.CombatSystem.Core
         }
 
         #endregion
+
+        #region ゲームヘルパー（行動ロック変数の切り替え）
+
+        public void Lock()
+        {
+            _moveLocked = true;
+        }
+
+        public void Unlock()
+        {
+            _moveLocked = false;
+        }
+
+        public void SetUp()
+        {
+
+        }
+
+        public void RoundStart()
+        {
+            // 初期状態はガード
+            ChangeState(ActionState.ガード);
+        }
+
+        public void RoundEnd()
+        {
+            _characterData.Reset();
+        }
+
+        public void GameEnd()
+        {
+
+        }
+
+
+        #endregion
+
 
 #if UNITY_EDITOR
         /// <summary>

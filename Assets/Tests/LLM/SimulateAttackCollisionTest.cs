@@ -2,6 +2,7 @@ using Cysharp.Threading.Tasks;
 using LearningAIGame.CombatSystem.Core;
 using LearningAIGame.CombatSystem.Data;
 using LearningAIGame.CombatSystem.Systems;
+using LLMDataArchitect;
 using NUnit.Framework;
 using R3;
 using System;
@@ -243,8 +244,8 @@ namespace LearningAIGame.CombatSystem.Tests
             // 状態変化記録の初期化（各テストケースで開始する）
             _stateRecorder = new StateChangeRecorder();
 
-            _stateSystemA.CreateLLMSourceData();
-            _stateSystemB.CreateLLMSourceData();
+            _stateSystemA.CreateLLMSourceData(new CharacterData(100, 100), new LLMLogData(7, 7, 7));
+            _stateSystemB.CreateLLMSourceData(new CharacterData(100, 100), new LLMLogData(7, 7, 7));
 
             while (_stateSystemA.CurrentState == null || _stateSystemB.CurrentState == null)
             {

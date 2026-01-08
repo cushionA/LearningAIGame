@@ -1,6 +1,7 @@
 using Cysharp.Threading.Tasks;
 using LearningAIGame.CombatSystem.Core;
 using LearningAIGame.CombatSystem.Data;
+using LearningAIGame.CombatSystem.Singleton;
 using LearningAIGame.CombatSystem.Systems;
 using LLMDataArchitect;
 using R3;
@@ -90,7 +91,7 @@ namespace LearningAIGame.CombatSystem.AI
     /// LLMからの応答を利用したルールベースAI
     /// 移動制御、頻度ベース攻撃、構え変更処理を追加
     /// </summary>
-    public partial class StrategyAI : RuleBaseInjection
+    public partial class StrategyAI : RuleBaseInjection, IGameHelper, ITargetSet
     {
 
         #region フィールド
@@ -183,6 +184,12 @@ namespace LearningAIGame.CombatSystem.AI
         /// 次回ステップ可能時間
         /// </summary>
         protected float _nextStepTime = 0f;
+
+        /// <summary>
+        /// AIがロックされてるかどうかの変数
+        /// </summary>
+        private bool _brainLocked = false;
+
         #endregion
 
         #region 移動制御
@@ -244,9 +251,6 @@ namespace LearningAIGame.CombatSystem.AI
         {
 
             _myStateSystem = GetComponent<StateSystem>();
-
-            // 各システムの購読を開始
-            SubscribeSystems();
         }
 
         /// <summary>
@@ -256,6 +260,9 @@ namespace LearningAIGame.CombatSystem.AI
         protected void Update()
         {
             if (_myController == null || _enemyStateSystem == null)
+                return;
+
+            if (_brainLocked)
                 return;
 
             _currentTime = Time.time;
@@ -1185,5 +1192,57 @@ namespace LearningAIGame.CombatSystem.AI
         }
 
         #endregion
+
+        #region ゲームヘルパー(AIの更新中止やNLIの書き換え)
+
+        public void Lock()
+        {
+            _brainLocked = true;
+        }
+
+        public void Unlock()
+        {
+            _brainLocked = false;
+        }
+
+        public void SetUp()
+        {
+            // LLMのNLIタイプを戦術パラメーターに基づいて設定
+            GameManager.Instance.LLMCommunicator.SetNLIType(_strategyParameters.nlInstructionType);
+
+            // 各システムの購読を開始
+            SubscribeSystems();
+        }
+
+        public void RoundStart()
+        {
+            GameManager.Instance.LLMCommunicator.StartAutoUpdate();
+        }
+
+        public void RoundEnd()
+        {
+            GameManager.Instance.LLMCommunicator.StopAutoUpdate();
+        }
+
+        public void GameEnd()
+        {
+            GameManager.Instance.LLMCommunicator.StopAutoUpdate();
+        }
+
+        /// <summary>
+        /// targetを設定する
+        /// </summary>
+        /// <param name="target"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        public void SetTarget(GameObject target)
+        {
+            _enemyStateSystem = target.GetComponent<StateSystem>();
+            _enemyAttackSystem = target.GetComponent<AttackSystem>();
+            _enemyHitSystem = target.GetComponent<HitSystem>();
+            Debug.Log($"[{nameof(StrategyAI)}] 敵ターゲットを設定しました: {target.name}");
+        }
+
+        #endregion
+
     }
 }
