@@ -42,6 +42,10 @@ namespace LearningAIGame.CombatSystem.Settings
         [Tooltip("この設定の説明文")]
         public string description = "デフォルトの入力設定";
 
+        [Header("連打制限")]
+        [Tooltip("ボタン入力の最小間隔（秒）")]
+        public float buttonInputInterval = 0.1f;
+
         #endregion
 
         #region マウス設定

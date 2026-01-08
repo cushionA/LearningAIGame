@@ -51,7 +51,6 @@ namespace LearningAIGame.UI
         [SerializeField] private float _stanceChangeDuration = 0.15f;                      // スケール変更時間
 
         [Header("購読対象のキャラクター")]
-        [SerializeField]
         private GameObject _indicateCharacter;
 
         #endregion
@@ -101,8 +100,10 @@ namespace LearningAIGame.UI
         /// <summary>
         /// 初期化
         /// </summary>
-        private void Start()
+        public void Initialize(GameObject indicatedCharacter)
         {
+            _indicateCharacter = indicatedCharacter;
+
             // 初期状態を設定
             ResetAll();
 

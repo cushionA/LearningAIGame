@@ -2,6 +2,7 @@ using UnityEngine;
 using NaughtyAttributes;
 using System;
 using LLMDataArchitect;
+using LLMDataArchitect.Test;
 
 namespace LearningAIGame.CombatSystem.Data
 {
@@ -12,6 +13,11 @@ namespace LearningAIGame.CombatSystem.Data
     [CreateAssetMenu(fileName = "AIParameters", menuName = "LearningAIGame/AIParameterContainer")]
     public class AIParameterContainer : ScriptableObject
     {
+        [Header("自然言語戦術設定")]
+        [InfoBox("AIの自然言語戦術指示タイプ")]
+        [Tooltip("AIの自然言語戦術指示タイプ")]
+        public NaturalLanguageInstructionType nlInstructionType = NaturalLanguageInstructionType.AnalyticalLearner;
+
         [Header("=== 戦術プリセットコレクション ===")]
         [InfoBox("各戦術タイプに対応するパラメーターセットを管理します", EInfoBoxType.Normal)]
 

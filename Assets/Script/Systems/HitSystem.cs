@@ -29,7 +29,7 @@ using System;
 //=====================================================================================================================
 namespace LearningAIGame.CombatSystem.Systems
 {
-    public class HitSystem : BaseSystem<HitReportInfo>
+    public class HitSystem : BaseSystem<HitReportInfo>, ITargetSet
     {
         /// <summary>
         /// 攻撃実行情報
@@ -257,6 +257,16 @@ namespace LearningAIGame.CombatSystem.Systems
                 Debug.Log("[HitSystem] 攻撃結果を敵のDamageSystemに通知します。");
                 _enemyDamageSystem.DamageReport(_info);
             }
+        }
+
+        /// <summary>
+        /// targetを設定する
+        /// </summary>
+        /// <param name="target"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        public void SetTarget(GameObject target)
+        {
+            _enemyDamageSystem = target.GetComponent<DamageSystemBase>();
         }
 
         #region デバッグ用

@@ -129,5 +129,15 @@ namespace LearningAIGame.CombatSystem.Data
                 IsEnergyExhaust = false;
             }
         }
+
+        /// <summary>
+        /// ‘Ì—Í‚ÆƒGƒlƒ‹ƒM[‚ğ‰Šú‰»‚·‚é
+        /// </summary>
+        public void Reset()
+        {
+            Hp = MaxHp;
+            Energy = MaxEnergy;
+            IsEnergyExhaust = false;
+        }
     }
 }

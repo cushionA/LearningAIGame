@@ -40,7 +40,7 @@ using static LearningAIGame.CombatSystem.Core.StateSystem;
 //=====================================================================================================================
 namespace LearningAIGame.CombatSystem.Core
 {
-    public class AnimationController : MonoBehaviour
+    public class AnimationController : MonoBehaviour, IGameHelper
     {
         #region フィールド
 
@@ -252,6 +252,36 @@ namespace LearningAIGame.CombatSystem.Core
                 $"MoveX: {_animator.GetFloat(k_PARAM_MOVE_X)}, " +
                 $"MoveZ: {_animator.GetFloat(k_PARAM_MOVE_Z)}, " +
                 $"Stance: {_animator.GetInteger(k_PARAM_STANCE)}");
+        }
+
+        public void Lock()
+        {
+        }
+
+        public void Unlock()
+        {
+
+        }
+
+        public void SetUp()
+        {
+
+        }
+
+        public void RoundStart()
+        {
+            // アニメをニュートラルに戻す。
+            _animator.Play("Guard_Up");
+        }
+
+        public void RoundEnd()
+        {
+
+        }
+
+        public void GameEnd()
+        {
+
         }
 #endif
 
