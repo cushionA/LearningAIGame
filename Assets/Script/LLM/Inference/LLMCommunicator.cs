@@ -1,11 +1,11 @@
 using Cysharp.Threading.Tasks;
 using LearningAIGame.CombatSystem.AI;
 using LearningAIGame.CombatSystem.Core;
+using LearningAIGame.CombatSystem.Data;
 using LLMDataArchitect.Test;
 using LLMUnity;
 using System;
 using System.Threading;
-using System.Threading.Tasks;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
@@ -60,16 +60,17 @@ namespace LLMDataArchitect
     {
         Debug,
         Cache,
-        Cache_NLI  // 自然言語指示付き
+        Cache_NLI
     }
 
     /// <summary>
-    /// LLM for Unityを使用し、戦術的な思考を生成するための通信コンポーネント 
+    /// LLM for Unityを使用し、戦術的な思考を生成するための通信コンポーネント
     /// 一定間隔でLLMに戦術判断をリクエストし、結果を更新
-    /// 
     /// </summary>
     public class LLMCommunicator : MonoBehaviour
     {
+        #region Inspector設定
+
         [Header("LLM設定")]
         [SerializeField]
         [Tooltip("LLM通信に使用するLLMCharacterコンポーネント")]
@@ -110,37 +111,37 @@ namespace LLMDataArchitect
         [Tooltip("自動更新を開始するまでの遅延時間（秒）")]
         protected float _startDelay = 2f;
 
-        [Header("データソース設定")]
-        [SerializeField]
-        [Tooltip("プレイヤーの状態システムへの参照")]
+        //[Header("データソース設定")]
+        //[SerializeField]
+        //[Tooltip("プレイヤーの状態システムへの参照")]
         protected StateSystem _playerStateSystem;
 
-        [SerializeField]
-        [Tooltip("NPCの状態システムへの参照")]
+        //[SerializeField]
+        //[Tooltip("NPCの状態システムへの参照")]
         protected StateSystem _npcStateSystem;
 
-        [SerializeField]
-        [Tooltip("NPCのAI")]
+        //[SerializeField]
+        //[Tooltip("NPCのAI")]
         protected RuleBaseInjection _ruleBaseAI;
 
-        // 内部状態
+        #endregion
+
+        #region Private Fields
+
         protected LLMInputData _inputData;
         protected PromptGeneratorBase _promptGenerator;
         protected bool _isInitialized = false;
         protected bool _isProcessing = false;
         protected CancellationTokenSource _updateLoopCts;
 
-        #region パブリックプロパティ
+        #endregion
+
+        #region Properties
 
         /// <summary>
         /// 自動更新が実行中かどうかを取得
         /// </summary>
         public bool IsAutoUpdateRunning => _updateLoopCts != null && !_updateLoopCts.IsCancellationRequested;
-
-        /// <summary>
-        /// 現在の入力データを取得（デバッグ用）。
-        /// </summary>
-        public LLMInputData GetCurrentInputData() => _inputData;
 
         /// <summary>
         /// 初期化済みかどうかを取得
@@ -161,33 +162,74 @@ namespace LLMDataArchitect
 
         #region Unity Lifecycle
 
-        private void Awake()
-        {
-            // 入力データの初期化（Warmup 完了後に実行）
-            _inputData = new LLMInputData(_playerStateSystem, _npcStateSystem, new StrategyResult());
-            _ruleBaseAI.InjectionData(_inputData);
-
-            // 初期化を非同期で実行（Warmup 完了を待機）
-            InitializeAsync().Forget();
-        }
-
+        /// <summary>
+        /// 破棄時に更新ループをキャンセル
+        /// </summary>
         private void OnDestroy()
         {
-            // 更新ループをキャンセル
             StopAutoUpdate();
         }
 
+        /// <summary>
+        /// 無効化時に更新ループを停止
+        /// </summary>
         private void OnDisable()
         {
-            // 無効化時も更新ループを停止
             StopAutoUpdate();
         }
 
         #endregion
 
-        #region Publicメソッド
+        #region Public API - 初期化・注入
 
-        #region 動的設定変更
+        /// <summary>
+        /// 注入と初期化を同時に実行
+        /// </summary>
+        /// <param name="player">プレイヤーのStateSystem</param>
+        /// <param name="npc">NPCのStateSystem</param>
+        public void InitializeWithInjection(StateSystem player, StateSystem npc)
+        {
+            _playerStateSystem = player;
+            _npcStateSystem = npc;
+            _ruleBaseAI = npc.GetComponent<RuleBaseInjection>();
+
+            _inputData = new LLMInputData(_playerStateSystem, _npcStateSystem, new StrategyResult());
+
+            if (_ruleBaseAI != null)
+            {
+                _ruleBaseAI.InjectionData(_inputData);
+            }
+
+            InitializeAsync().Forget();
+        }
+
+        /// <summary>
+        /// 新規バトル用にデータを注入（バトル継続時）
+        /// </summary>
+        /// <param name="player">プレイヤーのStateSystem</param>
+        /// <param name="npc">NPCのStateSystem</param>
+        public void InjectionNewBattle(StateSystem player, StateSystem npc)
+        {
+            _playerStateSystem = player;
+            _npcStateSystem = npc;
+            _ruleBaseAI = npc.GetComponent<RuleBaseInjection>();
+            _inputData.InjectionNewBattle(player, npc);
+
+            if (_ruleBaseAI != null)
+            {
+                _ruleBaseAI.InjectionData(_inputData);
+            }
+        }
+
+        /// <summary>
+        /// 現在の入力データを取得（デバッグ用）
+        /// </summary>
+        /// <returns>現在のLLMInputData</returns>
+        public LLMInputData GetCurrentInputData() => _inputData;
+
+        #endregion
+
+        #region Public API - 動的設定変更
 
         /// <summary>
         /// 更新間隔を動的に変更
@@ -204,27 +246,10 @@ namespace LLMDataArchitect
             _updateInterval = newInterval;
             Debug.Log($"更新間隔を {newInterval}秒 に変更しました。");
 
-            // 自動更新中の場合は再起動
             if (IsAutoUpdateRunning)
             {
                 StartAutoUpdate();
             }
-        }
-
-        /// <summary>
-        /// LLMの応答タイムアウト時間を動的に変更
-        /// </summary>
-        /// <param name="newTimeout">新しいタイムアウト時間（秒）</param>
-        public void SetTimeout(float newTimeout)
-        {
-            if (newTimeout < 1f)
-            {
-                Debug.LogWarning("タイムアウト時間は1秒以上である必要があります。");
-                return;
-            }
-
-            _timeoutSeconds = newTimeout;
-            Debug.Log($"タイムアウト時間を {newTimeout}秒 に変更しました。");
         }
 
         /// <summary>
@@ -235,7 +260,6 @@ namespace LLMDataArchitect
         {
             _nliType = newNLIType;
 
-            // NLI生成器の場合は内部タイプも更新
             if (_promptGenerator is CachePromptGeneratorWithNLI nliGenerator)
             {
                 nliGenerator.CurrentInstructionType = newNLIType;
@@ -246,12 +270,10 @@ namespace LLMDataArchitect
 
         #endregion
 
-        #region 自動更新制御
+        #region Public API - 自動更新制御
 
         /// <summary>
         /// 自動更新ループを開始
-        /// 指定された間隔で戦術判断をリクエストし続ける
-        /// Initialize の完了を確認してから呼び出す
         /// </summary>
         public void StartAutoUpdate()
         {
@@ -261,7 +283,6 @@ namespace LLMDataArchitect
                 return;
             }
 
-            // 既に実行中の場合は停止してから再開
             if (_updateLoopCts != null)
             {
                 StopAutoUpdate();
@@ -271,20 +292,6 @@ namespace LLMDataArchitect
             AutoUpdateLoopAsync(_updateLoopCts.Token).Forget();
 
             Debug.Log($"自動更新を開始しました (間隔: {_updateInterval}秒, 初回遅延: {_startDelay}秒)");
-        }
-
-        /// <summary>
-        /// LLMに戦術判断をリクエスト（手動呼び出し用）
-        /// 自動更新が無効な場合や、即座に判断が必要な場合に使用
-        /// </summary>
-        public async UniTask RequestTacticalDecisionAsync()
-        {
-            // 自動更新中はスキップ
-            if (_autoUpdate)
-            {
-                return;
-            }
-            await RequestTacticalDecisionAsync(this.GetCancellationTokenOnDestroy());
         }
 
         /// <summary>
@@ -302,18 +309,26 @@ namespace LLMDataArchitect
             }
         }
 
-        #endregion
+        /// <summary>
+        /// 手動で戦術判断をリクエスト（自動更新が無効な場合のみ動作）
+        /// </summary>
+        public async UniTask RequestTacticalDecisionManualAsync()
+        {
+            if (_autoUpdate)
+            {
+                Debug.LogWarning("自動更新が有効です。手動リクエストはスキップされます。");
+                return;
+            }
+
+            await RequestTacticalDecisionInternalAsync(this.GetCancellationTokenOnDestroy());
+        }
 
         #endregion
 
-        #region privateメソッド
-
-        #region 初期化
+        #region Private Methods - 初期化
 
         /// <summary>
-        /// コミュニケーターを非同期で初期化（UniTask版）
-        /// SetupSystemPrompt の Warmup 完了まで待機します
-        /// プロンプト生成器、LLM設定、データソースを設定
+        /// コミュニケーターを非同期で初期化
         /// </summary>
         protected virtual async UniTaskVoid InitializeAsync()
         {
@@ -325,32 +340,30 @@ namespace LLMDataArchitect
                     return;
                 }
 
-                // プロンプト生成器を初期化
                 _promptGenerator = CreatePromptGenerator();
                 Debug.Log($"プロンプト生成器を初期化: {_generatorType}");
 
-                // LLMCharacterの存在チェック
                 if (_llmCharacter == null)
                 {
                     Debug.LogError("LLMCharacterが設定されていません。Inspectorで設定してください。");
                     return;
                 }
 
-                // LLMの最適設定を適用
                 if (_autoConfigureLLM)
+                {
                     ConfigureLLMOptimal();
+                }
 
-                // JSON Schema Grammarを設定
                 if (_useGrammar)
+                {
                     SetupGrammar();
+                }
 
-                // システムプロンプト設定（Warmup 完了を待機）
                 await SetupSystemPromptAsync();
 
                 _isInitialized = true;
                 Debug.Log("LLM Communicatorの初期化が完全に完了しました。");
 
-                // 自動更新が有効な場合、更新ループを開始
                 if (_autoUpdate)
                 {
                     StartAutoUpdate();
@@ -379,9 +392,7 @@ namespace LLMDataArchitect
         }
 
         /// <summary>
-        /// LLMのシステムプロンプトを設定（非同期版・UniTask対応）
-        /// Warmup の完了を確実に待機
-        /// AIの応答形式を定義
+        /// LLMのシステムプロンプトを設定（Warmup完了を待機）
         /// </summary>
         private async UniTask SetupSystemPromptAsync()
         {
@@ -391,7 +402,6 @@ namespace LLMDataArchitect
                 _llmCharacter.playerName = "User";
                 _llmCharacter.AIName = "TacticAI";
 
-                // Warmup の完了を待機
                 await _llmCharacter.Warmup(_promptGenerator.GenerateFixedSection());
 
                 Debug.Log("システムプロンプトを設定しました（Warmup完了）。");
@@ -405,43 +415,36 @@ namespace LLMDataArchitect
 
         /// <summary>
         /// LLMの最適な設定を適用
-        /// ストリーミングとプロンプトキャッシュを有効化
-        /// 今回処理するタスクに最適化
         /// </summary>
         private void ConfigureLLMOptimal()
         {
-            //_llmCharacter.stream = true;       // ストリーミングレスポンスを有効化
-            _llmCharacter.cachePrompt = true;  // プロンプトキャッシュを有効化
-            _llmCharacter.llm.contextSize = 2048; // コンテキストサイズを2048に設定
-            _llmCharacter.seed = 0; // シード値を0に設定（ランダム性をなくす）
+            _llmCharacter.cachePrompt = true;
+            _llmCharacter.llm.contextSize = 2048;
+            _llmCharacter.seed = 0;
 
             Debug.Log("LLM最適設定を適用しました (cachePrompt: true)");
         }
 
         /// <summary>
         /// JSON Schema Grammarを設定
-        /// LLMの出力形式を厳密に制御
         /// </summary>
         private void SetupGrammar()
         {
             _llmCharacter.grammarJSONString = _promptGenerator.GenerateGrammar();
 
-            Debug.Log($"JSON Schema Grammar設定完了");
+            Debug.Log("JSON Schema Grammar設定完了");
         }
 
         #endregion
 
-        #region LLM通信
+        #region Private Methods - LLM通信
 
         /// <summary>
         /// 自動更新ループの非同期処理
-        /// 指定間隔で戦術判断を繰り返しリクエスト
-        /// 例外は全てSuppressされ、ログ出力のみ行う
         /// </summary>
-        /// <param name="cancellationToken">キャンセルトークン。NPC死亡イベントで起動</param>
+        /// <param name="cancellationToken">キャンセルトークン</param>
         private async UniTaskVoid AutoUpdateLoopAsync(CancellationToken cancellationToken)
         {
-            // 初回遅延（キャンセルチェック付き）
             if (_startDelay > 0)
             {
                 bool isCanceled = await UniTask.Delay(
@@ -456,13 +459,10 @@ namespace LLMDataArchitect
                 }
             }
 
-            // メインループ
             while (!cancellationToken.IsCancellationRequested)
             {
-                // 戦術判断をリクエスト（例外は内部で処理）
-                await RequestTacticalDecisionAsync(cancellationToken);
+                await RequestTacticalDecisionInternalAsync(cancellationToken);
 
-                // 次の更新まで待機（キャンセルチェック付き）
                 bool isCanceled = await UniTask.Delay(
                     TimeSpan.FromSeconds(_updateInterval),
                     cancellationToken: cancellationToken
@@ -477,13 +477,11 @@ namespace LLMDataArchitect
         }
 
         /// <summary>
-        /// LLMに戦術判断をリクエスト
-        /// 全ての例外はSuppressされ、適切にログ出力される
+        /// LLMに戦術判断をリクエスト（内部用）
         /// </summary>
         /// <param name="cancellationToken">キャンセルトークン</param>
-        protected virtual async UniTask RequestTacticalDecisionAsync(CancellationToken cancellationToken)
+        protected virtual async UniTask RequestTacticalDecisionInternalAsync(CancellationToken cancellationToken)
         {
-            // 処理中の場合はスキップ
             if (_isProcessing)
             {
                 Debug.LogWarning("前回のリクエストがまだ処理中です。スキップ");
@@ -494,32 +492,31 @@ namespace LLMDataArchitect
 
             try
             {
-                // LLMに非同期リクエスト（キャンセルチェック付き）
-                var (isCanceled, strategy) = await RequestAsync(cancellationToken).SuppressCancellationThrow();
+                var (isCanceled, strategy) = await SendLLMRequestAsync(cancellationToken).SuppressCancellationThrow();
 
-                // キャンセルされた場合
                 if (isCanceled)
                 {
                     Debug.Log("戦術判断リクエストがキャンセルされました。");
                     return;
                 }
 
-                // 応答が無効な場合
                 if (strategy == null)
                 {
-                    Debug.LogError($"LLMからの応答が無効(Null)でした。");
+                    Debug.LogError("LLMからの応答が無効(Null)でした。");
                     return;
                 }
 
-                // 応答が有効な場合、入力データを更新
                 _inputData.UpdateStrategy(strategy);
-                _ruleBaseAI.UpdateStrategy();
+
+                if (_ruleBaseAI != null)
+                {
+                    _ruleBaseAI.UpdateStrategy();
+                }
 
                 Debug.Log($"戦術を更新しました: {strategy.BasicTactic}");
             }
             catch (Exception ex)
             {
-                // 予期しない例外のみキャッチ（SuppressCancellationThrowで例外は基本的に発生しない）
                 Debug.LogError($"戦術判断リクエストで予期しないエラーが発生しました: {ex.Message}\n{ex.StackTrace}");
             }
             finally
@@ -530,33 +527,28 @@ namespace LLMDataArchitect
 
         /// <summary>
         /// LLMに非同期でリクエストを送信し、戦術データを返す
-        /// タイムアウト、キャンセル、JSON解析失敗に対応
         /// </summary>
         /// <param name="cancellationToken">キャンセルトークン</param>
         /// <returns>LLMが生成した戦術データ。失敗時はnull</returns>
-        protected virtual async UniTask<StrategyData> RequestAsync(CancellationToken cancellationToken = default)
+        protected virtual async UniTask<StrategyData> SendLLMRequestAsync(CancellationToken cancellationToken = default)
         {
-            // プロンプト生成
             string prompt = _promptGenerator.GeneratePromptByData(_inputData);
             Debug.Log($"生成されたプロンプト (文字数: {prompt.Length}):\n{prompt}");
 
             DateTime start = DateTime.Now;
 
-            // LLMにリクエスト送信（タイムアウト＋キャンセル対応、例外抑制）
             var result = await _llmCharacter.Chat(prompt)
                 .AsUniTask()
                 .Timeout(TimeSpan.FromSeconds(_timeoutSeconds))
                 .AttachExternalCancellation(cancellationToken)
                 .SuppressCancellationThrow();
 
-            // キャンセルまたはタイムアウトのチェック
             if (result.IsCanceled)
             {
                 Debug.LogWarning($"LLMリクエストがキャンセルまたはタイムアウトしました ({_timeoutSeconds}秒)。");
                 return null;
             }
 
-            // 応答の取得
             string output = result.Result;
 
             if (string.IsNullOrEmpty(output))
@@ -567,7 +559,6 @@ namespace LLMDataArchitect
 
             Debug.Log($"LLM応答を受信 \n文字数: {output.Length} 処理時間：{(DateTime.Now - start).TotalSeconds}秒 \nプロンプト：{prompt} \n応答：{output}");
 
-            // JSON解析（失敗時はnullを返す）
             var (isSuccess, strategy) = StrategyData.TryFromJsonEnglish(output);
 
             if (!isSuccess)
@@ -578,8 +569,6 @@ namespace LLMDataArchitect
 
             return strategy;
         }
-
-        #endregion
 
         #endregion
     }

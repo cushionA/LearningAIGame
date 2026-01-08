@@ -21,12 +21,13 @@
 
 using UnityEngine;
 using LearningAIGame.CombatSystem;
+using LearningAIGame.CombatSystem.Singleton;
 
 /// <summary>
 /// 速度予測型ロックオンカメラシステム
 /// 自キャラの背後に追従し、敵をフォーカスする
 /// </summary>
-public class LockOnCameraSystem : MonoBehaviour
+public class LockOnCameraSystem : MonoBehaviour, IGameHelper
 {
     #region ターゲット設定
 
@@ -126,33 +127,6 @@ public class LockOnCameraSystem : MonoBehaviour
     #endregion
 
     #region Unity ライフサイクル
-
-    private void Start()
-    {
-        _currentDistance = _baseDistance;
-        _targetDistance = _baseDistance;
-
-        // PositionCacheの自動取得
-        if (_player != null && _playerCache == null)
-        {
-            _playerCache = _player.GetComponent<PositionCache>();
-            if (_playerCache == null)
-            {
-                Debug.LogWarning($"[LockOnCameraSystem] プレイヤーにPositionCacheコンポーネントがありません: {_player.name}");
-            }
-        }
-
-        if (_enemy != null && _enemyCache == null)
-        {
-            _enemyCache = _enemy.GetComponent<PositionCache>();
-        }
-
-        // 初期位置を即座に設定
-        if (_player != null)
-        {
-            UpdateCameraPosition(immediate: true);
-        }
-    }
 
     private void LateUpdate()
     {
@@ -492,6 +466,53 @@ public class LockOnCameraSystem : MonoBehaviour
         }
     }
 #endif
+
+    #endregion
+
+    #region ゲームヘルパー（追跡対象変更）
+
+    public void Lock()
+    {
+
+    }
+
+    public void Unlock()
+    {
+
+    }
+
+    // 追跡対象を現在の敵インスタンスに設定
+    public void SetUp()
+    {
+        _enemy = GameManager.Instance.CurrentNpcInstance.transform;
+        _player = GameManager.Instance.PlayerInstance.transform;
+        _playerCache = _player.GetComponent<PositionCache>();
+        _enemyCache = _enemy.GetComponent<PositionCache>();
+        _currentDistance = _baseDistance;
+        _targetDistance = _baseDistance;
+
+        // 初期位置を即座に設定
+        if (_player != null)
+        {
+            UpdateCameraPosition(immediate: true);
+        }
+    }
+
+    public void RoundStart()
+    {
+
+    }
+
+    public void RoundEnd()
+    {
+
+    }
+
+    public void GameEnd()
+    {
+
+    }
+
 
     #endregion
 }

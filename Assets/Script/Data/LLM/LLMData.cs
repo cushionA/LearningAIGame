@@ -163,10 +163,6 @@ namespace LLMDataArchitect
         /// </summary>
         public StrategyData? CurrentStrategy { get; set; }
 
-        #region データ追加
-
-        #endregion
-
         /// <summary>
         /// プロンプトを生成後、前回判断を書き換える
         /// 同時に直近のデータを書き換える処理
@@ -187,6 +183,20 @@ namespace LLMDataArchitect
             CurrentStrategy = newStrategy;
         }
 
+
+        /// <summary>
+        /// バトル開始時にプレイヤーとNPCにデータを設定する
+        /// StateSystemにデータを注入する
+        /// </summary>
+        /// <param name="stateSystem"></param>
+        /// <returns></returns>
+        public void InjectionNewBattle(StateSystem player, StateSystem newNPC)
+        {
+            // 新しいヘルスデータと既存ログデータを注入
+            newNPC.CreateLLMSourceData(new CharacterData(100, 100), _npcLog);
+            player.CreateLLMSourceData(new CharacterData(100, 100), _playerLog);
+        }
+
         /// <summary>
         /// コンストラクタ
         /// </summary>
@@ -195,9 +205,13 @@ namespace LLMDataArchitect
         public LLMInputData(StateSystem player, StateSystem npc, StrategyResult resultData)
         {
 
-            (_playerData, _playerLog) = player.CreateLLMSourceData();
+            // StateSystemに作成したデータを注入
+            (_playerData, _playerLog) = (new CharacterData(100, 100), new LLMLogData(7, 7, 7));
+            player.CreateLLMSourceData(_playerData, _playerLog);
 
-            (_npcData, _npcLog) = npc.CreateLLMSourceData();
+            (_npcData, _npcLog) = (new CharacterData(100, 100), new LLMLogData(7, 7, 7));
+
+            npc.CreateLLMSourceData(_npcData, _npcLog);
 
             CurrentStrategy = null;
 

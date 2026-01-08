@@ -33,7 +33,7 @@ namespace LearningAIGame.CombatSystem.Core
     /// バトルキャラクターコントローラー
     /// 責任範囲：入力受付、入力処理、移動処理
     /// </summary>
-    public class BattleCharacterController : MonoBehaviour
+    public class BattleCharacterController : MonoBehaviour, ITargetSet
     {
         /// <summary>
         /// アクション設定データ
@@ -97,20 +97,6 @@ namespace LearningAIGame.CombatSystem.Core
         /// これが真の間は敵の方向を向く
         /// </summary>
         private bool _lookEnemyEnabled = true;
-
-        private void Start()
-        {
-            _enemyPosition = _enemyTransform.GetComponent<PositionCache>();
-            _myPosition = GetComponent<PositionCache>();
-
-            _actionSetting = _stateSystem.actionSetting;
-
-            // 被ダメージによる行動キャンセルイベント
-            _stateSystem.CurrentState
-                .Where(state => (state & ActionState.強制行動キャンセル) > 0)
-                .Subscribe(_ => OnStunCancel())
-                .AddTo(this);
-        }
 
         private void Update()
         {
@@ -393,7 +379,7 @@ namespace LearningAIGame.CombatSystem.Core
         /// </summary>
         public void MoveAct(Vector3 moveVector)
         {
-            if (!_stateSystem.CanMove)
+            if (!_stateSystem.CanMove || _enemyTransform == null)
             {
                 return;
             }
@@ -404,6 +390,7 @@ namespace LearningAIGame.CombatSystem.Core
             // 速度減衰係数を計算
             // 後ろ移動は速度を落とす
             float speedFactor;
+            Debug.Log($"ヌルチェック{_actionSetting == null}、{_stateSystem == null}");
             float backSpeedFactor = _actionSetting.BackMoveMultiplier;
             const float forwardSpeedFactor = 1.0f;
 
@@ -435,14 +422,6 @@ namespace LearningAIGame.CombatSystem.Core
         }
 
         /// <summary>
-        /// 外部から敵のTransformを設定する
-        /// </summary>
-        public void SetTargetTransform(Transform enemyTransform)
-        {
-            _enemyTransform = enemyTransform;
-        }
-
-        /// <summary>
         /// 怯み等で行動キャンセルされた場合にコールバックされる
         /// </summary>
         private void OnStunCancel()
@@ -454,6 +433,27 @@ namespace LearningAIGame.CombatSystem.Core
             {
                 _hitSystem.DamageStop();
             }
+        }
+
+        /// <summary>
+        /// targetを設定する
+        /// </summary>
+        /// <param name="target"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        public void SetTarget(GameObject target)
+        {
+            _enemyTransform = target.transform;
+
+            _enemyPosition = _enemyTransform.GetComponent<PositionCache>();
+            _myPosition = GetComponent<PositionCache>();
+
+            _actionSetting = _stateSystem.actionSetting;
+
+            // 被ダメージによる行動キャンセルイベント
+            _stateSystem.CurrentState
+                .Where(state => (state & ActionState.強制行動キャンセル) > 0)
+                .Subscribe(_ => OnStunCancel())
+                .AddTo(this);
         }
     }
 }
