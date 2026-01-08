@@ -152,7 +152,7 @@ namespace LearningAIGame.CombatSystem.Tests
         {
             // BattleCharacterControllerの取得とターゲット設定
             _controller = _testGameObject.GetComponent<BattleCharacterController>();
-            _controller.SetTargetTransform(_enemyTransform);
+            _controller.SetTarget(_enemyTransform.gameObject);
             Assert.IsNotNull(_controller,
                 "BattleCharacterControllerがプレハブに設定されていません");
 

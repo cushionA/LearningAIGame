@@ -1447,7 +1447,7 @@ namespace LearningAIGame.CombatSystem.Tests
         {
             yield return Task.Delay(10000);
 
-            var requestTask = _llmCommunicator.RequestTacticalDecisionAsync();
+            var requestTask = _llmCommunicator.RequestTacticalDecisionManualAsync();
             yield return requestTask.ToCoroutine();
 
             _currentStrategyB = _injectionAI_B.LLMData.CurrentStrategy;
