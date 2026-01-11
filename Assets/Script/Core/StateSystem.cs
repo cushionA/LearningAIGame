@@ -431,6 +431,17 @@ namespace LearningAIGame.CombatSystem.Core
                 return HitResultType.Hit;
             }
 
+            // ガード中ならつねにガード設定になるように
+            if (CurrentState.CurrentValue == ActionState.ガード)
+            {
+                _defenseInfo.SetInfo(DefenseType.Guard, 0, 0);
+            }
+            // 防御状態以外であれば防御なしとする
+            else if ((CurrentState.CurrentValue & ActionState.防御) == 0)
+            {
+                _defenseInfo.SetInfo(DefenseType.None, 0, 0);
+            }
+
             return _defenseInfo.IsDefenseSuccess(attackInfo, CurrentStance.CurrentValue);
         }
 
@@ -511,6 +522,16 @@ namespace LearningAIGame.CombatSystem.Core
             // 防御成功した場合
             else
             {
+
+                // 被ダメージ状況を追加
+                _llmLogData.AddDamageSituationLog(new HitSituation(damageReport));
+
+                // 反撃成功時に防御成功イベントが呼ばれないように制御
+                if ((CurrentState.CurrentValue & ActionState.防御) == 0)
+                {
+                    return;
+                }
+
                 // ガード成功
                 if (damageReport.DefenseAction == ActionState.ガード)
                 {
@@ -529,8 +550,7 @@ namespace LearningAIGame.CombatSystem.Core
                 }
             }
 
-            // 被ダメージ状況を追加
-            _llmLogData.AddDamageSituationLog(new HitSituation(damageReport));
+
         }
 
         /// <summary>

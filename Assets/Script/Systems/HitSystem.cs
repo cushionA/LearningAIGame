@@ -135,22 +135,21 @@ namespace LearningAIGame.CombatSystem.Systems
         /// <param name="attackId">この攻撃の一意なID</param>
         protected async UniTaskVoid AttackFrameWaitAsync(int waitFrame, int attackId)
         {
-
-            // フレーム数で正確に待機
-            bool isCancel = await UniTask.DelayFrame(waitFrame, cancellationToken: destroyCancellationToken).SuppressCancellationThrow();
+            // Time.timeScale = 0 で停止する
+            bool isCancel = await UniTask.DelayFrame(
+                waitFrame,
+                PlayerLoopTiming.FixedUpdate,
+                cancellationToken: destroyCancellationToken
+            ).SuppressCancellationThrow();
 
             Debug.Log($"[{DateTime.Now}][HitSystem:{gameObject.transform.parent.name}] 攻撃持続フレーム終了: attackId={attackId}, currentAttackId={_currentAttackId}");
 
-            // この攻撃がまだ有効かチェック（新しい攻撃が始まっていないか）
-            // キャンセルもチェック
             if (attackId != _currentAttackId || isCancel)
             {
-                return; // 既に別の攻撃が始まっているので何もしない
+                return;
             }
 
-            // 当たり判定を消して通知
             _collider.enabled = false;
-
             AttackResultReport();
         }
 

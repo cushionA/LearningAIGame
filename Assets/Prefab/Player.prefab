@@ -2403,7 +2403,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 119c610b7d9a4fc4e85369462af8815d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: GameCode::LearningAIGame.CombatSystem.UI.BattleGaugeUIController
-  _stateSystem: {fileID: 4326633254594565132}
   _damageSystem: {fileID: 1134377440771772164}
   _followTarget: {fileID: 8431574843176989603}
   _hpFillImage: {fileID: 9045691374961324992}
@@ -3169,6 +3168,7 @@ SkinnedMeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   serializedVersion: 2
   m_Quality: 0
   m_UpdateWhenOffscreen: 0
@@ -3558,7 +3558,7 @@ SphereCollider:
   m_ProvidesContacts: 0
   m_Enabled: 0
   serializedVersion: 3
-  m_Radius: 0.533
+  m_Radius: 0.85
   m_Center: {x: -0.035, y: 0.8, z: 0.35}
 --- !u!1 &6578683195082328095
 GameObject:
