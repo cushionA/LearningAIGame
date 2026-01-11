@@ -5,6 +5,7 @@ using LearningAIGame.Scene;
 using LearningAIGame.UI.Battle;
 using LearningAIGame.UI.Common;
 using LLMDataArchitect;
+using NaughtyAttributes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -159,6 +160,8 @@ namespace LearningAIGame.CombatSystem.Singleton
         private LLMCommunicator _communicator;
 
         // バトルシーン参照（構造体で一括管理）
+        [SerializeField]
+        [ReadOnly]
         private BattleSceneReferences _battleRefs;
 
         #endregion
@@ -564,6 +567,7 @@ namespace LearningAIGame.CombatSystem.Singleton
         /// </summary>
         public void TogglePause()
         {
+            Debug.Log("[GameManager] ポーズ状態をトグル");
             if (_currentState == GameState.Pause)
             {
                 ClosePause();
@@ -593,15 +597,10 @@ namespace LearningAIGame.CombatSystem.Singleton
             Time.timeScale = 0f;
             _pauseStartTime = Time.realtimeSinceStartup;
 
-            if (_gameManagerHelper != null)
+            if (_retryMenuUIController != null)
             {
-                foreach (var helper in _gameManagerHelper)
-                {
-                    helper.Lock();
-                }
+                _retryMenuUIController.ShowImmediate();
             }
-
-            _onOpenPause?.Invoke();
         }
 
         /// <summary>
@@ -622,15 +621,10 @@ namespace LearningAIGame.CombatSystem.Singleton
             Time.timeScale = 1f;
             _totalPausedTime += Time.realtimeSinceStartup - _pauseStartTime;
 
-            if (_gameManagerHelper != null)
+            if (_retryMenuUIController != null)
             {
-                foreach (var helper in _gameManagerHelper)
-                {
-                    helper.Unlock();
-                }
+                _retryMenuUIController.HideImmediate();
             }
-
-            _onClosePause?.Invoke();
         }
 
         #endregion
@@ -865,6 +859,9 @@ namespace LearningAIGame.CombatSystem.Singleton
             _isTransitioning = true;
             _isBattleActive = false;
 
+            // ★ シーン遷移前にキャラクターを破棄
+            CleanupCharacters();
+
             if (_uiController != null)
             {
                 await _uiController.BlackoutAsync();
@@ -895,6 +892,26 @@ namespace LearningAIGame.CombatSystem.Singleton
                 }
                 _isTransitioning = false;
             }
+        }
+
+        /// <summary>
+        /// キャラクターをクリーンアップする
+        /// </summary>
+        private void CleanupCharacters()
+        {
+            if (_player != null)
+            {
+                Destroy(_player);
+                _player = null;
+            }
+
+            if (_npc != null)
+            {
+                Destroy(_npc);
+                _npc = null;
+            }
+
+            _gameManagerHelper = null;
         }
 
         #endregion
@@ -1087,10 +1104,15 @@ namespace LearningAIGame.CombatSystem.Singleton
                 helper.RoundStart();
             }
 
+            // 少し待つ
+            await UniTask.DelayFrame(60);
+
             _battleRefs.PlayerSpawnPoint.GetPositionAndRotation(out var position, out var rotation);
             _player.transform.SetPositionAndRotation(position, rotation);
             _battleRefs.NpcSpawnPoint.GetPositionAndRotation(out position, out rotation);
             _npc.transform.SetPositionAndRotation(position, rotation);
+
+            Debug.Log($"位置確認{_player.transform.position == _battleRefs.PlayerSpawnPoint.position} {_npc.transform.position == position}");
 
             if (_uiController != null)
             {

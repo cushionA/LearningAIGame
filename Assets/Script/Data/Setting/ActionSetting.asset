@@ -18,7 +18,7 @@ MonoBehaviour:
   _weakAttackStepDuration: 0.55
   _weakAttackStun: 0.2
   _weakAttackStartFrame: 25
-  _weakAttackDurationFrame: 1
+  _weakAttackDurationFrame: 3
   _heavyAttackDamage: 15
   _heavyAttackEnergyCost: 14
   _heavyAttackStepSpeed: 10
@@ -26,11 +26,11 @@ MonoBehaviour:
   _heavyAttackStun: 0.4
   _heavyAttackCancelEnergyCost: 6
   _heavyAttackCancelStun: 0.01
-  _heavyAttackStartFrame: 45
-  _heavyAttackDurationFrame: 2
+  _heavyAttackStartFrame: 42
+  _heavyAttackDurationFrame: 3
   _blockingEnergyCost: 3
-  _blockingStartDelay: 0.02
-  _blockingDuration: 0.35
+  _blockingStartDelay: 0.04
+  _blockingDuration: 0.28
   _blockingStun: 0.45
   _blockingSuccessStun: 0.9
   _avoidEnergyCost: 6

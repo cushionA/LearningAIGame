@@ -180,7 +180,7 @@ namespace LearningAIGame.CombatSystem.Core
 
             _attackSystem.WeakAttack(damage, stance, stepVector, stepDuration, _actionSetting.WeakAttackStartFrame);
 
-            bool isCancel = await UniTask.DelayFrame(_actionSetting.WeakAttackStartFrame, cancellationToken: destroyCancellationToken).SuppressCancellationThrow();
+            bool isCancel = await UniTask.DelayFrame(_actionSetting.WeakAttackStartFrame, PlayerLoopTiming.FixedUpdate, cancellationToken: destroyCancellationToken).SuppressCancellationThrow();
             _lookEnemyEnabled = false;// 攻撃判定中は敵の方向を向かない
             if (!isCancel && (_stateSystem.CurrentState.CurrentValue & ActionState.弱攻撃系統) > 0)
             {
@@ -210,7 +210,7 @@ namespace LearningAIGame.CombatSystem.Core
 
             _attackSystem.HeavyAttack(damage, stance, stepVector, stepDuration, _actionSetting.HeavyAttackStartFrame);
 
-            bool isCancel = await UniTask.DelayFrame(_actionSetting.HeavyAttackStartFrame, cancellationToken: destroyCancellationToken).SuppressCancellationThrow();
+            bool isCancel = await UniTask.DelayFrame(_actionSetting.HeavyAttackStartFrame, PlayerLoopTiming.FixedUpdate, cancellationToken: destroyCancellationToken).SuppressCancellationThrow();
             _lookEnemyEnabled = false;// 攻撃判定中は敵の方向を向かない
 
             if (!isCancel && _stateSystem.CurrentState.CurrentValue == ActionState.強攻撃)
@@ -303,7 +303,7 @@ namespace LearningAIGame.CombatSystem.Core
         /// </summary>
         private async UniTaskVoid BlockingReleaseAfterDelay(int delay, StanceType stance)
         {
-            bool isCancel = await UniTask.DelayFrame(delay, cancellationToken: destroyCancellationToken).SuppressCancellationThrow();
+            bool isCancel = await UniTask.DelayFrame(delay, PlayerLoopTiming.FixedUpdate, cancellationToken: destroyCancellationToken).SuppressCancellationThrow();
 
             if (!isCancel)
             {
