@@ -1,3 +1,4 @@
+using NaughtyAttributes;
 using System;
 using System.Runtime.CompilerServices;
 using UnityEngine;
@@ -5,90 +6,148 @@ using UnityEngine;
 namespace LearningAIGame.CombatSystem.Core
 {
     /// <summary>
-    /// 移動速度管理を担当するコントローラー
+    /// 敵を中心とした移動速度管理を担当するコントローラー
     /// </summary>
-    public class MoveController : MonoBehaviour
+    /// <remarks>
+    /// 移動は常にターゲット相対座標系で計算される:
+    /// - 前方(Z+): ターゲットに接近
+    /// - 後方(Z-): ターゲットから離脱
+    /// - 左右(X): ターゲットを中心とした円周移動
+    /// </remarks>
+    public class MoveController : MonoBehaviour, ITargetSet
     {
+        #region 定数
+
+        /// <summary>
+        /// ターゲットとの最小距離（ゼロ除算防止）
+        /// </summary>
+        private const float k_MIN_TARGET_DISTANCE = 0.1f;
+
+        #endregion
+
+        #region 列挙型
+
         /// <summary>
         /// 移動種類の区分
         /// </summary>
         private enum MoveType : byte
         {
+            /// <summary>等速移動（Velocity直接設定）</summary>
             Velocity,
-            AddForce,
+            /// <summary>減速移動（AddForce的な挙動）</summary>
+            Decelerate,
+            /// <summary>移動なし</summary>
             None
         }
 
+        #endregion
+
+        #region シリアライズフィールド
+
         /// <summary>
-        /// 移動処理対象
+        /// 移動処理対象のRigidbody
         /// </summary>
         [SerializeField]
         private Rigidbody _rb;
 
+        #endregion
+
+        #region プライベートフィールド
+
         /// <summary>
-        /// 地面検知用のレイキャスト距離
+        /// ターゲット（敵）のTransform
         /// </summary>
         [SerializeField]
-        private float _groundCheckDistance = 0.1f;
+        [ReadOnly]
+        private Transform _target;
 
         /// <summary>
-        /// 地面として認識するレイヤー
+        /// 現在の移動種類
         /// </summary>
-        [SerializeField]
-        private LayerMask _groundLayer = -1;
+        private MoveType _moveType = MoveType.None;
 
         /// <summary>
-        /// ローカル座標系で移動するか（true: キャラの向きに沿う、false: ワールド座標）
+        /// 入力された移動ベクトル（ローカル座標系: X=左右, Z=前後）
         /// </summary>
-        [SerializeField]
-        private bool _useLocalDirection = true;
+        private Vector3 _inputVector;
 
         /// <summary>
-        /// 移動開始時間
+        /// AddForce用: 移動開始時のワールド方向ベクトル
         /// </summary>
-        private float _moveStartTime;
+        private Vector3 _decelerateWorldDirection;
 
         /// <summary>
-        /// 移動継続時間
+        /// AddForce用: 初期速度
         /// </summary>
-        private float _moveDuration;
+        private float _decelerateInitialSpeed;
 
         /// <summary>
-        /// 移動ベクトル(ローカル座標系またはワールド座標系)
+        /// AddForce用: 移動開始時間
         /// </summary>
-        private Vector3 _moveDirection;
+        private float _decelerateStartTime;
 
         /// <summary>
-        /// 移動種類
+        /// AddForce用: 移動継続時間
         /// </summary>
-        private MoveType _moveType;
+        private float _decelerateDuration;
+
+        #endregion
+
+        #region パブリックAPI
 
         /// <summary>
-        /// 通常移動開始(Velocity設定)
+        /// ターゲット（敵）を設定する
         /// </summary>
-        /// <param name="moveVector">移動ベクトル(ローカル座標系の場合は自分の向き基準)</param>
-        public void MoveStart(Vector3 moveVector)
+        /// <param name="target">ターゲットのTransform（nullで解除）</param>
+        public void SetTarget(Transform target)
         {
-            // Y軸成分は無視して水平方向のみ保持
-            Vector3 localDirection = new Vector3(moveVector.x, 0f, moveVector.z);
-
-            // ローカル座標系の場合、ワールド座標に変換
-            _moveDirection = _useLocalDirection
-                ? transform.TransformDirection(localDirection)
-                : localDirection;
-
-            _moveType = MoveType.Velocity;
-            _moveDuration = 0f;
+            _target = target;
         }
 
         /// <summary>
-        /// 加速度付き移動開始(AddForce設定)
+        /// 通常移動開始（等速移動）
         /// </summary>
-        /// <param name="moveVector">移動ベクトル(ローカル座標系の場合は自分の向き基準)</param>
+        /// <param name="moveVector">移動ベクトル（X=左右, Z=前後）</param>
+        /// <remarks>
+        /// ターゲット相対座標系で解釈される:
+        /// - Z+: ターゲットに接近
+        /// - Z-: ターゲットから離脱
+        /// - X+: ターゲットを中心に時計回り
+        /// - X-: ターゲットを中心に反時計回り
+        /// </remarks>
+        public void MoveStart(Vector3 moveVector)
+        {
+            // ターゲット未設定時は移動しない
+            if (_target == null)
+            {
+                _moveType = MoveType.None;
+                return;
+            }
+
+            // Y軸成分は無視
+            _inputVector = new Vector3(moveVector.x, 0f, moveVector.z);
+            _moveType = MoveType.Velocity;
+        }
+
+        /// <summary>
+        /// 減速付き移動開始（AddForce的挙動）
+        /// </summary>
+        /// <param name="moveVector">移動ベクトル（X=左右, Z=前後）</param>
         /// <param name="moveDuration">移動継続時間</param>
+        /// <remarks>
+        /// 移動開始時点のターゲット位置を基準にワールド方向を計算し、
+        /// その方向へ減速しながら移動する
+        /// </remarks>
         public void AddForce(Vector3 moveVector, float moveDuration)
         {
-            // 移動時間が0以下の場合は即座に停止
+            // ターゲット未設定時は移動しない
+            if (_target == null)
+            {
+                _moveType = MoveType.None;
+                return;
+            }
+
+            // 移動時間が0以下の場合は無視
             if (moveDuration <= 0f)
             {
                 Debug.LogWarning($"[MoveController] Invalid moveDuration: {moveDuration}. Movement will be ignored.");
@@ -96,18 +155,19 @@ namespace LearningAIGame.CombatSystem.Core
                 return;
             }
 
-            Debug.Log($"[MoveController] AddForce called with moveVector: {moveVector}, moveDuration: {moveDuration}");
+            // Y軸成分は無視
+            Vector3 inputXZ = new Vector3(moveVector.x, 0f, moveVector.z);
 
-            // Y軸成分は無視して水平方向のみ保持
-            _moveDirection = new Vector3(moveVector.x, 0f, moveVector.z);
-
-            _moveStartTime = Time.time;
-            _moveDuration = moveDuration;
-            _moveType = MoveType.AddForce;
+            // 移動開始時点でワールド方向を計算・固定
+            _decelerateWorldDirection = CalculateWorldDirection(inputXZ, out float speed);
+            _decelerateInitialSpeed = speed;
+            _decelerateStartTime = Time.time;
+            _decelerateDuration = moveDuration;
+            _moveType = MoveType.Decelerate;
         }
 
         /// <summary>
-        /// 停止処理(MoveTypeをNoneに設定)
+        /// 停止処理
         /// </summary>
         public void Stop()
         {
@@ -115,62 +175,149 @@ namespace LearningAIGame.CombatSystem.Core
             _moveType = MoveType.None;
         }
 
+        #endregion
+
+        #region Unityイベント
+
         private void FixedUpdate()
         {
-            InternalCalcSpeed();
+            UpdateMovement();
         }
 
+        #endregion
+
+        #region 内部処理
+
         /// <summary>
-        /// 毎フレーム速度計算。FixedUpdateで呼び出す
+        /// 毎フレームの移動更新処理
         /// </summary>
-        private void InternalCalcSpeed()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void UpdateMovement()
         {
-            // 移動タイプがNoneの場合は早期リターン
             if (_moveType == MoveType.None)
             {
                 return;
             }
 
-            // 現在のY軸速度(重力による落下速度)を保持
+            // 現在のY軸速度（重力）を保持
             float verticalVelocity = _rb.linearVelocity.y;
 
-            // 移動タイプによって処理を分岐
             switch (_moveType)
             {
                 case MoveType.Velocity:
-                    // 等速運動:水平方向の速度のみ設定、Y軸は保持
-                    _rb.linearVelocity = new Vector3(
-                        _moveDirection.x,
-                        verticalVelocity,
-                        _moveDirection.z
-                    );
+                    UpdateVelocityMovement(verticalVelocity);
                     break;
 
-                case MoveType.AddForce:
-                    // 加速度付き運動:指数関数的な減衰で自然な力の減衰を表現
-                    float elapsedTime = Time.time - _moveStartTime;
-                    float normalizedTime = elapsedTime / _moveDuration;
-
-                    // 1 - t^2 の減衰カーブ(開始時最大、滑らかに減速)
-                    float decayFactor = 1f - (normalizedTime * normalizedTime);
-
-                    Vector3 horizontalVelocity = _moveDirection * decayFactor;
-                    horizontalVelocity = _useLocalDirection
-                ? transform.TransformDirection(horizontalVelocity)
-                : horizontalVelocity;
-                    horizontalVelocity.y = verticalVelocity;
-
-                    // 水平方向の速度のみ適用、Y軸は保持
-                    _rb.linearVelocity = horizontalVelocity;
-
-                    // 移動継続時間を超えたら停止
-                    if (elapsedTime >= _moveDuration)
-                    {
-                        _moveDirection = Vector3.zero;
-                        _moveType = MoveType.None;
-                    }
+                case MoveType.Decelerate:
+                    UpdateDecelerateMovement(verticalVelocity);
                     break;
             }
         }
+
+        /// <summary>
+        /// 等速移動の更新
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void UpdateVelocityMovement(float verticalVelocity)
+        {
+            // ターゲットが消えた場合は停止
+            if (_target == null)
+            {
+                _moveType = MoveType.None;
+                return;
+            }
+
+            // 毎フレーム、現在のターゲット位置を基準にワールド方向を計算
+            Vector3 worldDirection = CalculateWorldDirection(_inputVector, out float speed);
+
+            _rb.linearVelocity = new Vector3(
+                worldDirection.x * speed,
+                verticalVelocity,
+                worldDirection.z * speed
+            );
+        }
+
+        /// <summary>
+        /// 減速移動の更新
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void UpdateDecelerateMovement(float verticalVelocity)
+        {
+            float elapsedTime = Time.time - _decelerateStartTime;
+
+            // 移動時間終了チェック
+            if (elapsedTime >= _decelerateDuration)
+            {
+                _moveType = MoveType.None;
+                return;
+            }
+
+            // 減衰係数: 1 - t^2 のカーブ
+            float normalizedTime = elapsedTime / _decelerateDuration;
+            float decayFactor = 1f - (normalizedTime * normalizedTime);
+
+            float currentSpeed = _decelerateInitialSpeed * decayFactor;
+
+            _rb.linearVelocity = new Vector3(
+                _decelerateWorldDirection.x * currentSpeed,
+                verticalVelocity,
+                _decelerateWorldDirection.z * currentSpeed
+            );
+        }
+
+        /// <summary>
+        /// 入力ベクトルからワールド方向と速度を計算
+        /// </summary>
+        /// <param name="input">入力ベクトル（X=左右, Z=前後）</param>
+        /// <param name="speed">出力: 移動速度</param>
+        /// <returns>正規化されたワールド方向ベクトル</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Vector3 CalculateWorldDirection(Vector3 input, out float speed)
+        {
+            // 自分からターゲットへのベクトル
+            Vector3 toTarget = _target.position - transform.position;
+            toTarget.y = 0f;
+
+            float distanceToTarget = toTarget.magnitude;
+
+            // 最小距離以下の場合は移動しない
+            if (distanceToTarget < k_MIN_TARGET_DISTANCE)
+            {
+                speed = 0f;
+                return Vector3.zero;
+            }
+
+            // ターゲット方向の正規化ベクトル
+            Vector3 forwardDir = toTarget / distanceToTarget;
+
+            // 右方向（時計回り方向）
+            Vector3 rightDir = new Vector3(forwardDir.z, 0f, -forwardDir.x);
+
+            // 入力を分解
+            float forwardInput = input.z;  // 前後（+で接近、-で離脱）
+            float strafeInput = input.x;   // 左右（+で時計回り、-で反時計回り）
+
+            // ワールド方向を合成
+            Vector3 worldDirection = (forwardDir * forwardInput) + (rightDir * strafeInput);
+
+            // 速度は入力の大きさ
+            speed = worldDirection.magnitude;
+
+            // 正規化して返す（速度0の場合はゼロベクトル）
+            if (speed > 0.001f)
+            {
+                return worldDirection / speed;
+            }
+
+            speed = 0f;
+            return Vector3.zero;
+        }
+
+        public void SetTarget(GameObject target)
+        {
+            _target = target.transform;
+        }
+
+        #endregion
     }
 }

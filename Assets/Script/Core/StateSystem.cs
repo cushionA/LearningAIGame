@@ -121,7 +121,7 @@ namespace LearningAIGame.CombatSystem.Core
 
             // --- 複合フラグ（論理和 '|' を使用） ---
             ガード方向切り替え可能 = ガード,
-            敵への自動転回可能 = ガード | 回避 | ブロッキング成功 | ガード成功 | ブロッキング | 強攻撃キャンセル | 小怯み | 大怯み | 弱攻撃ブロッキング | 強攻撃ブロッキング,
+            敵への自動転回可能 = ガード | 回避 | ブロッキング成功 | ガード成功 | 攻撃 | ブロッキング | 強攻撃キャンセル | 小怯み | 大怯み | 弱攻撃ブロッキング | 強攻撃ブロッキング,
             ブロッキング可能 = ガード | ブロッキング成功 | ガード成功,
             回避可能 = ガード | ブロッキング成功 | ガード成功,
             防御可能 = ガード | ブロッキング成功 | ガード成功,
@@ -431,6 +431,17 @@ namespace LearningAIGame.CombatSystem.Core
                 return HitResultType.Hit;
             }
 
+            // ガード中ならつねにガード設定になるように
+            if (CurrentState.CurrentValue == ActionState.ガード)
+            {
+                _defenseInfo.SetInfo(DefenseType.Guard, 0, 0);
+            }
+            // 防御状態以外であれば防御なしとする
+            else if ((CurrentState.CurrentValue & ActionState.防御) == 0)
+            {
+                _defenseInfo.SetInfo(DefenseType.None, 0, 0);
+            }
+
             return _defenseInfo.IsDefenseSuccess(attackInfo, CurrentStance.CurrentValue);
         }
 
@@ -511,6 +522,16 @@ namespace LearningAIGame.CombatSystem.Core
             // 防御成功した場合
             else
             {
+
+                // 被ダメージ状況を追加
+                _llmLogData.AddDamageSituationLog(new HitSituation(damageReport));
+
+                // 反撃成功時に防御成功イベントが呼ばれないように制御
+                if ((CurrentState.CurrentValue & ActionState.防御) == 0)
+                {
+                    return;
+                }
+
                 // ガード成功
                 if (damageReport.DefenseAction == ActionState.ガード)
                 {
@@ -529,8 +550,7 @@ namespace LearningAIGame.CombatSystem.Core
                 }
             }
 
-            // 被ダメージ状況を追加
-            _llmLogData.AddDamageSituationLog(new HitSituation(damageReport));
+
         }
 
         /// <summary>
