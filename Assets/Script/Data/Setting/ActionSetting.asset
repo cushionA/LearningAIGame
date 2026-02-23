@@ -19,7 +19,7 @@ MonoBehaviour:
   _weakAttackStun: 0.2
   _weakAttackStartFrame: 25
   _weakAttackDurationFrame: 3
-  _heavyAttackDamage: 150
+  _heavyAttackDamage: 15
   _heavyAttackEnergyCost: 14
   _heavyAttackStepSpeed: 10
   _heavyAttackStepDuration: 0.7
