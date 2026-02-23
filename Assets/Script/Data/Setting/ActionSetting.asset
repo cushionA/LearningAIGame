@@ -12,14 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0d507e3bf87b99d4da37d095cc52d11f, type: 3}
   m_Name: ActionSetting
   m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.CombatSystem.Setting.ActionSetting
-  _weakAttackDamage: 6
+  _weakAttackDamage: 9
   _weakAttackEnergyCost: 8
   _weakAttackStepSpeed: 10
   _weakAttackStepDuration: 0.55
   _weakAttackStun: 0.2
   _weakAttackStartFrame: 25
   _weakAttackDurationFrame: 3
-  _heavyAttackDamage: 15
+  _heavyAttackDamage: 150
   _heavyAttackEnergyCost: 14
   _heavyAttackStepSpeed: 10
   _heavyAttackStepDuration: 0.7
@@ -34,7 +34,7 @@ MonoBehaviour:
   _blockingStun: 0.45
   _blockingSuccessStun: 0.9
   _avoidEnergyCost: 6
-  _avoidSpeed: 12
+  _avoidSpeed: 9.5
   _avoidDuration: 0.45
   _backAvoidSpeed: 10
   _backAvoidDuration: 0.35

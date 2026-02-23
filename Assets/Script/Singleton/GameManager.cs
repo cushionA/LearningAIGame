@@ -9,6 +9,7 @@ using NaughtyAttributes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
@@ -80,6 +81,9 @@ namespace LearningAIGame.CombatSystem.Singleton
         [SerializeField]
         private RetryMenuUIController _retryMenuUIController;
 
+        [SerializeField]
+        private DescriptionUIController _descriptionUIController;
+
         [Header("=== Character Settings ===")]
         [Tooltip("プレイヤーキャラのプレハブ")]
         [SerializeField]
@@ -99,27 +103,36 @@ namespace LearningAIGame.CombatSystem.Singleton
         [SerializeField]
         private AudioClip _buttonHoverSE;
 
+        [SerializeField]
+        private AudioClip _congratulationSE;
+
+        [SerializeField]
+        private AudioClip _entranceSE;
+
+        [SerializeField]
+        private AudioClip _roundAnnounceSE;
+
+        [SerializeField]
+        private AudioClip _battleStartSE;
+
+        [SerializeField]
+        private AudioClip _roundWinSE;
+
+        [SerializeField]
+        private AudioClip _roundLoseSE;
+
+        [SerializeField]
+        private AudioClip _battleWinSE;
+
+        [SerializeField]
+        private AudioClip _battleLoseSE;
+
         [SerializeField, Range(0f, 1f)]
         private float _seVolume = 1f;
 
         [Header("=== Settings ===")]
         [SerializeField]
         private float _sceneTransitionDuration = 0.5f;
-
-        [Header("=== How To Play Settings ===")]
-        [Tooltip("遊び方の総ページ数")]
-        [SerializeField]
-        private int _howToPlayTotalPages = 3;
-
-        [Header("=== Events - How To Play ===")]
-        [SerializeField]
-        private UnityEvent _onOpenHowToPlay;
-
-        [SerializeField]
-        private UnityEvent _onCloseHowToPlay;
-
-        [SerializeField]
-        private UnityEvent<int> _onHowToPlayPageChanged;
 
         [Header("=== Events - Pause ===")]
         [SerializeField]
@@ -128,13 +141,24 @@ namespace LearningAIGame.CombatSystem.Singleton
         [SerializeField]
         private UnityEvent _onClosePause;
 
+        /// <summary>
+        /// リザルト画面のカメラ位置（シーン遷移時にカメラをここに移動してからフェードインする）
+        /// </summary>
+        [SerializeField]
+        private Transform _resultCameraPlace;
+
+        /// <summary>
+        /// タイトル画面のカメラ位置（シーン遷移時にカメラをここに移動してからフェードインする）
+        /// </summary>
+        [SerializeField]
+        private Transform _titleCameraPlace;
+
         #endregion
 
         #region Runtime References
 
         private GameObject _player;
         private GameObject _npc;
-        private int _currentHowToPlayPage = 1;
 
         #endregion
 
@@ -371,13 +395,12 @@ namespace LearningAIGame.CombatSystem.Singleton
         /// </summary>
         private void SetUIState_Title()
         {
-            if (_retryMenuUIController != null)
+            if (_retryMenuUIController != null && _currentState != GameState.Result)
             {
                 _retryMenuUIController.HideImmediate();
+                SetBattleGaugeVisible(false);
+                Debug.Log("[GameManager] UI状態: Title（RetryMenu=非表示, BattleGauge=非表示）");
             }
-
-            SetBattleGaugeVisible(false);
-            Debug.Log("[GameManager] UI状態: Title（RetryMenu=非表示, BattleGauge=非表示）");
         }
 
         /// <summary>
@@ -447,6 +470,41 @@ namespace LearningAIGame.CombatSystem.Singleton
         public void PlayButtonHoverSE() => PlaySE(_buttonHoverSE);
 
         /// <summary>
+        /// 勝利の音を再生
+        /// </summary>
+        public void PlayCongratulationSE() => PlaySE(_congratulationSE);
+
+        /// <summary>
+        /// ラウンド表示音を再生
+        /// </summary>
+        public void PlayRoundAnnounceSE() => PlaySE(_roundAnnounceSE);
+
+        /// <summary>
+        /// 戦闘開始音を再生
+        /// </summary>
+        public void PlayBattleStartSE() => PlaySE(_battleStartSE);
+
+        /// <summary>
+        /// ラウンド勝利音を再生
+        /// </summary>
+        public void PlayRoundWinSE() => PlaySE(_roundWinSE);
+
+        /// <summary>
+        /// バトル勝利音を再生
+        /// </summary>
+        public void PlayBattleWinSE() => PlaySE(_battleWinSE);
+
+        /// <summary>
+        /// ラウンド敗北音を再生
+        /// </summary>
+        public void PlayRoundLoseSE() => PlaySE(_roundLoseSE);
+
+        /// <summary>
+        /// バトル敗北音を再生
+        /// </summary>
+        public void PlayBattleLoseSE() => PlaySE(_battleLoseSE);
+
+        /// <summary>
         /// SE再生（汎用）
         /// </summary>
         /// <param name="clip">再生するオーディオクリップ</param>
@@ -499,63 +557,8 @@ namespace LearningAIGame.CombatSystem.Singleton
         public void OpenHowToPlay()
         {
             PlayButtonClickSE();
-            _currentHowToPlayPage = 1;
             Debug.Log("[GameManager] 遊び方を開く");
-            _onOpenHowToPlay?.Invoke();
-            _onHowToPlayPageChanged?.Invoke(_currentHowToPlayPage);
-        }
-
-        /// <summary>
-        /// 遊び方画面を閉じる
-        /// </summary>
-        public void CloseHowToPlay()
-        {
-            PlayButtonClickSE();
-            Debug.Log("[GameManager] 遊び方を閉じる");
-            _onCloseHowToPlay?.Invoke();
-        }
-
-        /// <summary>
-        /// 遊び方の次のページへ
-        /// </summary>
-        public void NextHowToPlayPage()
-        {
-            if (_currentHowToPlayPage >= _howToPlayTotalPages)
-                return;
-
-            PlayButtonClickSE();
-            _currentHowToPlayPage++;
-            Debug.Log($"[GameManager] 遊び方ページ: {_currentHowToPlayPage}/{_howToPlayTotalPages}");
-            _onHowToPlayPageChanged?.Invoke(_currentHowToPlayPage);
-        }
-
-        /// <summary>
-        /// 遊び方の前のページへ
-        /// </summary>
-        public void PrevHowToPlayPage()
-        {
-            if (_currentHowToPlayPage <= 1)
-                return;
-
-            PlayButtonClickSE();
-            _currentHowToPlayPage--;
-            Debug.Log($"[GameManager] 遊び方ページ: {_currentHowToPlayPage}/{_howToPlayTotalPages}");
-            _onHowToPlayPageChanged?.Invoke(_currentHowToPlayPage);
-        }
-
-        /// <summary>
-        /// 遊び方の指定ページへジャンプ
-        /// </summary>
-        /// <param name="page">ジャンプ先のページ番号</param>
-        public void GoToHowToPlayPage(int page)
-        {
-            if (page < 1 || page > _howToPlayTotalPages || page == _currentHowToPlayPage)
-                return;
-
-            PlayButtonClickSE();
-            _currentHowToPlayPage = page;
-            Debug.Log($"[GameManager] 遊び方ページ: {_currentHowToPlayPage}/{_howToPlayTotalPages}");
-            _onHowToPlayPageChanged?.Invoke(_currentHowToPlayPage);
+            _descriptionUIController.Open();
         }
 
         #endregion
@@ -634,7 +637,7 @@ namespace LearningAIGame.CombatSystem.Singleton
         /// <summary>
         /// タイトルへ戻る（どの画面からでも使用可能）
         /// </summary>
-        public void ReturnToTitle()
+        public async Task ReturnToTitle()
         {
             if (_isTransitioning)
                 return;
@@ -653,8 +656,16 @@ namespace LearningAIGame.CombatSystem.Singleton
                 _retryMenuUIController.HideImmediate();
             }
 
+            _titleCameraPlace.GetPositionAndRotation(out Vector3 titleCamPos, out Quaternion titleCamRot);
+            Camera.main.transform.SetLocalPositionAndRotation(titleCamPos, titleCamRot);
+
             Debug.Log("[GameManager] タイトルへ戻る");
-            TransitionToSceneAsync(k_TitleSceneName, GameState.Title).Forget();
+            await TransitionToSceneAsync(k_TitleSceneName, GameState.Title);
+
+            if (_uiController != null)
+            {
+                await _uiController.BlackoutReleaseAsync();
+            }
         }
 
         /// <summary>
@@ -846,6 +857,10 @@ namespace LearningAIGame.CombatSystem.Singleton
                 await _uiController.BlackoutReleaseAsync();
             }
 
+            await UniTask.Delay(500);
+
+            PlaySE(_entranceSE);
+
             _isTransitioning = false;
         }
 
@@ -859,7 +874,7 @@ namespace LearningAIGame.CombatSystem.Singleton
             _isTransitioning = true;
             _isBattleActive = false;
 
-            // ★ シーン遷移前にキャラクターを破棄
+            // シーン遷移前にキャラクターを破棄
             CleanupCharacters();
 
             if (_uiController != null)
@@ -886,10 +901,6 @@ namespace LearningAIGame.CombatSystem.Singleton
 
             if (nextState != GameState.Battle)
             {
-                if (_uiController != null)
-                {
-                    await _uiController.BlackoutReleaseAsync();
-                }
                 _isTransitioning = false;
             }
         }
@@ -989,9 +1000,6 @@ namespace LearningAIGame.CombatSystem.Singleton
         /// <summary>
         /// 次のバトルへ移行
         /// </summary>
-        /// <summary>
-        /// 次のバトルへ移行
-        /// </summary>
         private async UniTask TransitionToNextBattle()
         {
             _currentBattleIndex++;
@@ -1041,8 +1049,6 @@ namespace LearningAIGame.CombatSystem.Singleton
             _battleRefs.PlayerScoreText.text = "0";
 
             await RoundStartAsync();
-
-            _isTransitioning = false;
         }
 
         /// <summary>
@@ -1093,7 +1099,6 @@ namespace LearningAIGame.CombatSystem.Singleton
             _isTransitioning = false;
         }
 
-
         /// <summary>
         /// ラウンド開始時の処理
         /// </summary>
@@ -1108,16 +1113,25 @@ namespace LearningAIGame.CombatSystem.Singleton
             await UniTask.DelayFrame(60);
 
             _battleRefs.PlayerSpawnPoint.GetPositionAndRotation(out var position, out var rotation);
-            _player.transform.SetPositionAndRotation(position, rotation);
-            _battleRefs.NpcSpawnPoint.GetPositionAndRotation(out position, out rotation);
-            _npc.transform.SetPositionAndRotation(position, rotation);
+            _battleRefs.NpcSpawnPoint.GetPositionAndRotation(out var npcPosition, out var npcRotation);
+
+            while (_player.transform.position != position || _npc.transform.position != npcPosition)
+            {
+                _player.transform.SetPositionAndRotation(position, rotation);
+                _npc.transform.SetPositionAndRotation(npcPosition, npcRotation);
+                await UniTask.DelayFrame(1);
+            }
 
             Debug.Log($"位置確認{_player.transform.position == _battleRefs.PlayerSpawnPoint.position} {_npc.transform.position == position}");
 
             if (_uiController != null)
             {
                 await _uiController.BlackoutReleaseAsync();
+
+                PlayRoundAnnounceSE();
                 await _uiController.ShowRoundAsync(_playerScoreNum + _npcScoreNum + 1);
+
+                PlayBattleStartSE();
                 await _uiController.ShowFightAsync();
             }
 
@@ -1148,10 +1162,12 @@ namespace LearningAIGame.CombatSystem.Singleton
             {
                 if (_winner == _player)
                 {
+                    PlayRoundWinSE();
                     await _uiController.ShowPlayerWinAsync();
                 }
                 else
                 {
+                    PlayRoundLoseSE();
                     await _uiController.ShowPlayerLoseAsync();
                 }
             }
@@ -1181,7 +1197,9 @@ namespace LearningAIGame.CombatSystem.Singleton
 
             if (_uiController != null)
             {
+                PlayRoundWinSE();
                 await _uiController.ShowPlayerWinAsync();
+                PlayBattleWinSE();
                 await _uiController.ShowGameSetAsync();
             }
 
@@ -1194,9 +1212,18 @@ namespace LearningAIGame.CombatSystem.Singleton
             else
             {
                 _clearTime = CurrentElapsedTime;
+                await TransitionToResult();
                 Debug.Log($"[GameManager] 全バトル終了。クリア時間: {ClearTimeFormatted}");
-                _currentState = GameState.Result;
-                await SetUIState_ResultAsync(isWin: true);
+                await UniTask.Delay(1000);
+
+                if (_uiController != null)
+                {
+                    await _uiController.BlackoutReleaseAsync();
+                }
+
+                await UniTask.Delay(600);
+
+                PlayCongratulationSE();
             }
         }
 
@@ -1215,7 +1242,11 @@ namespace LearningAIGame.CombatSystem.Singleton
 
             if (_uiController != null)
             {
+                PlayRoundLoseSE();
                 await _uiController.ShowPlayerLoseAsync();
+
+                PlayBattleLoseSE();
+
                 await _uiController.ShowGameSetAsync();
             }
 
@@ -1223,6 +1254,30 @@ namespace LearningAIGame.CombatSystem.Singleton
 
             _currentState = GameState.Result;
             await SetUIState_ResultAsync(isWin: false);
+        }
+
+        /// <summary>
+        /// リザルトへ移行
+        /// </summary>
+        private async UniTask TransitionToResult()
+        {
+            Debug.Log($"[GameManager] リザルトへ");
+
+            // シーン移動してリザルトシーンのUIを表示
+            await TransitionToSceneAsync(k_ResultSceneName, GameState.Result);
+
+            _resultCameraPlace.GetPositionAndRotation(out Vector3 resultCamPos, out Quaternion resultCamRot);
+            Camera.main.transform.SetLocalPositionAndRotation(resultCamPos, resultCamRot);
+
+            if (_npc != null)
+            {
+                Destroy(_npc);
+                _npc = null;
+            }
+
+            await SetUIState_ResultAsync(isWin: true);
+
+            _isTransitioning = false;
         }
 
         #endregion
