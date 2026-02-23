@@ -31,6 +31,8 @@ namespace LearningAIGame.UI.Title
         [SerializeField] private RectTransform _buttonRoot;
         [SerializeField] private Button _startButton;
         [SerializeField] private TextMeshProUGUI _startButtonText;
+        [SerializeField] private Button _howToPlayButton;
+        [SerializeField] private TextMeshProUGUI _howToPlayButtonText;
         [SerializeField] private Button _exitButton;
         [SerializeField] private TextMeshProUGUI _exitButtonText;
 
@@ -38,6 +40,7 @@ namespace LearningAIGame.UI.Title
         [SerializeField] private string _mainTitleText = "AIわからせバトル";
         [SerializeField] private string _subTitleText = "～職を取り戻せ～";
         [SerializeField] private string _startButtonLabel = "ゲーム開始";
+        [SerializeField] private string _howToPlayButtonLabel = "遊び方";
         [SerializeField] private string _exitButtonLabel = "終了";
 
         [Header("=== Color Settings ===")]
@@ -46,6 +49,8 @@ namespace LearningAIGame.UI.Title
         [SerializeField] private Color _subTitleColor = new Color(0.49f, 0.83f, 0.99f);
         [SerializeField] private Color _startButtonColor = new Color(1f, 0.42f, 0.21f);
         [SerializeField] private Color _startButtonHoverColor = new Color(1f, 0.27f, 0.27f);
+        [SerializeField] private Color _howToPlayButtonColor = new Color(0.2f, 0.6f, 0.9f);
+        [SerializeField] private Color _howToPlayButtonHoverColor = new Color(0.3f, 0.7f, 1f);
         [SerializeField] private Color _exitButtonColor = new Color(0.4f, 0.4f, 0.5f);
         [SerializeField] private Color _exitButtonHoverColor = new Color(0.6f, 0.6f, 0.7f);
 
@@ -76,8 +81,10 @@ namespace LearningAIGame.UI.Title
 
         private CancellationTokenSource _animationCts;
         private Image _startButtonImage;
+        private Image _howToPlayButtonImage;
         private Image _exitButtonImage;
         private Color _startButtonOriginalColor;
+        private Color _howToPlayButtonOriginalColor;
         private Color _exitButtonOriginalColor;
         private Vector2 _titleOriginalPosition;
         private Vector2 _buttonOriginalPosition;
@@ -181,6 +188,15 @@ namespace LearningAIGame.UI.Title
                 _startButtonOriginalColor = _startButtonColor;
             }
 
+            _howToPlayButtonText.text = _howToPlayButtonLabel;
+            _howToPlayButtonText.fontSize = _buttonFontSize;
+            _howToPlayButtonImage = _howToPlayButton.GetComponent<Image>();
+            if (_howToPlayButtonImage != null)
+            {
+                _howToPlayButtonImage.color = _howToPlayButtonColor;
+                _howToPlayButtonOriginalColor = _howToPlayButtonColor;
+            }
+
             _exitButtonText.text = _exitButtonLabel;
             _exitButtonText.fontSize = _buttonFontSize;
             _exitButtonImage = _exitButton.GetComponent<Image>();
@@ -207,22 +223,17 @@ namespace LearningAIGame.UI.Title
 
             // ボタンクリックイベント登録
             _startButton.onClick.AddListener(gameManager.StartGame);
+            _howToPlayButton.onClick.AddListener(gameManager.OpenHowToPlay);
             _exitButton.onClick.AddListener(gameManager.ExitGame);
 
             // ホバーエフェクト設定
             SetupButtonHoverEffect(_startButton, _startButtonImage, _startButtonOriginalColor, _startButtonHoverColor);
+            SetupButtonHoverEffect(_howToPlayButton, _howToPlayButtonImage, _howToPlayButtonOriginalColor, _howToPlayButtonHoverColor);
             SetupButtonHoverEffect(_exitButton, _exitButtonImage, _exitButtonOriginalColor, _exitButtonHoverColor);
 
             Debug.Log("[TitleScreenUI] GameManagerにボタンイベントを登録しました");
         }
 
-        /// <summary>
-        /// ボタンホバーエフェクトを設定
-        /// </summary>
-        /// <param name="button">対象のボタン</param>
-        /// <param name="buttonImage">ボタンのImage</param>
-        /// <param name="normalColor">通常時の色</param>
-        /// <param name="hoverColor">ホバー時の色</param>
         /// <summary>
         /// ボタンホバーエフェクトを設定
         /// </summary>
@@ -244,7 +255,6 @@ namespace LearningAIGame.UI.Title
             };
             enterEntry.callback.AddListener(_ =>
             {
-                // ボタンやImageが破棄されていないかチェック
                 if (button == null || buttonImage == null)
                     return;
 
@@ -278,7 +288,6 @@ namespace LearningAIGame.UI.Title
             };
             exitEntry.callback.AddListener(_ =>
             {
-                // ボタンやImageが破棄されていないかチェック
                 if (button == null || buttonImage == null)
                     return;
 

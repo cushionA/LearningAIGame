@@ -71,6 +71,12 @@ namespace LearningAIGame.CombatSystem.Core
         private StateSystem _stateSystem;
 
         /// <summary>
+        /// 物理演算用Rigidbody
+        /// </summary>
+        [SerializeField]
+        private Rigidbody _rb;
+
+        /// <summary>
         /// 敵のTransform
         /// </summary>
         [SerializeField]
@@ -110,6 +116,11 @@ namespace LearningAIGame.CombatSystem.Core
             }
         }
 
+        private void FixedUpdate()
+        {
+            //   PushAwayFromEnemy();
+        }
+
         /// <summary>
         /// 即座に敵の方向を向く
         /// </summary>
@@ -134,11 +145,12 @@ namespace LearningAIGame.CombatSystem.Core
         }
 
         /// <summary>
-        /// 敵と近すぎる場合に押し出す
+        /// 敵と近すぎる場合に押し出す（Rigidbody経由）
+        /// 壁があれば自然に止まる
         /// </summary>
         private void PushAwayFromEnemy()
         {
-            if (_enemyTransform == null)
+            if (_enemyTransform == null || _rb == null)
                 return;
 
             Vector3 toEnemy = _enemyPosition.Position - _myPosition.Position;
@@ -151,9 +163,10 @@ namespace LearningAIGame.CombatSystem.Core
             {
                 float distance = Mathf.Sqrt(distanceSqr);
                 float pushDistance = _minDistanceToEnemy - distance;
-                Vector3 pushDirection = -toEnemy / distance; // normalized
+                Vector3 pushDirection = -toEnemy / distance;
 
-                transform.position += pushDirection * pushDistance;
+                // Rigidbody経由で押し出す（壁があれば自然に止まる）
+                _rb.MovePosition(_myPosition.Position + pushDirection * pushDistance);
             }
         }
 
@@ -446,6 +459,12 @@ namespace LearningAIGame.CombatSystem.Core
 
             _enemyPosition = _enemyTransform.GetComponent<PositionCache>();
             _myPosition = GetComponent<PositionCache>();
+
+            // Rigidbodyの取得（未設定の場合）
+            if (_rb == null)
+            {
+                _rb = GetComponent<Rigidbody>();
+            }
 
             _actionSetting = _stateSystem.actionSetting;
 
