@@ -422,14 +422,14 @@ MonoBehaviour:
   remote: 0
   port: 13331
   numThreads: -1
-  numGPULayers: 25
+  numGPULayers: 99
   debug: 0
   parallelPrompts: 1
   dontDestroyOnLoad: 1
-  contextSize: 3549
+  contextSize: 1500
   batchSize: 512
-  model: gemma-2-2b-it-IQ4_XS.gguf
-  chatTemplate: gemma
+  model: qwen3-1.7b-battle-ai-stage4-Q8_0.gguf
+  chatTemplate: qwen3
   lora: 
   loraWeights: 
   flashAttention: 0
@@ -439,9 +439,9 @@ MonoBehaviour:
   SSLKey: 
   SSLKeyPath: 
   minContextLength: 0
-  maxContextLength: 8192
+  maxContextLength: 40960
   embeddingsOnly: 0
-  embeddingLength: 2304
+  embeddingLength: 2048
 --- !u!114 &1262174236
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -462,15 +462,15 @@ MonoBehaviour:
   port: 13333
   numRetries: 10
   save: 
-  saveCache: 1
-  debugPrompt: 0
+  saveCache: 0
+  debugPrompt: 1
   numPredict: -1
   slot: -1
   grammar: 
   grammarJSON: 
-  cachePrompt: 1
+  cachePrompt: 0
   seed: 0
-  temperature: 0.5
+  temperature: 0.7
   topK: 40
   topP: 0.9
   minP: 0.05
@@ -513,7 +513,7 @@ MonoBehaviour:
   _delayBetweenTests: 2
   _autoStartOnPlay: 1
   _generateRandomDataEachIteration: 1
-  _generatorType: 6
+  _generatorType: 19
   _outputDirectoryPath: Assets/LLMTestResults
   _filePrefix: LLMTest
   _llmCharacter: {fileID: 1262174236}

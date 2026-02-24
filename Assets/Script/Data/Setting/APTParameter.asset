@@ -1,0 +1,132 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 405103e16fc30d141a0b37d10a2a555e, type: 3}
+  m_Name: APTParameter
+  m_EditorClassIdentifier: GameCode::LearningAIGame.CombatSystem.Data.AIParameterContainer
+  nlInstructionType: 14
+  aggressive:
+    attackFrequency: 0.8
+    comboAttackProbability: 0.6
+    minAttackInterval: 0.3
+    maxAttackInterval: 1.5
+    opportunityAttackRate: 0.7
+    stepUsageRate: 0.6
+    punishRate: 0.5
+    minEnergyRatio: 0.2
+    lightAttackMinEnergy: 0.3
+    heavyAttackMinEnergy: 0.4
+    rushMinEnergy: 0.15
+    comboMinEnergy: 0.5
+    movementAggressiveness: 0.8
+    preferredCombatDistanceRange: {x: 2, y: 5}
+    dangerDistanceThreshold: 1.5
+    forwardMovementFrequency: 0.7
+    backwardMovementFrequency: 0.1
+    leftMovementFrequency: 0.4
+    rightMovementFrequency: 0.4
+    stanceChangeFrequency: 0.5
+    minStanceChangeInterval: 1
+  defensive:
+    attackFrequency: 0.3
+    comboAttackProbability: 0.2
+    minAttackInterval: 0.8
+    maxAttackInterval: 2.5
+    opportunityAttackRate: 0.5
+    stepUsageRate: 0.7
+    punishRate: 0.8
+    minEnergyRatio: 0.4
+    lightAttackMinEnergy: 0.5
+    heavyAttackMinEnergy: 0.6
+    rushMinEnergy: 0.25
+    comboMinEnergy: 0.7
+    movementAggressiveness: 0.3
+    preferredCombatDistanceRange: {x: 6, y: 10}
+    dangerDistanceThreshold: 3
+    forwardMovementFrequency: 0.2
+    backwardMovementFrequency: 0.6
+    leftMovementFrequency: 0.3
+    rightMovementFrequency: 0.3
+    stanceChangeFrequency: 0.3
+    minStanceChangeInterval: 2
+  adaptive:
+    attackFrequency: 0.5
+    comboAttackProbability: 0.4
+    minAttackInterval: 0.5
+    maxAttackInterval: 2
+    opportunityAttackRate: 0.6
+    stepUsageRate: 0.5
+    punishRate: 0.6
+    minEnergyRatio: 0.3
+    lightAttackMinEnergy: 0.4
+    heavyAttackMinEnergy: 0.5
+    rushMinEnergy: 0.2
+    comboMinEnergy: 0.6
+    movementAggressiveness: 0.5
+    preferredCombatDistanceRange: {x: 4, y: 7}
+    dangerDistanceThreshold: 2
+    forwardMovementFrequency: 0.4
+    backwardMovementFrequency: 0.4
+    leftMovementFrequency: 0.4
+    rightMovementFrequency: 0.4
+    stanceChangeFrequency: 0.5
+    minStanceChangeInterval: 1.5
+  disruptive:
+    attackFrequency: 0.6
+    comboAttackProbability: 0.5
+    minAttackInterval: 0.4
+    maxAttackInterval: 1.8
+    opportunityAttackRate: 0.4
+    stepUsageRate: 0.7
+    punishRate: 0.4
+    minEnergyRatio: 0.25
+    lightAttackMinEnergy: 0.35
+    heavyAttackMinEnergy: 0.45
+    rushMinEnergy: 0.18
+    comboMinEnergy: 0.55
+    movementAggressiveness: 0.8
+    preferredCombatDistanceRange: {x: 3, y: 8}
+    dangerDistanceThreshold: 2
+    forwardMovementFrequency: 0.4
+    backwardMovementFrequency: 0.3
+    leftMovementFrequency: 0.5
+    rightMovementFrequency: 0.5
+    stanceChangeFrequency: 0.7
+    minStanceChangeInterval: 1
+  endurance:
+    attackFrequency: 0.4
+    comboAttackProbability: 0.25
+    minAttackInterval: 0.7
+    maxAttackInterval: 2.5
+    opportunityAttackRate: 0.6
+    stepUsageRate: 0.3
+    punishRate: 0.7
+    minEnergyRatio: 0.5
+    lightAttackMinEnergy: 0.6
+    heavyAttackMinEnergy: 0.7
+    rushMinEnergy: 0.3
+    comboMinEnergy: 0.8
+    movementAggressiveness: 0.4
+    preferredCombatDistanceRange: {x: 5, y: 9}
+    dangerDistanceThreshold: 2.5
+    forwardMovementFrequency: 0.3
+    backwardMovementFrequency: 0.5
+    leftMovementFrequency: 0.35
+    rightMovementFrequency: 0.35
+    stanceChangeFrequency: 0.3
+    minStanceChangeInterval: 2
+  defaultStrategyData:
+    _analysisResult: No analysis due to default tactics.
+    _basicTactic: Adaptive
+    _attackCriteria: Speed Priority
+    _continuousAttackCriteria: Cumulative Probability
+    _defenseCriteria: Recent Pattern Focus
+    _continuousDefenseCriteria: Cumulative Probability

@@ -12,37 +12,45 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0d507e3bf87b99d4da37d095cc52d11f, type: 3}
   m_Name: ActionSetting
   m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.CombatSystem.Setting.ActionSetting
-  _weakAttackDamage: 10
-  _weakAttackEnergyCost: 5
-  _weakAttackStepSpeed: 3
-  _weakAttackStepDuration: 0.2
-  _weakAttackStun: 0.1
-  _weakAttackStartFrame: 2
-  _weakAttackDurationFrame: 5
-  _heavyAttackDamage: 30
-  _heavyAttackEnergyCost: 15
-  _heavyAttackStepSpeed: 5
-  _heavyAttackStepDuration: 0.3
-  _heavyAttackStun: 0.5
-  _heavyAttackCancelEnergyCost: 10
-  _heavyAttackCancelStun: 0.3
-  _heavyAttackStartFrame: 2
-  _heavyAttackDurationFrame: 5
+  _weakAttackDamage: 9
+  _weakAttackEnergyCost: 8
+  _weakAttackStepSpeed: 10
+  _weakAttackStepDuration: 0.55
+  _weakAttackStun: 0.2
+  _weakAttackStartFrame: 25
+  _weakAttackDurationFrame: 3
+  _heavyAttackDamage: 15
+  _heavyAttackEnergyCost: 14
+  _heavyAttackStepSpeed: 10
+  _heavyAttackStepDuration: 0.7
+  _heavyAttackStun: 0.4
+  _heavyAttackCancelEnergyCost: 6
+  _heavyAttackCancelStun: 0.01
+  _heavyAttackStartFrame: 42
+  _heavyAttackDurationFrame: 3
   _blockingEnergyCost: 3
-  _blockingStartDelay: 0.1
-  _blockingDuration: 0.4
-  _blockingStun: 0.3
-  _blockingSuccessStun: 0.1
-  _avoidEnergyCost: 8
-  _avoidSpeed: 4
-  _avoidDuration: 1.4
-  _avoidStun: 0.1
-  _avoidInvincibleStartDelay: 0.2
-  _avoidInvincibleDuration: 0.3
+  _blockingStartDelay: 0.04
+  _blockingDuration: 0.28
+  _blockingStun: 0.45
+  _blockingSuccessStun: 0.9
+  _avoidEnergyCost: 6
+  _avoidSpeed: 9.5
+  _avoidDuration: 0.45
+  _backAvoidSpeed: 10
+  _backAvoidDuration: 0.35
+  _avoidStun: 0.43
+  _frontAvoidStun: 0.2
+  _backAvoidStun: 0.65
+  _backAvoidUsageMultiplier: 4.5
+  _avoidInvincibleStartDelay: 0.01
+  _avoidInvincibleDuration: 0.25
   _forwardAvoidAttackStun: 0.2
   _sideAvoidAttackStun: 0.2
   _moveSpeed: 4
   _guardStun: 0
   _guardSuccessStun: 0
-  _energyRecoveryRatePerSecond: 4
-  _blockingSuccessEnergyRecovery: 20
+  _attackableDistance: 5
+  _backMoveMultiplier: 0.45
+  _energyRecoveryRatePerSecond: 7
+  _energyRecoveryEmergencyMultiply: 4
+  _blockingSuccessEnergyRecovery: 25

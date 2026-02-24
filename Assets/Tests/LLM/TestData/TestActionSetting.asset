@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d507e3bf87b99d4da37d095cc52d11f, type: 3}
+  m_Name: TestActionSetting
+  m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.CombatSystem.Setting.ActionSetting
+  _weakAttackDamage: 6
+  _weakAttackEnergyCost: 7
+  _weakAttackStepSpeed: 0
+  _weakAttackStepDuration: 0
+  _weakAttackStun: 0
+  _weakAttackStartFrame: 0
+  _weakAttackDurationFrame: 60
+  _heavyAttackDamage: 12
+  _heavyAttackEnergyCost: 12
+  _heavyAttackStepSpeed: 0
+  _heavyAttackStepDuration: 0
+  _heavyAttackStun: 0
+  _heavyAttackCancelEnergyCost: 10
+  _heavyAttackCancelStun: 0
+  _heavyAttackStartFrame: 0
+  _heavyAttackDurationFrame: 60
+  _blockingEnergyCost: 12
+  _blockingStartDelay: 0
+  _blockingDuration: 1
+  _blockingStun: 0
+  _blockingSuccessStun: 0
+  _avoidEnergyCost: 8
+  _avoidSpeed: 0
+  _avoidDuration: 1
+  _avoidStun: 0.1
+  _backAvoidStun: 0.8
+  _avoidInvincibleStartDelay: 0
+  _avoidInvincibleDuration: 1
+  _forwardAvoidAttackStun: 0
+  _sideAvoidAttackStun: 0
+  _moveSpeed: 0
+  _guardStun: 0
+  _guardSuccessStun: 0
+  _attackableDistance: 4
+  _energyRecoveryRatePerSecond: 7
+  _blockingSuccessEnergyRecovery: 25

@@ -96,6 +96,8 @@ namespace LearningAIGame.CombatSystem.Data
         public void TakeDamage(int amount)
         {
             Hp = Math.Max(0, Hp - amount);
+            // UnityEngine.Debug.Log($"[TakeDamage()内部]ダメージ{amount} 残りHP：{Hp}");
+            //  UnityEngine.Debug.Log($"[TakeDamage] インスタンスID: {this.GetHashCode()}, Before: {beforeHp}, After: {Hp}, Amount: {amount}");
         }
 
         /// <summary>
@@ -126,6 +128,16 @@ namespace LearningAIGame.CombatSystem.Data
                 Energy = MaxEnergy;
                 IsEnergyExhaust = false;
             }
+        }
+
+        /// <summary>
+        /// 体力とエネルギーを初期化する
+        /// </summary>
+        public void Reset()
+        {
+            Hp = MaxHp;
+            Energy = MaxEnergy;
+            IsEnergyExhaust = false;
         }
     }
 }
