@@ -282,14 +282,14 @@ Light:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1216372668}
   m_Enabled: 1
-  serializedVersion: 11
+  serializedVersion: 12
   m_Type: 1
   m_Color: {r: 1, g: 0.95686275, b: 0.8392157, a: 1}
   m_Intensity: 1
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
-  m_CookieSize: 10
+  m_CookieSize2D: {x: 10, y: 10}
   m_Shadows:
     m_Type: 2
     m_Resolution: -1
@@ -509,44 +509,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cde58c20aff33f74ca4a79d64a46b7ad, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LLMDataArchitectTest.Scene.SceneLLMContinuousThinkingTest
-  _testIterations: 10
+  _testIterations: 100
   _delayBetweenTests: 2
   _autoStartOnPlay: 1
   _generateRandomDataEachIteration: 1
-  _generatorType: 19
+  _generatorType: 20
   _outputDirectoryPath: Assets/LLMTestResults
   _filePrefix: LLMTest
   _llmCharacter: {fileID: 1262174236}
   _timeoutSeconds: 30
-  _rag: {fileID: 1262174242}
-  _useRAG: 0
-  _ragTopK: 3
-  _ragDistanceThreshold: 0.8
-  _showRAGResults: 1
-  _autoInitializeRAG: 1
-  _loadFromResources: 0
-  _resourcesPath: GameRules
-  _manualRuleFiles:
-  - {fileID: 4900000, guid: fdc8388da9db5844ea2ec46cfba8d049, type: 3}
-  - {fileID: 4900000, guid: 1dbdbc324e1f23146ad71d7f1f3096c0, type: 3}
-  - {fileID: 4900000, guid: 93e75ac9c4074f84f9141196c93ba141, type: 3}
-  - {fileID: 4900000, guid: edb174370b818e5479af8a4bc32f2813, type: 3}
-  - {fileID: 4900000, guid: 5c5d6147b71932e4db35f5ff7c669bd3, type: 3}
-  - {fileID: 4900000, guid: 3cbdfb1128d8efa4896addc3caf41a57, type: 3}
-  - {fileID: 4900000, guid: 94777654c0715a749b483e30e6750b31, type: 3}
-  - {fileID: 4900000, guid: 620db894bc0272544b4901f38df78006, type: 3}
-  - {fileID: 4900000, guid: c2e818ffafe2f19419b832cc94aad66f, type: 3}
-  _ragFolderPath: Assets/Resources/GameRules
   _autoConfigureLLM: 0
   _useGrammar: 1
   _situationType: 1
   _useMixedSituations: 1
   _showProgressInConsole: 1
   _showDetailedTiming: 1
-  _showPromptSummary: 1
   _validateResponses: 1
   _showPerformanceMetrics: 1
-  _verboseRAGLogging: 0
 --- !u!4 &1262174238
 Transform:
   m_ObjectHideFlags: 0
@@ -695,6 +674,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!33 &1387439240
 MeshFilter:
@@ -3259,6 +3239,7 @@ SkinnedMeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   serializedVersion: 2
   m_Quality: 0
   m_UpdateWhenOffscreen: 0
