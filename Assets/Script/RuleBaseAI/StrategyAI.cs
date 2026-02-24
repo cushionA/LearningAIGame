@@ -1,8 +1,13 @@
+using Cysharp.Threading.Tasks;
 using LearningAIGame.CombatSystem.Core;
 using LearningAIGame.CombatSystem.Data;
+using LearningAIGame.CombatSystem.Singleton;
 using LearningAIGame.CombatSystem.Systems;
 using LLMDataArchitect;
 using R3;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 using static LearningAIGame.CombatSystem.Core.StateSystem;
 using static LLMDataArchitect.StrategyData;
@@ -86,7 +91,7 @@ namespace LearningAIGame.CombatSystem.AI
     /// LLMからの応答を利用したルールベースAI
     /// 移動制御、頻度ベース攻撃、構え変更処理を追加
     /// </summary>
-    public class StrategyAI : RuleBaseInjection
+    public partial class StrategyAI : RuleBaseInjection, IGameHelper, ITargetSet
     {
 
         #region フィールド
@@ -96,44 +101,44 @@ namespace LearningAIGame.CombatSystem.AI
         /// </summary>
         [Header("AI設定")]
         [SerializeField]
-        private AIParameterContainer _strategyParameters;
+        protected AIParameterContainer _strategyParameters;
 
         /// <summary>
         /// 現在使用中の戦術パラメーター
         /// </summary>
-        private AIParameter _currentParameter;
+        protected AIParameter _currentParameter;
 
         /// <summary>
         /// 戦術の実行結果
         /// </summary>
-        private StrategyResult _strategyResult;
+        protected StrategyResult _strategyResult;
 
         /// <summary>
         /// 現在認識している状況
         /// </summary>
-        private ConditionType _currentCondition;
+        protected ConditionType _currentCondition;
 
         /// <summary>
         /// 現在使用している行動指針名
         /// </summary>
-        private string _currentCriteria;
+        protected string _currentCriteria;
 
         /// <summary>
         /// 現在時間のキャッシュ
         /// </summary>
-        private float _currentTime = 0f;
+        protected float _currentTime = 0f;
 
         [Header("自分のシステム参照")]
         [SerializeField]
-        private StateSystem _myStateSystem;
+        protected StateSystem _myStateSystem;
 
         [Header("敵のシステム参照")]
         [SerializeField]
-        private StateSystem _enemyStateSystem;
+        protected StateSystem _enemyStateSystem;
 
         [Header("自分のコントローラー参照")]
         [SerializeField]
-        private BattleCharacterController _myController;
+        protected BattleCharacterController _myController;
 
 
         #region 購読対象
@@ -141,15 +146,15 @@ namespace LearningAIGame.CombatSystem.AI
         [Header("購読対象")]
         [Tooltip("敵攻撃検出")]
         [SerializeField]
-        private AttackSystem _enemyAttackSystem;
+        protected AttackSystem _enemyAttackSystem;
 
         [Tooltip("敵攻撃結果検知")]
         [SerializeField]
-        private HitSystem _enemyHitSystem;
+        protected HitSystem _enemyHitSystem;
 
         [Tooltip("自己攻撃結果確認")]
         [SerializeField]
-        private HitSystem _myHitSystem;
+        protected HitSystem _myHitSystem;
 
         #endregion
 
@@ -158,27 +163,33 @@ namespace LearningAIGame.CombatSystem.AI
         /// <summary>
         /// 前回攻撃した時間
         /// </summary>
-        private float _lastAttackTime = -1f;
+        protected float _lastAttackTime = -1f;
 
         /// <summary>
         /// 前回防御した時間
         /// </summary>
-        private float _lastDefenseTime = -1f;
+        protected float _lastDefenseTime = -1f;
 
         /// <summary>
         /// 次回攻撃可能時間
         /// </summary>
-        private float _nextAttackTime = 0f;
+        protected float _nextAttackTime = 0f;
 
         /// <summary>
         /// 次回構え変更可能時間
         /// </summary>
-        private float _nextStanceChangeTime = 0f;
+        protected float _nextStanceChangeTime = 0f;
 
         /// <summary>
         /// 次回ステップ可能時間
         /// </summary>
-        private float _nextStepTime = 0f;
+        protected float _nextStepTime = 0f;
+
+        /// <summary>
+        /// AIがロックされてるかどうかの変数
+        /// </summary>
+        private bool _brainLocked = false;
+
         #endregion
 
         #region 移動制御
@@ -186,27 +197,27 @@ namespace LearningAIGame.CombatSystem.AI
         /// <summary>
         /// 現在の移動目標位置
         /// </summary>
-        private Vector3 _currentMovementTarget;
+        protected Vector3 _currentMovementTarget;
 
         /// <summary>
         /// 移動実行中フラグ
         /// </summary>
-        private bool _isMoving = false;
+        protected bool _isMoving = false;
 
         /// <summary>
         /// 移動開始時間
         /// </summary>
-        private float _movementStartTime;
+        protected float _movementStartTime;
 
         /// <summary>
         /// 移動継続時間（ランダムで決定）
         /// </summary>
-        private float _movementDuration;
+        protected float _movementDuration;
 
         /// <summary>
         /// AIの移動入力ベクトル
         /// </summary>
-        private Vector3 _moveInputVector;
+        protected Vector3 _moveInputVector;
 
         #endregion
 
@@ -217,17 +228,17 @@ namespace LearningAIGame.CombatSystem.AI
         /// <summary>
         /// 連続攻撃判定になる時間の定数
         /// </summary>
-        private const float k_SequenceAttackDuration = 3f;
+        protected const float k_SequenceAttackDuration = 3f;
 
         /// <summary>
         /// 連続防御判定になる時間の定数
         /// </summary>
-        private const float k_SequenceDefenseDuration = 3f;
+        protected const float k_SequenceDefenseDuration = 3f;
 
         /// <summary>
         /// ステップ判定の最小間隔（秒）
         /// </summary>
-        private const float k_MinStepInterval = 3f;
+        protected const float k_MinStepInterval = 3f;
 
         #endregion
 
@@ -236,22 +247,22 @@ namespace LearningAIGame.CombatSystem.AI
         /// <summary>
         /// 初期化処理
         /// </summary>
-        private void Awake()
+        protected void Awake()
         {
 
             _myStateSystem = GetComponent<StateSystem>();
-
-            // 各システムの購読を開始
-            SubscribeSystems();
         }
 
         /// <summary>
         /// 毎フレーム更新処理
         /// AIの行動判断ループ
         /// </summary>
-        private void Update()
+        protected void Update()
         {
             if (_myController == null || _enemyStateSystem == null)
+                return;
+
+            if (_brainLocked)
                 return;
 
             _currentTime = Time.time;
@@ -282,6 +293,7 @@ namespace LearningAIGame.CombatSystem.AI
         public override void InjectionData(LLMInputData data)
         {
             _llmData = data;
+            // 行動の結果を記録するためにLLMからインスタンスを受け取る
             _strategyResult = _llmData.StrategyResult;
             Debug.Log($"[{nameof(StrategyAI)}] 戦術データを注入しました");
 
@@ -311,12 +323,26 @@ namespace LearningAIGame.CombatSystem.AI
         /// <summary>
         /// 敵の攻撃を検出した際のコールバック
         /// </summary>
-        private void OnEnemyAttack(AttackReportInfo attackReport)
+        protected async void OnEnemyAttack(AttackReportInfo attackReport)
         {
+            // 敵の攻撃範囲外なら反応なし
+            if (!_myStateSystem.PositionCache.IsInPowRange(_enemyStateSystem.Position, _enemyStateSystem.AttackRangePow))
+            {
+                return;
+            }
+
             // 防御出来ない状態なら戻る
             if ((_myStateSystem.CurrentState.CurrentValue & ActionState.防御可能) == 0)
             {
-                return;
+                var result = await UniTask.WhenAny(
+                    UniTask.WaitUntil(() => (_myStateSystem.CurrentState.CurrentValue & ActionState.防御可能) != 0),
+                    UniTask.Delay(TimeSpan.FromSeconds(1f)));
+
+                // タイムアウトか敵攻撃が終了なら戻る
+                if (result == 1 || (_enemyStateSystem.CurrentState.CurrentValue & ActionState.攻撃) == 0)
+                {
+                    return;
+                }
             }
 
             // 横回避攻撃は特別扱い
@@ -344,7 +370,7 @@ namespace LearningAIGame.CombatSystem.AI
         /// <summary>
         /// 自分の攻撃結果を受け取った際のコールバック
         /// </summary>
-        private void OnMyAttackEnd(HitReportInfo hitReport)
+        protected void OnMyAttackEnd(HitReportInfo hitReport)
         {
             // 攻撃結果の記録
             if (_currentCondition == ConditionType.Attack || _currentCondition == ConditionType.SequentialAttack)
@@ -367,7 +393,7 @@ namespace LearningAIGame.CombatSystem.AI
                         // ヒット時の追撃行動
                         // 連続攻撃判定
                         if (_currentParameter.ShouldComboAttack() &&
-                            _myStateSystem.Energy >= _currentParameter.comboMinEnergy)
+                            _myStateSystem.EnergyRatio >= _currentParameter.comboMinEnergy)
                         {
                             AttackAct();
 
@@ -384,7 +410,7 @@ namespace LearningAIGame.CombatSystem.AI
         /// <summary>
         /// 敵の攻撃が完了した際のコールバック
         /// </summary>
-        private void OnEnemyAttackEnd(HitReportInfo hitReport)
+        protected void OnEnemyAttackEnd(HitReportInfo hitReport)
         {
             // 防御結果の記録
             if (_currentCondition != ConditionType.Attack && _currentCondition != ConditionType.SequentialAttack)
@@ -403,15 +429,15 @@ namespace LearningAIGame.CombatSystem.AI
                         {
                             // 弱ブロッキング成功 + エネルギー十分なら強攻撃で確定反撃
                             if (hitReport.attackType == AttackType.WeakAttack
-                            && _myStateSystem.Energy >= _currentParameter.heavyAttackMinEnergy)
+                            && _myStateSystem.EnergyRatio >= _currentParameter.heavyAttackMinEnergy)
                             {
-                                _myController.HeavyAttackAct(GetAttackStance(_myStateSystem.CurrentStance.CurrentValue)).Forget();
+                                _myController.HeavyAttackAct(_myStateSystem.CurrentStance.CurrentValue).Forget();
                             }
 
                             // 強攻撃ブロック時の確定反撃行動
-                            else if (_myStateSystem.Energy >= _currentParameter.lightAttackMinEnergy)
+                            else if (_myStateSystem.EnergyRatio >= _currentParameter.lightAttackMinEnergy)
                             {
-                                _myController.LightAttackAct(GetAttackStance(_myStateSystem.CurrentStance.CurrentValue)).Forget();
+                                _myController.LightAttackAct(_myStateSystem.CurrentStance.CurrentValue).Forget();
                             }
                         }
 
@@ -422,9 +448,9 @@ namespace LearningAIGame.CombatSystem.AI
                         _strategyResult.AddResult(_currentCondition, true);
 
                         // ガード時の確定反撃行動
-                        if (_myStateSystem.Energy >= _currentParameter.lightAttackMinEnergy && _currentParameter.ShouldPunish())
+                        if (_myStateSystem.EnergyRatio >= _currentParameter.lightAttackMinEnergy && _currentParameter.ShouldPunish())
                         {
-                            _myController.LightAttackAct(GetAttackStance(_myStateSystem.CurrentStance.CurrentValue)).Forget();
+                            _myController.LightAttackAct(_myStateSystem.CurrentStance.CurrentValue).Forget();
                         }
                         break;
                     case HitResultType.Avoid:
@@ -434,7 +460,7 @@ namespace LearningAIGame.CombatSystem.AI
 
                         // エネルギー十分で乱数が噛み合えば敵の強攻撃空振りに攻撃を合わせる
                         if (hitReport.attackType == AttackType.HeavyAttack &&
-                            _myStateSystem.Energy >= _currentParameter.rushMinEnergy &&
+                            _myStateSystem.EnergyRatio >= _currentParameter.rushMinEnergy &&
                             _currentParameter.ShouldOpportunityAttack())
                         {
                             _myController.AvoidAttackAct(MovementReportType.FrontStep).Forget();
@@ -450,7 +476,7 @@ namespace LearningAIGame.CombatSystem.AI
                     case HitResultType.Miss:
 
                         // エネルギー十分で乱数が噛み合えば敵の空振りに攻撃を合わせる
-                        if (_myStateSystem.Energy >= _currentParameter.rushMinEnergy &&
+                        if (_myStateSystem.EnergyRatio >= _currentParameter.rushMinEnergy &&
                             _currentParameter.ShouldOpportunityAttack())
                         {
                             _myController.AvoidAttackAct(MovementReportType.FrontStep).Forget();
@@ -471,7 +497,7 @@ namespace LearningAIGame.CombatSystem.AI
         /// <summary>
         /// 各システムからの通知を購読する
         /// </summary>
-        private void SubscribeSystems()
+        protected void SubscribeSystems()
         {
             // 敵の攻撃システムを購読
             if (_enemyAttackSystem != null)
@@ -512,13 +538,13 @@ namespace LearningAIGame.CombatSystem.AI
         /// 移動処理の更新
         /// 距離管理と移動パターンに基づいて移動を制御
         /// </summary>
-        private void UpdateMovement()
+        protected void UpdateMovement()
         {
             // 移動不可能状態であれば移動制御は行わない
             // キャラコントローラーで制御は行っているが、無駄を省くためにここでも確認
             if (!_myStateSystem.CanMove)
             {
-                _myController.MoveAct(Vector3.zero); // 停止
+                // _myController.MoveAct(Vector3.zero); // 停止
                 _moveInputVector = Vector3.zero;
                 _isMoving = false;
                 return;
@@ -547,14 +573,14 @@ namespace LearningAIGame.CombatSystem.AI
             }
 
             // 距離に基づいて移動を決定
-            DecideMovementByDistance((_enemyStateSystem.transform.position - transform.position).sqrMagnitude);
+            DecideMovementByDistance((_enemyStateSystem.Position - _myStateSystem.Position).sqrMagnitude);
         }
 
         /// <summary>
         /// 距離に基づいて移動を決定
         /// </summary>
         /// <param name="distanceToEnemy">敵との距離</param>
-        private void DecideMovementByDistance(float distanceToEnemySqr)
+        protected void DecideMovementByDistance(float distanceToEnemySqr)
         {
             MovementType moveDirection;
 
@@ -594,7 +620,7 @@ namespace LearningAIGame.CombatSystem.AI
         /// 移動を実行
         /// 一定条件で移動をステップに置き換える
         /// </summary>
-        private void ExecuteMovement(MovementType moveDirection)
+        protected void ExecuteMovement(MovementType moveDirection)
         {
             switch (moveDirection)
             {
@@ -610,12 +636,12 @@ namespace LearningAIGame.CombatSystem.AI
                     }
                     _moveInputVector = Vector3.forward;
                     break;
-
+                // 後退はステップ回避に置き換えない
                 case AIParameter.MovementType.Backward:
-                    if (CanActStep())
-                    {
-                        ExecuteStep(moveDirection);
-                    }
+                    //if (CanActStep())
+                    //{
+                    //    ExecuteStep(moveDirection);
+                    //}
 
                     _moveInputVector = Vector3.back;
                     break;
@@ -647,7 +673,7 @@ namespace LearningAIGame.CombatSystem.AI
         /// <summary>
         /// 移動を開始
         /// </summary>
-        private void StartMovement(float duration)
+        protected void StartMovement(float duration)
         {
             _isMoving = true;
             _movementStartTime = _currentTime;
@@ -662,7 +688,7 @@ namespace LearningAIGame.CombatSystem.AI
         /// ステップタイミングの更新
         /// 頻度パラメーターに基づいて回避行動を実行
         /// </summary>
-        private bool CanActStep()
+        protected bool CanActStep()
         {
             if (_strategyParameters == null)
                 return false;
@@ -672,7 +698,7 @@ namespace LearningAIGame.CombatSystem.AI
                 return false;
 
             // エネルギーチェック（ステップにもエネルギーが必要）
-            if (_myStateSystem.Energy < _currentParameter.minEnergyRatio)
+            if (_myStateSystem.EnergyRatio < _currentParameter.minEnergyRatio)
             {
                 // 次回ステップ時間を延長
                 _nextStepTime = Time.time + k_MinStepInterval;
@@ -687,7 +713,7 @@ namespace LearningAIGame.CombatSystem.AI
         /// ステップを実行
         /// </summary>
         /// <param name="stepType">ステップの種類</param>
-        private void ExecuteStep(MovementType stepDirection)
+        protected void ExecuteStep(MovementType stepDirection)
         {
             switch (stepDirection)
             {
@@ -727,7 +753,7 @@ namespace LearningAIGame.CombatSystem.AI
         /// 攻撃タイミングの更新
         /// 頻度パラメーターに基づいて攻撃を実行
         /// </summary>
-        private void UpdateAttackTiming()
+        protected void UpdateAttackTiming()
         {
             // 攻撃出来ない状態なら戻る
             if ((_myStateSystem.CurrentState.CurrentValue & ActionState.攻撃可能) == 0)
@@ -740,7 +766,7 @@ namespace LearningAIGame.CombatSystem.AI
                 return;
 
             // エネルギーチェック
-            if (_myStateSystem.Energy < _currentParameter.minEnergyRatio)
+            if (_myStateSystem.EnergyRatio < _currentParameter.minEnergyRatio)
             {
                 // 次回攻撃時間を延長
                 _nextAttackTime = _currentTime + _currentParameter.GetNextAttackDelay();
@@ -748,7 +774,8 @@ namespace LearningAIGame.CombatSystem.AI
             }
 
             // 攻撃を実行すべきか判定
-            if (_currentParameter.ShouldAttack())
+            // 攻撃範囲内かつ頻度パラメーターに基づいて攻撃
+            if (_currentParameter.ShouldAttack() && (_enemyStateSystem.Position - _myStateSystem.Position).sqrMagnitude <= _myStateSystem.AttackRangePow)
             {
                 AttackAct();
 
@@ -765,7 +792,7 @@ namespace LearningAIGame.CombatSystem.AI
         /// <summary>
         /// 攻撃行動を実行
         /// </summary>
-        private void AttackAct()
+        protected void AttackAct()
         {
             // 連続攻撃
             if (_currentTime - _lastAttackTime < k_SequenceAttackDuration)
@@ -789,13 +816,11 @@ namespace LearningAIGame.CombatSystem.AI
         /// 構え変更の更新
         /// 頻度パラメーターに基づいて構えを変更
         /// </summary>
-        private void UpdateStanceChange()
+        protected void UpdateStanceChange()
         {
-            if (_strategyParameters == null || _myStateSystem == null)
-                return;
 
             // 次回構え変更時間に達していない場合はスキップ
-            if (_currentTime < _nextStanceChangeTime)
+            if (_myStateSystem.CurrentState.CurrentValue != ActionState.ガード || _currentTime < _nextStanceChangeTime)
                 return;
 
             // 構え変更を実行すべきか判定
@@ -811,7 +836,7 @@ namespace LearningAIGame.CombatSystem.AI
         /// <summary>
         /// 構え変更を実行
         /// </summary>
-        private void ExecuteStanceChange()
+        protected void ExecuteStanceChange()
         {
             // 現在の構えを取得
             StanceType currentStance = _myStateSystem.CurrentStance.CurrentValue;
@@ -831,7 +856,7 @@ namespace LearningAIGame.CombatSystem.AI
         /// </summary>
         /// <param name="currentStance">現在の構え</param>
         /// <returns>新しい構え（現在の構えとは異なる）</returns>
-        private StanceType GetRandomStance(StanceType currentStance)
+        protected StanceType GetRandomStance(StanceType currentStance)
         {
             // 現在の構えに応じて、残り2つのうちランダムに選択
             switch (currentStance)
@@ -861,7 +886,7 @@ namespace LearningAIGame.CombatSystem.AI
         /// <summary>
         /// 判断基準に応じた攻撃行動を行うメソッド
         /// </summary>
-        private void AttackJudge(ActionCriteriaType criteriaType)
+        protected void AttackJudge(ActionCriteriaType criteriaType)
         {
             LLMLogData enemyLog = _llmData.PlayerLog;
             StanceType enemyStance = _enemyStateSystem.CurrentStance.CurrentValue;
@@ -903,7 +928,7 @@ namespace LearningAIGame.CombatSystem.AI
         /// <summary>
         /// 判断基準に応じた防御行動を行うメソッド
         /// </summary>
-        private void DefenseJudge(ActionCriteriaType criteriaType)
+        protected void DefenseJudge(ActionCriteriaType criteriaType)
         {
             LLMLogData enemyLog = _llmData.PlayerLog;
             StanceType enemyStance = _enemyStateSystem.CurrentStance.CurrentValue;
@@ -912,39 +937,39 @@ namespace LearningAIGame.CombatSystem.AI
             {
                 case ActionCriteriaType.Defense_CumulativeProbability:
                     ActionState mostUseAttack = enemyLog.ActionLog.MostUsedAttack;
-                    ActionAct(AntiActionSelect(mostUseAttack), enemyStance);
+                    ActionAct(AntiActionSelect(mostUseAttack), enemyStance, true);
                     break;
 
                 case ActionCriteriaType.Defense_RecentPatternFocus:
                     ActionState mostRecentUseAttack = enemyLog.RecentMostUsedAttack;
-                    ActionAct(AntiActionSelect(mostRecentUseAttack), enemyStance);
+                    ActionAct(AntiActionSelect(mostRecentUseAttack), enemyStance, true);
                     break;
 
                 case ActionCriteriaType.Defense_CounterattackFocus:
-                    ActionAct(ActionState.弱攻撃, enemyStance);
+                    ActionAct(ActionState.弱攻撃, enemyStance, true);
                     break;
 
                 case ActionCriteriaType.Defense_ReturnPriority:
                     if (enemyLog.ActionLog.LightAttackPercentage >= enemyLog.ActionLog.HeavyAttackPercentage)
                     {
-                        ActionAct(ActionState.弱ブロッキング, enemyStance);
+                        ActionAct(ActionState.弱ブロッキング, enemyStance, true);
                     }
                     else
                     {
-                        ActionAct(ActionState.強ブロッキング, enemyStance);
+                        ActionAct(ActionState.強ブロッキング, enemyStance, true);
                     }
                     break;
 
                 case ActionCriteriaType.Defense_RiskAvoidance:
-                    ActionAct(ActionState.後ろ回避, enemyStance);
+                    ActionAct(ActionState.後ろ回避, enemyStance, true);
                     break;
 
                 case ActionCriteriaType.Defense_EvasiveCounterPriority:
-                    ActionAct(ActionState.横回避攻撃, enemyStance);
+                    ActionAct(ActionState.横回避攻撃, enemyStance, true);
                     break;
 
                 case ActionCriteriaType.Defense_DispersionFocus:
-                    ActionAct(_llmData.NPCLog.ActionLog.LeastUsedDefense, enemyStance);
+                    ActionAct(_llmData.NPCLog.ActionLog.LeastUsedDefense, enemyStance, true);
                     break;
             }
         }
@@ -952,7 +977,7 @@ namespace LearningAIGame.CombatSystem.AI
         /// <summary>
         /// 入力された行動に対する最適行動を返すメソッド
         /// </summary>
-        private ActionState AntiActionSelect(ActionState type) => type switch
+        protected ActionState AntiActionSelect(ActionState type) => type switch
         {
             ActionState.後ろ回避 => ActionState.前回避攻撃,
             ActionState.横回避 => ActionState.強攻撃,
@@ -971,7 +996,7 @@ namespace LearningAIGame.CombatSystem.AI
         /// <summary>
         /// 指定された行動を実行するメソッド
         /// </summary>
-        private void ActionAct(ActionState useAction, StanceType enemyStance)
+        protected async void ActionAct(ActionState useAction, StanceType enemyStance, bool isDefense = false)
         {
             switch (useAction)
             {
@@ -1004,16 +1029,43 @@ namespace LearningAIGame.CombatSystem.AI
                     _myController.BlockingAct(GetDefenseStance(enemyStance));
                     break;
 
+                // 防御暴れ時は現在の構えで攻撃
                 case ActionState.弱攻撃:
-                    _myController.LightAttackAct(GetAttackStance(enemyStance)).Forget();
+                    if (!isDefense)
+                    {
+                        StanceType lightStance = GetAttackStance(enemyStance);
+                        if (lightStance != _myStateSystem.CurrentStance.CurrentValue)
+                        {
+                            // 構え変更が必要なら構え変更を行う
+                            _myController.GuardDirectionChange(lightStance);
+
+                            // 少し(0.1s)待ってから攻撃に移る
+                            await UniTask.Delay(100);
+                        }
+
+                        _myController.LightAttackAct(lightStance).Forget();
+                    }
+                    else
+                    {
+                        _myController.LightAttackAct(_myStateSystem.CurrentStance.CurrentValue).Forget();
+                    }
                     break;
 
                 case ActionState.強攻撃:
-                    _myController.HeavyAttackAct(GetAttackStance(enemyStance)).Forget();
+                    StanceType heavyStance = GetAttackStance(enemyStance);
+                    if (heavyStance != _myStateSystem.CurrentStance.CurrentValue)
+                    {
+                        // 構え変更が必要なら構え変更を行う
+                        _myController.GuardDirectionChange(heavyStance);
+
+                        // 少し(0.1s)待ってから攻撃に移る
+                        await UniTask.Delay(100);
+                    }
+                    _myController.HeavyAttackAct(heavyStance).Forget();
                     break;
 
                 case ActionState.強攻撃キャンセル:
-                    _myController.HeavyAttackFeint(GetAttackStance(enemyStance)).Forget();
+                    _myController.HeavyAttackFeint(_myStateSystem.CurrentStance.CurrentValue).Forget();
                     break;
 
                 case ActionState.横回避攻撃:
@@ -1054,18 +1106,32 @@ namespace LearningAIGame.CombatSystem.AI
         /// <summary>
         /// 攻撃用方向を敵の防御方向から取得するメソッド
         /// </summary>
-        private StanceType GetAttackStance(StanceType stance) => stance switch
+        protected StanceType GetAttackStance(StanceType stance)
         {
-            StanceType.Up => UnityEngine.Random.value < 0.5f ? StanceType.Left : StanceType.Right,
-            StanceType.Left => UnityEngine.Random.value < 0.5f ? StanceType.Up : StanceType.Right,
-            StanceType.Right => UnityEngine.Random.value < 0.5f ? StanceType.Left : StanceType.Up,
-            _ => StanceType.Up
-        };
+            float randomValue = UnityEngine.Random.value;
+
+            if (randomValue < _currentParameter.stanceChangeFrequency)
+            {
+                return stance switch
+                {
+                    StanceType.Up => randomValue < 0.5f ? StanceType.Left : StanceType.Right,
+                    StanceType.Left => randomValue < 0.5f ? StanceType.Up : StanceType.Right,
+                    StanceType.Right => randomValue < 0.5f ? StanceType.Left : StanceType.Up,
+                    _ => StanceType.Up
+                }
+            ;
+            }
+            else
+            {
+                return _myStateSystem.CurrentStance.CurrentValue;
+            }
+        }
+
 
         /// <summary>
         /// 防御用方向を敵の攻撃方向から取得するメソッド
         /// </summary>
-        private StanceType GetDefenseStance(StanceType stance) => stance switch
+        protected StanceType GetDefenseStance(StanceType stance) => stance switch
         {
             StanceType.Up => StanceType.Up,
             StanceType.Left => StanceType.Right,
@@ -1100,7 +1166,7 @@ namespace LearningAIGame.CombatSystem.AI
             if (_enemyStateSystem != null)
             {
                 float distance = transform != null && _enemyStateSystem.transform != null
-                    ? Vector3.Distance(transform.position, _enemyStateSystem.transform.position)
+                    ? Vector3.Distance(_myStateSystem.Position, _enemyStateSystem.Position)
                     : 0f;
                 sb.AppendLine($"敵: {_enemyStateSystem.CurrentState.CurrentValue} | 構え: {_enemyStateSystem.CurrentStance.CurrentValue} | 距離: {distance:F1}m");
             }
@@ -1126,5 +1192,57 @@ namespace LearningAIGame.CombatSystem.AI
         }
 
         #endregion
+
+        #region ゲームヘルパー(AIの更新中止やNLIの書き換え)
+
+        public void Lock()
+        {
+            _brainLocked = true;
+        }
+
+        public void Unlock()
+        {
+            _brainLocked = false;
+        }
+
+        public void SetUp()
+        {
+            // LLMのNLIタイプを戦術パラメーターに基づいて設定
+            GameManager.Instance.LLMCommunicator.SetNLIType(_strategyParameters.nlInstructionType);
+
+            // 各システムの購読を開始
+            SubscribeSystems();
+        }
+
+        public void RoundStart()
+        {
+            GameManager.Instance.LLMCommunicator.StartAutoUpdate();
+        }
+
+        public void RoundEnd()
+        {
+            GameManager.Instance.LLMCommunicator.StopAutoUpdate();
+        }
+
+        public void GameEnd()
+        {
+            GameManager.Instance.LLMCommunicator.StopAutoUpdate();
+        }
+
+        /// <summary>
+        /// targetを設定する
+        /// </summary>
+        /// <param name="target"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        public void SetTarget(GameObject target)
+        {
+            _enemyStateSystem = target.GetComponent<StateSystem>();
+            _enemyAttackSystem = target.GetComponent<AttackSystem>();
+            _enemyHitSystem = target.GetComponent<HitSystem>();
+            Debug.Log($"[{nameof(StrategyAI)}] 敵ターゲットを設定しました: {target.name}");
+        }
+
+        #endregion
+
     }
 }

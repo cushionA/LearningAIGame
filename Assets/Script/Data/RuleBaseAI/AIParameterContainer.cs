@@ -2,6 +2,7 @@ using UnityEngine;
 using NaughtyAttributes;
 using System;
 using LLMDataArchitect;
+using LLMDataArchitect.Test;
 
 namespace LearningAIGame.CombatSystem.Data
 {
@@ -9,31 +10,36 @@ namespace LearningAIGame.CombatSystem.Data
     /// AI戦術プリセットコレクション
     /// 各戦術タイプごとにパラメーターセットを保持
     /// </summary>
-    [CreateAssetMenu(fileName = "AIParameters", menuName = "LearningAIGame/AIParameters")]
+    [CreateAssetMenu(fileName = "AIParameters", menuName = "LearningAIGame/AIParameterContainer")]
     public class AIParameterContainer : ScriptableObject
     {
+        [Header("自然言語戦術設定")]
+        [InfoBox("AIの自然言語戦術指示タイプ")]
+        [Tooltip("AIの自然言語戦術指示タイプ")]
+        public NaturalLanguageInstructionType nlInstructionType = NaturalLanguageInstructionType.AnalyticalLearner;
+
         [Header("=== 戦術プリセットコレクション ===")]
         [InfoBox("各戦術タイプに対応するパラメーターセットを管理します", EInfoBoxType.Normal)]
 
         [BoxGroup("攻撃的戦術")]
         [Tooltip("攻撃的戦術のパラメーター")]
-        public AIParameter aggressive = new AIParameter();
+        public AIParameter aggressive;
 
         [BoxGroup("防御的戦術")]
         [Tooltip("防御的戦術のパラメーター")]
-        public AIParameter defensive = new AIParameter();
+        public AIParameter defensive;
 
         [BoxGroup("バランス型戦術")]
         [Tooltip("バランス型戦術のパラメーター")]
-        public AIParameter adaptive = new AIParameter();
+        public AIParameter adaptive;
 
         [BoxGroup("攪乱型戦術")]
         [Tooltip("攪乱型戦術のパラメーター")]
-        public AIParameter disturbance = new AIParameter();
+        public AIParameter disruptive;
 
         [BoxGroup("持久戦型戦術")]
         [Tooltip("持久戦型戦術のパラメーター")]
-        public AIParameter endurance = new AIParameter();
+        public AIParameter endurance;
 
         [Header("=== デフォルト戦術データ ===")]
         public StrategyData defaultStrategyData;
@@ -46,7 +52,7 @@ namespace LearningAIGame.CombatSystem.Data
             InitializeAggressivePreset();
             InitializeDefensivePreset();
             InitializeAdaptivePreset();
-            InitializeDisturbancePreset();
+            InitializeDisruptivePreset();
             InitializeEndurancePreset();
 
             Debug.Log("全ての戦術プリセットを初期化しました");
@@ -84,14 +90,6 @@ namespace LearningAIGame.CombatSystem.Data
             aggressive.stanceChangeFrequency = 0.5f;
             aggressive.minStanceChangeInterval = 1.0f;
 
-            // 戦術調整
-            aggressive.lowHealthAggressivenessModifier = 0.1f;
-            aggressive.highHealthAggressivenessModifier = 0.3f;
-            aggressive.lowEnergyBehaviorChangeRate = 0.3f;
-            aggressive.damageThresholdForTacticChange = 4;
-            aggressive.tacticRandomness = 0.2f;
-            aggressive.adaptationSpeed = 0.5f;
-
             Debug.Log("攻撃的プリセットを初期化しました");
         }
 
@@ -126,14 +124,6 @@ namespace LearningAIGame.CombatSystem.Data
             defensive.rightMovementFrequency = 0.3f;
             defensive.stanceChangeFrequency = 0.3f;
             defensive.minStanceChangeInterval = 2.0f;
-
-            // 戦術調整
-            defensive.lowHealthAggressivenessModifier = -0.4f;
-            defensive.highHealthAggressivenessModifier = 0.1f;
-            defensive.lowEnergyBehaviorChangeRate = 0.7f;
-            defensive.damageThresholdForTacticChange = 2;
-            defensive.tacticRandomness = 0.1f;
-            defensive.adaptationSpeed = 0.6f;
 
             Debug.Log("防御的プリセットを初期化しました");
         }
@@ -170,56 +160,40 @@ namespace LearningAIGame.CombatSystem.Data
             adaptive.stanceChangeFrequency = 0.5f;
             adaptive.minStanceChangeInterval = 1.5f;
 
-            // 戦術調整
-            adaptive.lowHealthAggressivenessModifier = -0.2f;
-            adaptive.highHealthAggressivenessModifier = 0.2f;
-            adaptive.lowEnergyBehaviorChangeRate = 0.5f;
-            adaptive.damageThresholdForTacticChange = 3;
-            adaptive.tacticRandomness = 0.3f;
-            adaptive.adaptationSpeed = 0.7f;
-
             Debug.Log("バランス型プリセットを初期化しました");
         }
 
         [Button("攪乱型プリセット初期化")]
-        private void InitializeDisturbancePreset()
+        private void InitializeDisruptivePreset()
         {
             // 攻撃設定
-            disturbance.attackFrequency = 0.6f;
-            disturbance.comboAttackProbability = 0.5f;
-            disturbance.minAttackInterval = 0.4f;
-            disturbance.maxAttackInterval = 1.8f;
-            disturbance.opportunityAttackRate = 0.4f;
+            disruptive.attackFrequency = 0.6f;
+            disruptive.comboAttackProbability = 0.5f;
+            disruptive.minAttackInterval = 0.4f;
+            disruptive.maxAttackInterval = 1.8f;
+            disruptive.opportunityAttackRate = 0.4f;
 
             // 防御設定
-            disturbance.stepUsageRate = 0.7f;
-            disturbance.punishRate = 0.4f;
+            disruptive.stepUsageRate = 0.7f;
+            disruptive.punishRate = 0.4f;
 
             // エネルギー管理
-            disturbance.minEnergyRatio = 0.25f;
-            disturbance.lightAttackMinEnergy = 0.35f;
-            disturbance.heavyAttackMinEnergy = 0.45f;
-            disturbance.rushMinEnergy = 0.18f;
-            disturbance.comboMinEnergy = 0.55f;
+            disruptive.minEnergyRatio = 0.25f;
+            disruptive.lightAttackMinEnergy = 0.35f;
+            disruptive.heavyAttackMinEnergy = 0.45f;
+            disruptive.rushMinEnergy = 0.18f;
+            disruptive.comboMinEnergy = 0.55f;
 
             // 移動パターン
-            disturbance.movementAggressiveness = 0.8f;
-            disturbance.preferredCombatDistanceRange = new Vector2(3f, 8f);
-            disturbance.dangerDistanceThreshold = 2f;
-            disturbance.forwardMovementFrequency = 0.4f;
-            disturbance.backwardMovementFrequency = 0.3f;
-            disturbance.leftMovementFrequency = 0.5f;
-            disturbance.rightMovementFrequency = 0.5f;
-            disturbance.stanceChangeFrequency = 0.7f;
-            disturbance.minStanceChangeInterval = 1.0f;
-
-            // 戦術調整
-            disturbance.lowHealthAggressivenessModifier = 0f;
-            disturbance.highHealthAggressivenessModifier = 0.2f;
-            disturbance.lowEnergyBehaviorChangeRate = 0.4f;
-            disturbance.damageThresholdForTacticChange = 5;
-            disturbance.tacticRandomness = 0.6f;
-            disturbance.adaptationSpeed = 0.5f;
+            disruptive.movementAggressiveness = 0.8f;
+            disruptive.preferredCombatDistanceRange = new Vector2(3f, 8f);
+            disruptive.dangerDistanceThreshold = 2f;
+            disruptive.forwardMovementFrequency = 0.4f;
+            disruptive.backwardMovementFrequency = 0.3f;
+            disruptive.leftMovementFrequency = 0.5f;
+            disruptive.rightMovementFrequency = 0.5f;
+            disruptive.stanceChangeFrequency = 0.7f;
+            disruptive.minStanceChangeInterval = 1.0f;
 
             Debug.Log("攪乱型プリセットを初期化しました");
         }
@@ -256,16 +230,109 @@ namespace LearningAIGame.CombatSystem.Data
             endurance.stanceChangeFrequency = 0.3f;
             endurance.minStanceChangeInterval = 2.0f;
 
-            // 戦術調整
-            endurance.lowHealthAggressivenessModifier = -0.3f;
-            endurance.highHealthAggressivenessModifier = 0.1f;
-            endurance.lowEnergyBehaviorChangeRate = 0.8f;
-            endurance.damageThresholdForTacticChange = 2;
-            endurance.tacticRandomness = 0.15f;
-            endurance.adaptationSpeed = 0.6f;
-
             Debug.Log("持久戦型プリセットを初期化しました");
         }
+
+        #region 移動比率正規化
+
+        /// <summary>
+        /// 全プリセットの移動方向比率を正規化
+        /// </summary>
+        [Button("全プリセットの移動比率を正規化", EButtonEnableMode.Editor)]
+        private void NormalizeAllMovementFrequencies()
+        {
+            NormalizeMovementFrequency(aggressive, "攻撃的");
+            NormalizeMovementFrequency(defensive, "防御的");
+            NormalizeMovementFrequency(adaptive, "バランス型");
+            NormalizeMovementFrequency(disruptive, "攪乱型");
+            NormalizeMovementFrequency(endurance, "持久戦型");
+
+            Debug.Log("全プリセットの移動方向比率を正規化しました");
+        }
+
+        /// <summary>
+        /// 単一プリセットの移動方向比率を正規化（合計1.0）
+        /// </summary>
+        /// <param name="param">対象のAIParameter</param>
+        /// <param name="presetName">ログ用プリセット名</param>
+        private void NormalizeMovementFrequency(AIParameter param, string presetName)
+        {
+            if (param == null)
+            {
+                Debug.LogWarning($"{presetName}プリセットがnullです");
+                return;
+            }
+
+            float total = param.forwardMovementFrequency
+                        + param.backwardMovementFrequency
+                        + param.leftMovementFrequency
+                        + param.rightMovementFrequency;
+
+            if (total <= 0f)
+            {
+                Debug.LogWarning($"{presetName}プリセット: 移動比率の合計が0以下です。均等配分に設定します。");
+                param.forwardMovementFrequency = 0.25f;
+                param.backwardMovementFrequency = 0.25f;
+                param.leftMovementFrequency = 0.25f;
+                param.rightMovementFrequency = 0.25f;
+                return;
+            }
+
+            // 正規化（小数3桁で丸め）
+            param.forwardMovementFrequency = RoundToThreeDecimals(param.forwardMovementFrequency / total);
+            param.backwardMovementFrequency = RoundToThreeDecimals(param.backwardMovementFrequency / total);
+            param.leftMovementFrequency = RoundToThreeDecimals(param.leftMovementFrequency / total);
+            param.rightMovementFrequency = RoundToThreeDecimals(param.rightMovementFrequency / total);
+
+            // 丸め誤差補正（合計が1.0になるよう最大値で調整）
+            float newTotal = param.forwardMovementFrequency
+                           + param.backwardMovementFrequency
+                           + param.leftMovementFrequency
+                           + param.rightMovementFrequency;
+
+            float diff = 1f - newTotal;
+            if (Mathf.Abs(diff) > 0.0001f)
+            {
+                // 最大の要素に誤差を加算
+                AdjustLargestFrequency(param, diff);
+            }
+
+            Debug.Log($"{presetName}プリセット: 移動比率を正規化 " +
+                      $"(前:{param.forwardMovementFrequency:F3} 後:{param.backwardMovementFrequency:F3} " +
+                      $"左:{param.leftMovementFrequency:F3} 右:{param.rightMovementFrequency:F3})");
+        }
+
+        /// <summary>
+        /// 小数3桁で丸める
+        /// </summary>
+        private float RoundToThreeDecimals(float value)
+        {
+            return Mathf.Round(value * 1000f) / 1000f;
+        }
+
+        /// <summary>
+        /// 丸め誤差を最大要素に加算して合計1.0に調整
+        /// </summary>
+        private void AdjustLargestFrequency(AIParameter param, float diff)
+        {
+            float max = Mathf.Max(
+                param.forwardMovementFrequency,
+                param.backwardMovementFrequency,
+                param.leftMovementFrequency,
+                param.rightMovementFrequency
+            );
+
+            if (param.forwardMovementFrequency >= max)
+                param.forwardMovementFrequency = RoundToThreeDecimals(param.forwardMovementFrequency + diff);
+            else if (param.backwardMovementFrequency >= max)
+                param.backwardMovementFrequency = RoundToThreeDecimals(param.backwardMovementFrequency + diff);
+            else if (param.leftMovementFrequency >= max)
+                param.leftMovementFrequency = RoundToThreeDecimals(param.leftMovementFrequency + diff);
+            else
+                param.rightMovementFrequency = RoundToThreeDecimals(param.rightMovementFrequency + diff);
+        }
+
+        #endregion
 
         #endregion
 
@@ -281,7 +348,7 @@ namespace LearningAIGame.CombatSystem.Data
                 AIParameter.StrategyType.Aggressive => aggressive,
                 AIParameter.StrategyType.Defensive => defensive,
                 AIParameter.StrategyType.Adaptive => adaptive,
-                AIParameter.StrategyType.Disturbance => disturbance,
+                AIParameter.StrategyType.Disruptive => disruptive,
                 AIParameter.StrategyType.Endurance => endurance,
                 _ => adaptive // デフォルトはバランス型
             };
@@ -290,7 +357,7 @@ namespace LearningAIGame.CombatSystem.Data
         /// <summary>
         /// 戦術タイプ名(文字列)に対応するパラメーターを取得
         /// </summary>
-        /// <param name="typeName">戦術タイプ名 ("Aggressive", "Defensive", "Adaptive", "Disturbance", "Endurance")</param>
+        /// <param name="typeName">戦術タイプ名 ("Aggressive", "Defensive", "Adaptive", "Disruptive", "Endurance")</param>
         /// <returns>対応するAIパラメーター。無効な名前の場合はAdaptive(バランス型)を返す</returns>
         public AIParameter GetStrategyParameters(string typeName)
         {
@@ -306,7 +373,7 @@ namespace LearningAIGame.CombatSystem.Data
                 "aggressive" => aggressive,
                 "defensive" => defensive,
                 "adaptive" => adaptive,
-                "disturbance" => disturbance,
+                "disruptive" => disruptive,
                 "endurance" => endurance,
                 _ => HandleInvalidTypeName(typeName)
             };
@@ -318,7 +385,7 @@ namespace LearningAIGame.CombatSystem.Data
         private AIParameter HandleInvalidTypeName(string typeName)
         {
             Debug.LogWarning($"無効な戦術タイプ名: '{typeName}'。デフォルト(Adaptive)を返します。" +
-                           $"\n有効な値: Aggressive, Defensive, Adaptive, Disturbance, Endurance");
+                           $"\n有効な値: Aggressive, Defensive, Adaptive, Disruptive, Endurance");
             return adaptive;
         }
 
@@ -344,9 +411,9 @@ namespace LearningAIGame.CombatSystem.Data
   隙攻撃率: {adaptive.opportunityAttackRate:F2}
 
 【攪乱型】
-  攻撃頻度: {disturbance.attackFrequency:F2} | 回避使用率: {disturbance.stepUsageRate:F2} | 反撃率: {disturbance.punishRate:F2}
-  エネルギー下限: {disturbance.minEnergyRatio:F2} | 好む距離: {disturbance.preferredCombatDistanceRange.x:F1}m～{disturbance.preferredCombatDistanceRange.y:F1}m
-  隙攻撃率: {disturbance.opportunityAttackRate:F2}
+  攻撃頻度: {disruptive.attackFrequency:F2} | 回避使用率: {disruptive.stepUsageRate:F2} | 反撃率: {disruptive.punishRate:F2}
+  エネルギー下限: {disruptive.minEnergyRatio:F2} | 好む距離: {disruptive.preferredCombatDistanceRange.x:F1}m～{disruptive.preferredCombatDistanceRange.y:F1}m
+  隙攻撃率: {disruptive.opportunityAttackRate:F2}
 
 【持久戦型】
   攻撃頻度: {endurance.attackFrequency:F2} | 回避使用率: {endurance.stepUsageRate:F2} | 反撃率: {endurance.punishRate:F2}

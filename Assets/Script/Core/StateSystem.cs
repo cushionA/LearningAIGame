@@ -1,14 +1,16 @@
 ﻿using LearningAIGame.CombatSystem.Data;
 using LearningAIGame.CombatSystem.Setting;
+using LearningAIGame.CombatSystem.Singleton;
 using LearningAIGame.CombatSystem.Systems;
 using LearningAIGame.CombatSystem.Utilities;
 using LLMDataArchitect;
-using LLMDataArchitectTest;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using NUnit.Framework;
 using R3;
 using System;
 using System.Collections.Generic;
+using UnityEditor.Animations;
 using UnityEngine;
 
 //==============================================ファイルヘッダ=======================================================================
@@ -73,7 +75,7 @@ using UnityEngine;
 
 namespace LearningAIGame.CombatSystem.Core
 {
-    public partial class StateSystem : MonoBehaviour
+    public partial class StateSystem : MonoBehaviour, IGameHelper
     {
 
         #region 列挙型定義
@@ -118,19 +120,20 @@ namespace LearningAIGame.CombatSystem.Core
             デフォルト防御 = 1 << 21,// 通常防御
 
             // --- 複合フラグ（論理和 '|' を使用） ---
-            ガード方向切り替え可能 = ガード | ブロッキング成功 | ガード成功,
+            ガード方向切り替え可能 = ガード,
+            敵への自動転回可能 = ガード | 回避 | ブロッキング成功 | ガード成功 | 攻撃 | ブロッキング | 強攻撃キャンセル | 小怯み | 大怯み | 弱攻撃ブロッキング | 強攻撃ブロッキング,
             ブロッキング可能 = ガード | ブロッキング成功 | ガード成功,
             回避可能 = ガード | ブロッキング成功 | ガード成功,
             防御可能 = ガード | ブロッキング成功 | ガード成功,
             攻撃可能 = ガード | ブロッキング成功 | ガード成功,
             回避攻撃可能 = 前回避 | 横回避,
-            強攻撃キャンセル可能 = 強攻撃,
             移動可能 = ガード | ブロッキング成功 | ガード成功,
-            弱攻撃系統 = 弱攻撃 | ActionState.前回避攻撃 | ActionState.横回避攻撃,
-            攻撃 = 強攻撃 | 弱攻撃 | ActionState.前回避攻撃 | ActionState.横回避攻撃,
+            移動停止 = 小怯み | 大怯み | 死亡 | ブロッキング | 弱攻撃ブロッキング | 強攻撃ブロッキング | 強攻撃キャンセル | ブロッキング成功 | ガード成功,
+            弱攻撃系統 = 弱攻撃 | 前回避攻撃 | 横回避攻撃,
+            攻撃 = 強攻撃 | 弱攻撃 | 前回避攻撃 | 横回避攻撃,
             回避 = 前回避 | 横回避 | 後ろ回避,
             防御 = 回避 | ガード | ブロッキング,
-            強制行動キャンセル = 小怯み | 大怯み | 弱攻撃ブロッキング | 強攻撃ブロッキング | 死亡,
+            強制行動キャンセル = 小怯み | 大怯み | 死亡,
             行動履歴に記録しない = ブロッキング成功 | ガード成功 | 小怯み | 大怯み | 弱攻撃ブロッキング | 強攻撃ブロッキング | 弱攻撃ガード | 死亡,
             スタミナ回復可能 = ガード | ガード成功 | ブロッキング成功
         }
@@ -153,47 +156,46 @@ namespace LearningAIGame.CombatSystem.Core
         /// <summary>
         /// アクション設定データ
         /// </summary>
-        [SerializeField]
-        private ActionSetting _actionSetting;
+        public ActionSetting actionSetting;
 
         /// <summary>
         /// キャラの基礎データ
         /// LLMへの報告用
         /// </summary>
-        private CharacterData _characterData;
+        protected CharacterData _characterData;
 
         /// <summary>
         /// 攻撃の実行情報
         /// コールバックとプロパティを通じてアクセス
         /// </summary>
-        private AttackInfo _attackInfo;
+        protected AttackInfo _attackInfo;
 
         /// <summary>
         /// 防御の実行情報
         /// コールバックとメソッドを通じてのみアクセス
         /// </summary>
-        private DefenseInfo _defenseInfo;
+        protected DefenseInfo _defenseInfo;
 
         /// <summary>
         /// LLMプロンプト生成用に行動や攻撃を記録するための履歴
         /// </summary>
-        private LLMLogData _llmLogData;
+        protected LLMLogData _llmLogData;
 
         /// <summary>
         /// 行動硬直を記録する変数
         /// ある行動のあと、硬直を経て次に行動できるようになる時間を設定する
         /// </summary>
-        private float _moveStunTime = -1f;
+        protected float _moveStunTime = -1f;
 
         /// <summary>
         /// 回避攻撃の受付可能時間
         /// </summary>
-        private float _avoidAttackBufferLimit = -1f;
+        protected float _avoidAttackBufferLimit = -1f;
 
         /// <summary>
         /// 強攻撃キャンセルを受け付けるフレームを記録する変数
         /// </summary>
-        private long _heavyCancelFrame;
+        protected long _heavyCancelFrame;
 
         #region 購読対象
 
@@ -201,31 +203,43 @@ namespace LearningAIGame.CombatSystem.Core
         /// 攻撃実行クラス
         /// </summary>
         [SerializeField]
-        private AttackSystem _attackSystem;
+        protected AttackSystem _attackSystem;
 
         /// <summary>
         /// 防御実行クラス
         /// </summary>
         [SerializeField]
-        private DefenseSystem _defenseSystem;
+        protected DefenseSystem _defenseSystem;
 
         /// <summary>
         /// 移動実行クラス
         /// </summary>
         [SerializeField]
-        private MovementSystem _movementSystem;
+        protected MovementSystem _movementSystem;
 
         /// <summary>
         /// 与ダメージ管理クラス
         /// </summary>
         [SerializeField]
-        private HitSystem _hitSystem;
+        protected HitSystem _hitSystem;
 
         /// <summary>
         /// 被弾管理クラス
         /// </summary>
         [SerializeField]
-        private DamageSystemBase _damageSystem;
+        protected DamageSystemBase _damageSystem;
+
+        /// <summary>
+        /// 位置管理クラス
+        /// </summary>
+        [SerializeField]
+        protected PositionCache _positionCache;
+
+        /// <summary>
+        /// 移動制御クラス
+        /// 被弾時などにキャラクターを停止させるために使用
+        /// </summary>
+        protected MoveController _moveController;
 
         #endregion
 
@@ -234,14 +248,16 @@ namespace LearningAIGame.CombatSystem.Core
         #region Publicプロパティ
 
         /// <summary>
-        /// 読み取り専用のHP
+        /// HP
         ///</summary>
-        public int Hp { get { return (_characterData.Hp >= 0 ? _characterData.Hp : 0); } }
+        public int Hp { get { return (_characterData.Hp >= 0 ? _characterData.Hp : 0); } set { _characterData.Hp = value; } }
 
         /// <summary>
         /// 読み取り専用の残りエネルギー（枯渇中は常に 0）
         ///</summary>
-        public int Energy { get { return (int)(_characterData.IsEnergyExhaust ? 0 : _characterData.Energy); } }
+        public int Energy { get { return (int)(_characterData.IsEnergyExhaust ? 0 : _characterData.Energy); } set { _characterData.Energy = value; } }
+
+        public float EnergyRatio { get { return _characterData.IsEnergyExhaust ? 0 : _characterData.Energy / _characterData.MaxEnergy; } }
 
         /// <summary>
         /// 読み取り専用の攻撃情報
@@ -256,7 +272,19 @@ namespace LearningAIGame.CombatSystem.Core
         /// <summary>
         /// 一つ前の行動状態
         /// </summary>
-        public ActionState LastState { get; private set; }
+        public ActionState LastState { get; protected set; }
+
+        public Vector3 Position { get { return _positionCache.Position; } }
+
+        /// <summary>
+        /// 位置情報を外部に公開する。
+        /// </summary>
+        public PositionCache PositionCache { get { return _positionCache; } }
+
+        /// <summary>
+        /// 攻撃可能な距離を比較用の二乗の値で渡すプロパティ
+        /// </summary>
+        public float AttackRangePow { get { return actionSetting.AttackableDistancePow; } }
 
         #region アニメーション管理リアクティブプロパティ
 
@@ -275,41 +303,51 @@ namespace LearningAIGame.CombatSystem.Core
         /// </summary>
         public ReactiveProperty<StanceType> CurrentStance;
 
+        /// <summary>
+        /// ヘルス情報
+        /// </summary>
+        public CharacterData CharacterData => _characterData;
+
         #endregion
 
         #region 行動実行可能管理プロパティ
 
         /// <summary>
+        /// 行動ロック状態かどうか
+        /// </summary>
+        private bool _moveLocked;
+
+        /// <summary>
         /// 攻撃可能かどうか
         /// </summary>
-        public bool CanAttack { get { return !_characterData.IsEnergyExhaust && Time.time >= _moveStunTime && (CurrentState.CurrentValue & ActionState.攻撃可能) > 0; } }
+        public bool CanAttack => !_moveLocked && !_characterData.IsEnergyExhaust && Time.time >= _moveStunTime && (CurrentState.CurrentValue & ActionState.攻撃可能) > 0;
 
-        public bool CanAvoidAttack { get { return !_characterData.IsEnergyExhaust && ((CurrentState.CurrentValue & ActionState.回避攻撃可能) > 0) && Time.time <= _avoidAttackBufferLimit; } }
+        public bool CanAvoidAttack => !_moveLocked && !_characterData.IsEnergyExhaust && ((CurrentState.CurrentValue & ActionState.回避攻撃可能) > 0) && Time.time <= _avoidAttackBufferLimit;
 
         /// <summary>
         /// ガード方向切り替え可能かどうか
         /// </summary>
-        public bool CanChangeGuardDirection { get { return (CurrentState.CurrentValue & ActionState.ガード方向切り替え可能) > 0 && Time.time >= _moveStunTime; } }
+        public bool CanChangeGuardDirection => !_moveLocked && (CurrentState.CurrentValue & ActionState.ガード方向切り替え可能) > 0 && Time.time >= _moveStunTime;
 
         /// <summary>
         /// ブロッキング可能かどうか
         /// </summary>
-        public bool CanBlock { get { return !_characterData.IsEnergyExhaust && (CurrentState.CurrentValue & ActionState.ブロッキング可能) > 0 && Time.time >= _moveStunTime; } }
+        public bool CanBlock => !_moveLocked && !_characterData.IsEnergyExhaust && (CurrentState.CurrentValue & ActionState.ブロッキング可能) > 0 && Time.time >= _moveStunTime;
 
         /// <summary>
         /// 回避可能かどうか
         /// </summary>
-        public bool CanAvoid { get { return (CurrentState.CurrentValue & ActionState.回避可能) > 0 && Time.time >= _moveStunTime; } }
+        public bool CanAvoid => !_moveLocked && (CurrentState.CurrentValue & ActionState.回避可能) > 0 && Time.time >= _moveStunTime;
 
         /// <summary>
         /// 強攻撃をキャンセル可能かどうか
         /// </summary>
-        public bool CanCancelHeavyAttack { get { return !_characterData.IsEnergyExhaust && (CurrentState.CurrentValue & ActionState.強攻撃キャンセル可能) > 0 && Time.frameCount <= _heavyCancelFrame && Time.time >= _moveStunTime; } }
+        public bool CanCancelHeavyAttack => !_moveLocked && !_characterData.IsEnergyExhaust && (CurrentState.CurrentValue & ActionState.強攻撃) > 0 && Time.frameCount <= _heavyCancelFrame && Time.time >= _moveStunTime;
 
         /// <summary>
         /// 移動可能かどうか
         /// </summary>
-        public bool CanMove { get { return (CurrentState.CurrentValue & ActionState.移動可能) > 0 && Time.time >= _moveStunTime; } }
+        public bool CanMove => !_moveLocked && (CurrentState.CurrentValue & ActionState.移動可能) > 0 && Time.time >= _moveStunTime;
 
         #endregion
 
@@ -320,6 +358,11 @@ namespace LearningAIGame.CombatSystem.Core
         /// </summary>
         public void Update()
         {
+            if (_characterData == null)
+            {
+                return;
+            }
+
             // 防御中のみエネルギー回復
             if ((CurrentState.Value & ActionState.スタミナ回復可能) == 0)
             {
@@ -331,14 +374,14 @@ namespace LearningAIGame.CombatSystem.Core
             {
                 // ActionSettingの値を使用
                 _characterData.RecoverEnergyByRate(
-                    Time.deltaTime * _actionSetting.EnergyRecoveryRatePerSecond * 1.8f
+                    Time.deltaTime * actionSetting.EnergyRecoveryRatePerSecond * actionSetting.EnergyRecoveryEmergencyMultiply
                 );
             }
             else
             {
                 // ActionSettingの値を使用
                 _characterData.RecoverEnergyByRate(
-                    Time.deltaTime * _actionSetting.EnergyRecoveryRatePerSecond
+                    Time.deltaTime * actionSetting.EnergyRecoveryRatePerSecond
                 );
             }
         }
@@ -362,9 +405,16 @@ namespace LearningAIGame.CombatSystem.Core
         /// </summary>
         public void SetNeutral()
         {
+
+            if (CurrentState.CurrentValue != ActionState.ガード)
+            {
+                _moveStunTime = Time.time + actionSetting[CurrentState.CurrentValue];
+                Debug.Log($"[{nameof(StateSystem)}] 行動硬直時間が {_moveStunTime - Time.time} 秒に設定されました。");
+            }
+            // ニュートラル状態 はガード
             ChangeState(ActionState.ガード);
-            _moveStunTime = Time.time + _actionSetting[CurrentState.CurrentValue];
-            //Debug.Log($"[{nameof(StateSystem)}] 行動硬直時間が {_moveStunTime - Time.time} 秒に設定されました。");
+            // 防御データの設定
+            _defenseInfo.SetInfo(DefenseType.Guard, 0, 0);
         }
 
         /// <summary>
@@ -380,31 +430,44 @@ namespace LearningAIGame.CombatSystem.Core
             {
                 return HitResultType.Hit;
             }
+
+            // ガード中ならつねにガード設定になるように
+            if (CurrentState.CurrentValue == ActionState.ガード)
+            {
+                _defenseInfo.SetInfo(DefenseType.Guard, 0, 0);
+            }
+            // 防御状態以外であれば防御なしとする
+            else if ((CurrentState.CurrentValue & ActionState.防御) == 0)
+            {
+                _defenseInfo.SetInfo(DefenseType.None, 0, 0);
+            }
+
             return _defenseInfo.IsDefenseSuccess(attackInfo, CurrentStance.CurrentValue);
         }
 
         /// <summary>
-        /// LLMへの出力データ作成用のデコンストラクタ
+        /// LLMへの出力データ作成用の処理
+        /// データが作成されていなければ作成する
         /// ここからまず参照を取る
         /// </summary>
         /// <param name="characterData"></param>
         /// <param name="logData"></param>
-        public void Deconstruct(out CharacterData characterData, out LLMLogData logData)
+        public void CreateLLMSourceData(CharacterData data, LLMLogData log)
         {
-            characterData = _characterData;
-            logData = _llmLogData;
+            _llmLogData = log;
+            _characterData = data;
         }
 
         #endregion
 
-        #region privateメソッド
+        #region protectedメソッド
 
         #region 購読用メソッド
 
         /// <summary>
         /// ダメージを受けた状況を記録する
         /// </summary>
-        private void OnHit(HitReportInfo hitReport)
+        protected void OnHit(HitReportInfo hitReport)
         {
             // 攻撃結果がブロッキングとガードならリアクションをする
             // ブロッキングされた場合
@@ -426,8 +489,9 @@ namespace LearningAIGame.CombatSystem.Core
         /// <summary>
         /// ダメージを受けた状況を記録する
         /// </summary>
-        private void OnDamage(DamageReportInfo damageReport)
+        protected void OnDamage(DamageReportInfo damageReport)
         {
+            Debug.Log($"[{nameof(StateSystem)}] ダメージ報告を受け取りました。ダメージ量: {damageReport.Damage}, 防御行動: {damageReport.DefenseAction}, 攻撃タイプ: {damageReport.AttackType} 現在時{DateTime.Now}");
             // 被弾している場合
             if (damageReport.Damage != 0)
             {
@@ -437,42 +501,56 @@ namespace LearningAIGame.CombatSystem.Core
                 // 死んでいたら死亡状態に移行
                 if (_characterData.IsDead)
                 {
+                    Debug.Log($"[{nameof(StateSystem)}] 死亡状態に移行しました。");
                     ChangeState(ActionState.死亡);
+                    GameManager.Instance.DefeatedReport(this.gameObject);
                     return;
                 }
 
                 // 弱攻撃の場合
                 if (damageReport.AttackType == AttackType.WeakAttack)
                 {
+                    Debug.Log($"[{nameof(StateSystem)}] 小怯み状態に移行しました。");
                     ChangeState(ActionState.小怯み);
                 }
                 else
                 {
+                    Debug.Log($"[{nameof(StateSystem)}] 大怯み状態に移行しました。");
                     ChangeState(ActionState.大怯み);
                 }
             }
             // 防御成功した場合
             else
             {
+
+                // 被ダメージ状況を追加
+                _llmLogData.AddDamageSituationLog(new HitSituation(damageReport));
+
+                // 反撃成功時に防御成功イベントが呼ばれないように制御
+                if ((CurrentState.CurrentValue & ActionState.防御) == 0)
+                {
+                    return;
+                }
+
                 // ガード成功
                 if (damageReport.DefenseAction == ActionState.ガード)
                 {
+                    Debug.Log($"[{nameof(StateSystem)}] ガード成功状態に移行しました。");
                     ChangeState(ActionState.ガード成功);
                 }
 
                 // ブロッキング成功
                 else if (damageReport.DefenseAction == ActionState.ブロッキング)
                 {
+                    Debug.Log($"[{nameof(StateSystem)}] ブロッキング成功状態に移行しました。");
                     ChangeState(ActionState.ブロッキング成功);
 
-                    // ブロッキング成功時10パーセントエネルギー回復
-                    // リテラルは設定データに置き換え予定
-                    _characterData.RecoverEnergyByRate(_actionSetting.BlockingSuccessEnergyRecovery);
+                    // ブロッキング成功時エネルギー回復
+                    _characterData.RecoverEnergyByRate(actionSetting.BlockingSuccessEnergyRecovery);
                 }
             }
 
-            // 被ダメージ状況を追加
-            _llmLogData.AddDamageSituationLog(new HitSituation(damageReport));
+
         }
 
         /// <summary>
@@ -480,7 +558,7 @@ namespace LearningAIGame.CombatSystem.Core
         /// 構え方向の変更とブロッキング開始を報告する
         /// ガード切り替え受け付け
         /// </summary>
-        private void OnDefense(DefenseReportInfo defenseReport)
+        protected void OnDefense(DefenseReportInfo defenseReport)
         {
             // 構え方向の変更
             CurrentStance.Value = defenseReport.stance;
@@ -489,19 +567,20 @@ namespace LearningAIGame.CombatSystem.Core
             ChangeState(defenseReport.reportType == DefenseReportType.StanceChange ? ActionState.ガード : ActionState.ブロッキング);
 
             // 防御データの設定
-            _defenseInfo.SetInfo(defenseReport, _actionSetting.BlockingStartDelay, _actionSetting.BlockingDuration);
+            _defenseInfo.SetInfo(defenseReport, actionSetting.BlockingStartDelay, actionSetting.BlockingDuration);
         }
 
         /// <summary>
         /// 攻撃関連のコールバックで呼ばれるメソッド
         /// 弱攻撃と強攻撃の開始、強攻撃キャンセルを報告する
         /// </summary>
-        private void OnAttack(AttackReportInfo attackReport)
+        protected void OnAttack(AttackReportInfo attackReport)
         {
             // 切り替える行動状態
             ActionState useState;
             // キャンセル行動であるかどうか
-            bool isCancel = false;
+            bool isCancel = CurrentState.CurrentValue == ActionState.ブロッキング成功 ||
+                CurrentState.CurrentValue == ActionState.ガード成功;
 
             // 現在の行動と報告内容に応じて処理を切り替え
             switch (attackReport.reportType)
@@ -535,7 +614,7 @@ namespace LearningAIGame.CombatSystem.Core
                     useState = ActionState.強攻撃;
 
                     // 強攻撃キャンセルフレームを設定
-                    _heavyCancelFrame = Time.frameCount + _actionSetting.HeavyCancelInputFrame;
+                    _heavyCancelFrame = Time.frameCount + actionSetting.HeavyCancelInputFrame;
 
                     // 攻撃方向切り替え
                     CurrentStance.Value = attackReport.stance;
@@ -553,34 +632,43 @@ namespace LearningAIGame.CombatSystem.Core
             // 行動切り替え
             ChangeState(useState, isCancel);
 
+
             // 攻撃データを設定
             _attackInfo.SetInfo(attackReport);
+
+            if (gameObject.name == "NPC")
+            {
+
+                Debug.Log($"[{nameof(StateSystem)}] NPCの攻撃報告を受け取りました。現在時間{DateTime.Now}, 現在の状態{CurrentState.CurrentValue}");
+            }
+
         }
 
         /// <summary>
         /// 回避関連のコールバックで呼ばれるメソッド
         /// 弱攻撃と強攻撃の開始、強攻撃キャンセルを報告する
         /// </summary>
-        private void OnMovement(MoveReportInfo moveReport)
+        protected void OnMovement(MoveReportInfo moveReport)
         {
             switch (moveReport.reportType)
             {
                 // 通常移動
                 case MovementReportType.NormalMove:
                     MoveVector.Value = moveReport.moveVector;
+                    // 移動中はガード
                     ChangeState(ActionState.ガード);
                     break;
                 case MovementReportType.FrontStep:
                     ChangeState(ActionState.前回避);
-                    _avoidAttackBufferLimit = Time.time + _actionSetting.AvoidAttackInputDuration;
+                    _avoidAttackBufferLimit = Time.time + actionSetting.AvoidAttackInputDuration;
                     break;
                 case MovementReportType.LeftStep:
                     ChangeState(ActionState.横回避);
-                    _avoidAttackBufferLimit = Time.time + _actionSetting.AvoidAttackInputDuration;
+                    _avoidAttackBufferLimit = Time.time + actionSetting.AvoidAttackInputDuration;
                     break;
                 case MovementReportType.RightStep:
                     ChangeState(ActionState.横回避);
-                    _avoidAttackBufferLimit = Time.time + _actionSetting.AvoidAttackInputDuration;
+                    _avoidAttackBufferLimit = Time.time + actionSetting.AvoidAttackInputDuration;
                     break;
                 case MovementReportType.BackStep:
                     ChangeState(ActionState.後ろ回避);
@@ -589,17 +677,19 @@ namespace LearningAIGame.CombatSystem.Core
                     break;
             }
 
-            _defenseInfo.SetInfo(moveReport, _actionSetting.AvoidInvincibleStartDelay, _actionSetting.AvoidDuration);
+            _defenseInfo.SetInfo(moveReport, actionSetting.AvoidInvincibleStartDelay, actionSetting.AvoidInvincibleDuration);
         }
 
         #endregion
+
+        //private Animator _animator;
 
         /// <summary>
         /// 行動切り替えに使用するメソッド
         /// </summary>
         /// <param name="newState">切り替え先の行動</param>
         /// <param name="isCnancel">強攻撃キャンセルなどのキャンセル行動であるか</param>
-        private void ChangeState(ActionState newState, bool isCancel = false)
+        protected void ChangeState(ActionState newState, bool isCancel = false)
         {
             // 同じ状態への変更は無視
             if (newState == CurrentState.CurrentValue)
@@ -618,10 +708,10 @@ namespace LearningAIGame.CombatSystem.Core
                 {
                     // 行動切り替え前に現在の行動を履歴に保存
                     _llmLogData.AddActionLog(CurrentState.CurrentValue);
-
-                    // 前回の行動を保存する
-                    LastState = CurrentState.CurrentValue;
                 }
+
+                // 履歴関係なく前回の行動を保存する
+                LastState = CurrentState.CurrentValue;
 
                 // 行動切り替え
                 CurrentState.Value = newState;
@@ -631,6 +721,19 @@ namespace LearningAIGame.CombatSystem.Core
 
             // アクションが切り替わった際に移動フラグは一度消す
             MoveVector.Value = Vector3.zero;
+
+            // アクションがガード以外に切り替わった場合、ガード状態であれば解除する
+            if (newState != ActionState.ガード && _defenseInfo.CurrentDefense == DefenseType.Guard)
+            {
+                // 防御データの設定
+                _defenseInfo.SetInfo(DefenseType.None, 0, 0);
+            }
+
+            // 移動停止状態の場合は移動を止める
+            if ((CurrentState.CurrentValue & ActionState.移動停止) > 0)
+            {
+                _moveController.Stop();
+            }
         }
 
         #endregion
@@ -640,17 +743,11 @@ namespace LearningAIGame.CombatSystem.Core
         /// <summary>
         /// 初期化時にフィールド、ReactiveProperty、購読設定を行う
         /// </summary>
-        private void Awake()
+        protected void Awake()
         {
-            // フィールドの初期化
-            _llmLogData = new LLMLogData(7, 7, 7);
-
-            // 一時的な初期化対応。
-            // いずれ設定ファイルに置き換え
-            _characterData = new CharacterData(100, 100);
 
             // nullチェック
-            if (_actionSetting == null)
+            if (actionSetting == null)
             {
                 Debug.LogError($"[{nameof(StateSystem)}] ActionSettingが設定されていません！");
             }
@@ -659,6 +756,7 @@ namespace LearningAIGame.CombatSystem.Core
             CurrentState = new ReactiveProperty<ActionState>(ActionState.ガード).AddTo(this);
             MoveVector = new ReactiveProperty<Vector3>(Vector3.zero).AddTo(this);
             CurrentStance = new ReactiveProperty<StanceType>(StanceType.Up).AddTo(this);
+            _moveController = GetComponent<MoveController>();
 
             SubscribeSystems();
         }
@@ -666,7 +764,7 @@ namespace LearningAIGame.CombatSystem.Core
         /// <summary>
         /// 各システムからの通知を購読する
         /// </summary>
-        private void SubscribeSystems()
+        protected void SubscribeSystems()
         {
             // 各システムの購読設定
             if (_attackSystem != null)
@@ -689,14 +787,71 @@ namespace LearningAIGame.CombatSystem.Core
                 _hitSystem.Observable.Subscribe(OnHit).AddTo(this);
             }
 
+            // 被弾は0.1秒に一回までに制限
             if (_damageSystem != null)
             {
-                _damageSystem.Observable.Subscribe(OnDamage).AddTo(this);
+                _damageSystem.Observable
+                    //.ThrottleFirst(TimeSpan.FromSeconds(0.3f))
+                    .Subscribe(OnDamage)
+                    .AddTo(this);
             }
 
         }
 
         #endregion
 
+        #region ゲームヘルパー（行動ロック変数の切り替え）
+
+        public void Lock()
+        {
+            _moveLocked = true;
+        }
+
+        public void Unlock()
+        {
+            _moveLocked = false;
+        }
+
+        public void SetUp()
+        {
+
+        }
+
+        public void RoundStart()
+        {
+            // 初期状態はガード
+            ChangeState(ActionState.ガード);
+        }
+
+        public void RoundEnd()
+        {
+            _characterData.Reset();
+        }
+
+        public void GameEnd()
+        {
+
+        }
+
+
+        #endregion
+
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// コンテキストメニューからコンポーネントを設定
+        /// </summary>
+        [ContextMenu("Setup Components")]
+        private void SetupComponents()
+        {
+            _attackSystem = GetComponent<AttackSystem>();
+            _defenseSystem = GetComponent<DefenseSystem>();
+            _movementSystem = GetComponent<MovementSystem>();
+            _hitSystem = GetComponent<HitSystem>();
+            _damageSystem = GetComponent<DamageSystemBase>();
+            _positionCache = GetComponent<PositionCache>();
+            UnityEditor.EditorUtility.SetDirty(this);
+        }
+#endif
     }
 }

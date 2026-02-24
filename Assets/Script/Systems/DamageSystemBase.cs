@@ -32,6 +32,12 @@ namespace LearningAIGame.CombatSystem.Systems
         /// </summary>
         protected DamageReportInfo _info;
 
+        /// <summary>
+        /// 前回受けて結果が確定した攻撃のID
+        /// 同じIDは無効にする
+        /// </summary>
+        protected int _lastAttackID = -1;
+
         #endregion
 
         #region 被ダメージ処理
@@ -51,5 +57,25 @@ namespace LearningAIGame.CombatSystem.Systems
         public abstract void DamageReport(HitReportInfo hitReport);
 
         #endregion
+
+        /// <summary>
+        /// 攻撃IDが有効であるかを確認するメソッド
+        /// </summary>
+        /// <param name="attackID"></param>
+        protected bool CheckActiveID(int attackID)
+        {
+            Debug.Log($"[DamageSystemBase] CheckActiveID: incomingID={attackID}, lastID={_lastAttackID}");
+            if (_lastAttackID == attackID)
+            {
+                // 同じIDは無効
+                return false;
+            }
+            else
+            {
+                // 新しいIDは有効にして保存
+                _lastAttackID = attackID;
+                return true;
+            }
+        }
     }
 }

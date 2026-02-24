@@ -8,6 +8,7 @@ namespace LearningAIGame.CombatSystem.Data
     /// AI戦術パラメーターを定義するScriptableObject
     /// 基本戦術の種類ごとに攻撃頻度、エネルギー管理、移動パターンなどを設定
     /// </summary>
+    [Serializable]
     public class AIParameter
     {
         #region 基本戦術タイプ
@@ -20,7 +21,7 @@ namespace LearningAIGame.CombatSystem.Data
             Aggressive,      // 攻撃的
             Defensive,       // 防御的
             Adaptive,        // バランス型
-            Disturbance,     // 攪乱
+            Disruptive,     // 攪乱
             Endurance        // エネルギー重視持久戦
         }
 
@@ -99,19 +100,19 @@ namespace LearningAIGame.CombatSystem.Data
         [Header("エネルギー消費判断")]
 
         [Tooltip("弱攻撃を使用する最低エネルギー率")]
-        [Range(0.2f, 0.8f)]
+        [Range(0f, 1f)]
         public float lightAttackMinEnergy = 0.5f;
 
         [Tooltip("強攻撃を使用する最低エネルギー率")]
-        [Range(0.2f, 0.8f)]
+        [Range(0f, 1f)]
         public float heavyAttackMinEnergy = 0.5f;
 
         [Tooltip("前回避行動を使用する最低エネルギー率")]
-        [Range(0.1f, 0.5f)]
+        [Range(0f, 1f)]
         public float rushMinEnergy = 0.2f;
 
         [Tooltip("連続攻撃を行う最低エネルギー率")]
-        [Range(0.3f, 0.9f)]
+        [Range(0f, 1f)]
         [ShowIf("IsAggressiveOrAdaptive")]
         public float comboMinEnergy = 0.6f;
 
@@ -131,7 +132,7 @@ namespace LearningAIGame.CombatSystem.Data
         public Vector2 preferredCombatDistanceRange = new Vector2(4f, 7f);
 
         [Tooltip("危険距離の閾値（メートル）この距離より近いと離脱行動を取る")]
-        [Range(0.5f, 5f)]
+        [Range(0f, 5f)]
         [ShowIf("IsDefensiveOrEndurance")]
         public float dangerDistanceThreshold = 2f;
 
@@ -140,7 +141,7 @@ namespace LearningAIGame.CombatSystem.Data
 
         [Tooltip("前進移動の頻度 (0: 使わない ~ 1: 頻繁に使う)")]
         [Range(0f, 1f)]
-        [ShowIf("IsAggressiveOrDisturbance")]
+        [ShowIf("IsAggressiveOrDisruptive")]
         public float forwardMovementFrequency = 0.6f;
 
         [Tooltip("後退移動の頻度 (0: 使わない ~ 1: 頻繁に使う)")]
@@ -150,12 +151,12 @@ namespace LearningAIGame.CombatSystem.Data
 
         [Tooltip("左移動の頻度 (0: 使わない ~ 1: 頻繁に使う)")]
         [Range(0f, 1f)]
-        [ShowIf("IsDisturbanceOrAdaptive")]
+        [ShowIf("IsDisruptiveOrAdaptive")]
         public float leftMovementFrequency = 0.5f;
 
         [Tooltip("右の頻度 (0: 使わない ~ 1: 頻繁に使う)")]
         [Range(0f, 1f)]
-        [ShowIf("IsDisturbanceOrAdaptive")]
+        [ShowIf("IsDisruptiveOrAdaptive")]
         public float rightMovementFrequency = 0.3f;
 
         [Space(10)]
@@ -168,42 +169,6 @@ namespace LearningAIGame.CombatSystem.Data
         [Tooltip("構え変更の最小間隔（秒）")]
         [MinValue(0.5f)]
         public float minStanceChangeInterval = 1.5f;
-
-        #endregion
-
-        #region 戦術調整パラメーター
-
-        [Header("=== 戦術調整 ===")]
-        [InfoBox("試合状況に応じた戦術調整の設定", EInfoBoxType.Warning)]
-
-        [Tooltip("体力劣勢時の攻撃性変化 (-1: 守備的 ~ 1: 攻撃的)")]
-        [Range(-1f, 1f)]
-        public float lowHealthAggressivenessModifier = -0.3f;
-
-        [Tooltip("体力優勢時の攻撃性変化 (-1: 守備的 ~ 1: 攻撃的)")]
-        [Range(-1f, 1f)]
-        public float highHealthAggressivenessModifier = 0.2f;
-
-        [Tooltip("エネルギー劣勢時の行動変化率 (0: 変化なし ~ 1: 大きく変化)")]
-        [Range(0f, 1f)]
-        [ShowIf("IsEnduranceOrAdaptive")]
-        public float lowEnergyBehaviorChangeRate = 0.5f;
-
-        [Space(10)]
-        [Header("適応性設定")]
-
-        [Tooltip("連続でダメージを受けた後の戦術変更（何回連続で被弾したら戦術を変えるか）")]
-        [Range(2, 10)]
-        public int damageThresholdForTacticChange = 3;
-
-        [Tooltip("戦術パターンのランダム性 (0: 固定 ~ 1: 完全ランダム)")]
-        [Range(0f, 1f)]
-        public float tacticRandomness = 0.2f;
-
-        [Tooltip("敵の行動パターンへの適応速度 (0: 適応しない ~ 1: 即座に適応)")]
-        [Range(0f, 1f)]
-        [ShowIf("IsAdaptive")]
-        public float adaptationSpeed = 0.6f;
 
         #endregion
 

@@ -1,0 +1,116 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 32417cd7f8f8bf6418005c574bff652a, type: 3}
+  m_Name: AnimationEventSetting
+  m_EditorClassIdentifier: Assembly-CSharp::LearningAIGame.Battle.AnimationEvent.AnimationEventDatabase
+  effects:
+  - effectId: LeftBlocking_Start
+    effectPrefab: {fileID: 6465249256851274223, guid: abcb21d2942e4ce48960ba437214049c, type: 3}
+    spawnBone: 17
+    autoDeactivateTime: 0.1
+    enableDebugLog: 0
+  - effectId: LeftBlocking_Success
+    effectPrefab: {fileID: 100004, guid: f5e38c7d20fec4243beabd03351ab3c0, type: 3}
+    spawnBone: 17
+    autoDeactivateTime: 0.5
+    enableDebugLog: 0
+  - effectId: LeftGuard_Success
+    effectPrefab: {fileID: 1995403933065894, guid: 0ea6d982bff944e4b87fce87b7f77a6b, type: 3}
+    spawnBone: 17
+    autoDeactivateTime: 0.6
+    enableDebugLog: 0
+  - effectId: RightGuard_Success
+    effectPrefab: {fileID: 1995403933065894, guid: 0ea6d982bff944e4b87fce87b7f77a6b, type: 3}
+    spawnBone: 18
+    autoDeactivateTime: 0.6
+    enableDebugLog: 0
+  - effectId: TopGuard_Success
+    effectPrefab: {fileID: 1995403933065894, guid: 0ea6d982bff944e4b87fce87b7f77a6b, type: 3}
+    spawnBone: 17
+    autoDeactivateTime: 0.6
+    enableDebugLog: 0
+  - effectId: TopBlocking_Success
+    effectPrefab: {fileID: 100004, guid: f5e38c7d20fec4243beabd03351ab3c0, type: 3}
+    spawnBone: 14
+    autoDeactivateTime: 0.5
+    enableDebugLog: 0
+  - effectId: RightBlocking_Success
+    effectPrefab: {fileID: 100004, guid: f5e38c7d20fec4243beabd03351ab3c0, type: 3}
+    spawnBone: 18
+    autoDeactivateTime: 0.5
+    enableDebugLog: 0
+  - effectId: RightBlocking_Start
+    effectPrefab: {fileID: 6465249256851274223, guid: abcb21d2942e4ce48960ba437214049c, type: 3}
+    spawnBone: 18
+    autoDeactivateTime: 0.1
+    enableDebugLog: 0
+  - effectId: TopBlocking_Start
+    effectPrefab: {fileID: 6465249256851274223, guid: abcb21d2942e4ce48960ba437214049c, type: 3}
+    spawnBone: 18
+    autoDeactivateTime: 0.1
+    enableDebugLog: 0
+  audios:
+  - audioId: Light_Swing
+    audioClip: {fileID: 8300000, guid: 9d683db3b31c4484d9db1519e8ce360c, type: 3}
+    volume: 1
+    pitch: 1
+    loop: 0
+    enableDebugLog: 0
+  - audioId: Heavy_Swing
+    audioClip: {fileID: 8300000, guid: 719b4f82d65961142af10216557e6ec5, type: 3}
+    volume: 1
+    pitch: 1
+    loop: 0
+    enableDebugLog: 0
+  - audioId: Guard_Success
+    audioClip: {fileID: 8300000, guid: f5c8159d6aeafd14fae8f5f1fb8bb1d3, type: 3}
+    volume: 1
+    pitch: 1
+    loop: 0
+    enableDebugLog: 0
+  - audioId: Blocking_Success
+    audioClip: {fileID: 8300000, guid: 4a630dd782ee6f4419500cf3b8f5071e, type: 3}
+    volume: 1
+    pitch: 1
+    loop: 0
+    enableDebugLog: 1
+  - audioId: Blocking_Start
+    audioClip: {fileID: 8300000, guid: ea908ab4924c77848bd098c1ffe7410f, type: 3}
+    volume: 1
+    pitch: 3
+    loop: 0
+    enableDebugLog: 0
+  - audioId: FootStep
+    audioClip: {fileID: 8300000, guid: b4206a109caaff1418685bd8bf3de789, type: 3}
+    volume: 1
+    pitch: 1
+    loop: 0
+    enableDebugLog: 0
+  - audioId: Step
+    audioClip: {fileID: 8300000, guid: ed3ffb125aa8dc042ad0372fda21ac96, type: 3}
+    volume: 1
+    pitch: 1
+    loop: 0
+    enableDebugLog: 0
+  - audioId: Light_Hit
+    audioClip: {fileID: 8300000, guid: 5a9cb5bc9052da04a8bd8c558a8397c7, type: 3}
+    volume: 1
+    pitch: 1
+    loop: 0
+    enableDebugLog: 0
+  - audioId: Heavy_Hit
+    audioClip: {fileID: 8300000, guid: 6daf1e1ca7f00364a8c638446517a9e8, type: 3}
+    volume: 1
+    pitch: 1
+    loop: 0
+    enableDebugLog: 0
+  enableDebugLog: 0

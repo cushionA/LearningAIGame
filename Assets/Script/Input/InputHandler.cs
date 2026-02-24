@@ -1,7 +1,9 @@
 ﻿using LearningAIGame.CombatSystem.Core;
 using LearningAIGame.CombatSystem.Data;
 using LearningAIGame.CombatSystem.Settings;
+using LearningAIGame.CombatSystem.Singleton;
 using LearningAIGame.Input;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using static LearningAIGame.CombatSystem.Core.StateSystem;
@@ -53,8 +55,26 @@ namespace LearningAIGame.CombatSystem
     /// 責任範囲: 入力の受付、入力の変換、キャラクターコントローラーへの命令送信
     /// </summary>
     [RequireComponent(typeof(BattleCharacterController))]
-    public class InputHandler : MonoBehaviour
+    public class InputHandler : MonoBehaviour, IGameHelper
     {
+        #region 列挙型定義
+
+        /// <summary>
+        /// ボタン入力の種類
+        /// 連打制限の管理に使用
+        /// </summary>
+        private enum ButtonType
+        {
+            LightAttack,
+            HeavyAttack,
+            Blocking,
+            Dodge,
+            HeavyCancel,
+            Pause
+        }
+
+        #endregion
+
         #region フィールド定義
 
         /// <summary>
@@ -119,6 +139,17 @@ namespace LearningAIGame.CombatSystem
         /// </summary>
         private bool _hasDirectionInputThisFrame;
 
+        /// <summary>
+        /// 各ボタンの最終入力時刻
+        /// 連打制限の管理に使用
+        /// </summary>
+        private readonly Dictionary<ButtonType, float> _lastInputTimes = new();
+
+        /// <summary>
+        /// ロック状態フラグ
+        /// </summary>
+        private bool _isLock;
+
         #endregion
 
         #region Unityライフサイクル
@@ -148,6 +179,9 @@ namespace LearningAIGame.CombatSystem
 
             // Input Actionインスタンスの生成
             _inputActions = new PlayerInputActions();
+
+            // 連打制限用の辞書を初期化
+            InitializeInputTimes();
         }
 
         /// <summary>
@@ -163,6 +197,7 @@ namespace LearningAIGame.CombatSystem
             _inputActions.Player.Blocking.performed += OnBlockingPerformed;
             _inputActions.Player.Dodge.performed += OnDodgePerformed;
             _inputActions.Player.HeavyCancel.performed += OnHeavyCancelPerformed;
+            _inputActions.Player.Pause.performed += OnPausePerformed;
 
             // Playerアクションマップを有効化
             // これにより入力の受付が開始される
@@ -182,6 +217,7 @@ namespace LearningAIGame.CombatSystem
             _inputActions.Player.Blocking.performed -= OnBlockingPerformed;
             _inputActions.Player.Dodge.performed -= OnDodgePerformed;
             _inputActions.Player.HeavyCancel.performed -= OnHeavyCancelPerformed;
+            _inputActions.Player.Pause.performed -= OnPausePerformed;
 
             // アクションマップの無効化
             _inputActions.Player.Disable();
@@ -199,7 +235,7 @@ namespace LearningAIGame.CombatSystem
         private void Update()
         {
             // 設定が無効な場合は処理をスキップ
-            if (_inputSettings == null)
+            if (_inputSettings == null || _isLock)
                 return;
 
             // フレーム開始時にフラグをリセット
@@ -255,6 +291,41 @@ namespace LearningAIGame.CombatSystem
 
         #endregion
 
+        #region 連打制限
+
+        /// <summary>
+        /// 連打制限用の辞書を初期化
+        /// </summary>
+        private void InitializeInputTimes()
+        {
+            foreach (ButtonType buttonType in System.Enum.GetValues(typeof(ButtonType)))
+            {
+                _lastInputTimes[buttonType] = float.MinValue;
+            }
+        }
+
+        /// <summary>
+        /// 指定したボタンの入力が許可されているかチェックし、許可されていれば時刻を更新
+        /// </summary>
+        /// <param name="buttonType">チェックするボタンの種類</param>
+        /// <returns>入力が許可されていればtrue</returns>
+        private bool TryConsumeInput(ButtonType buttonType)
+        {
+            float currentTime = Time.unscaledTime;
+            float lastTime = _lastInputTimes[buttonType];
+            float interval = _inputSettings.buttonInputInterval;
+
+            if (currentTime - lastTime < interval)
+            {
+                return false;
+            }
+
+            _lastInputTimes[buttonType] = currentTime;
+            return true;
+        }
+
+        #endregion
+
         #region 継続的入力処理
 
         /// <summary>
@@ -283,7 +354,7 @@ namespace LearningAIGame.CombatSystem
 
             // 2D入力を3D空間の移動ベクトルに変換
             // X: 左右、Z: 前後、Y: 高さ(移動では使用しない)
-            Vector3 moveDirection = new Vector3(_moveInput.x, 0f, _moveInput.y);
+            Vector3 moveDirection = new Vector3(_moveInput.x, 0, _moveInput.y);
 
             // キャラクターコントローラーへ移動命令を送信
             _characterController.MoveAct(moveDirection);
@@ -358,6 +429,18 @@ namespace LearningAIGame.CombatSystem
         #region ボタン入力イベントハンドラ
 
         /// <summary>
+        /// ポーズ呼び出しボタンが押された時の処理
+        /// </summary>
+        /// <param name="context">Input Systemのコールバック情報</param>
+        private void OnPausePerformed(InputAction.CallbackContext context)
+        {
+            if (!TryConsumeInput(ButtonType.Pause))
+                return;
+
+            GameManager.Instance.TogglePause();
+        }
+
+        /// <summary>
         /// 弱攻撃が押された時の処理
         /// R1/右クリック → 弱攻撃
         /// 
@@ -368,6 +451,9 @@ namespace LearningAIGame.CombatSystem
         /// <param name="context">Input Systemのコールバック情報</param>
         private void OnLightAttackPerformed(InputAction.CallbackContext context)
         {
+            if (!TryConsumeInput(ButtonType.LightAttack))
+                return;
+
             // 現在フレームで計算された構え方向で弱攻撃を実行
             _characterController.LightAttackAct(_currentFrameStance).Forget();
 
@@ -389,6 +475,9 @@ namespace LearningAIGame.CombatSystem
         /// <param name="context">Input Systemのコールバック情報</param>
         private void OnHeavyAttackPerformed(InputAction.CallbackContext context)
         {
+            if (!TryConsumeInput(ButtonType.HeavyAttack))
+                return;
+
             // 現在フレームで計算された構え方向で強攻撃を実行
             _characterController.HeavyAttackAct(_currentFrameStance).Forget();
 
@@ -412,6 +501,9 @@ namespace LearningAIGame.CombatSystem
         /// <param name="context">Input Systemのコールバック情報</param>
         private void OnBlockingPerformed(InputAction.CallbackContext context)
         {
+            if (!TryConsumeInput(ButtonType.Blocking))
+                return;
+
             // 現在フレームで計算された構え方向でブロッキングを実行
             _characterController.BlockingAct(_currentFrameStance);
 
@@ -435,6 +527,9 @@ namespace LearningAIGame.CombatSystem
         /// <param name="context">Input Systemのコールバック情報</param>
         private void OnDodgePerformed(InputAction.CallbackContext context)
         {
+            if (!TryConsumeInput(ButtonType.Dodge))
+                return;
+
             // 現在の移動入力から回避タイプを決定
             MovementReportType dodgeType = ConvertVectorToMovementReport(_moveInput);
 
@@ -453,6 +548,9 @@ namespace LearningAIGame.CombatSystem
         /// <param name="context">Input Systemのコールバック情報</param>
         private void OnHeavyCancelPerformed(InputAction.CallbackContext context)
         {
+            if (!TryConsumeInput(ButtonType.HeavyCancel))
+                return;
+
             // キャラクターコントローラーへキャンセル命令を送信
             // 内部で実行可能かどうかの判定が行われる
             _characterController.HeavyAttackCancel();
@@ -610,6 +708,7 @@ namespace LearningAIGame.CombatSystem
             GUILayout.Label($"移動デッドゾーン: {_inputSettings.MoveStickDeadzone:F3}");
             GUILayout.Label($"方向デッドゾーン: {_inputSettings.DirectionStickDeadzone:F3}");
             GUILayout.Label($"構え閾値: {_inputSettings.stanceChangeThreshold:F2}");
+            GUILayout.Label($"ボタン入力間隔: {_inputSettings.buttonInputInterval:F3}秒");
 
             GUILayout.EndArea();
         }
@@ -654,6 +753,36 @@ namespace LearningAIGame.CombatSystem
         public StanceType GetCurrentFrameStance()
         {
             return _currentFrameStance;
+        }
+
+        public void Lock()
+        {
+            _isLock = true;
+        }
+
+        public void Unlock()
+        {
+            _isLock = false;
+        }
+
+        public void SetUp()
+        {
+
+        }
+
+        public void RoundStart()
+        {
+
+        }
+
+        public void RoundEnd()
+        {
+
+        }
+
+        public void GameEnd()
+        {
+
         }
 
         #endregion

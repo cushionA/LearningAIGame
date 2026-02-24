@@ -83,7 +83,7 @@ QualitySettings:
     billboardsFaceCameraPosition: 1
     useLegacyDetailDistribution: 1
     adaptiveVsync: 0
-    vSyncCount: 1
+    vSyncCount: 0
     realtimeGICPUUsage: 100
     adaptiveVsyncExtraA: 0
     adaptiveVsyncExtraB: 0
@@ -102,7 +102,7 @@ QualitySettings:
     asyncUploadBufferSize: 16
     asyncUploadPersistentBuffer: 1
     resolutionScalingFixedDPIFactor: 1
-    customRenderPipeline: {fileID: 11400000, guid: 4b83569d67af61e458304325a23e5dfd, type: 2}
+    customRenderPipeline: {fileID: 11400000, guid: f48f873ae78af40b9a7b8220a8c6f95f, type: 2}
     terrainQualityOverrides: 0
     terrainPixelError: 1
     terrainDetailDensityScale: 1
@@ -122,6 +122,7 @@ QualitySettings:
     GameCoreXboxOne: 1
     Lumin: 0
     Nintendo Switch: 1
+    Nintendo Switch 2: 1
     PS4: 1
     PS5: 1
     Server: 0
