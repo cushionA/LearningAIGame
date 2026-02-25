@@ -12,7 +12,9 @@
         "GUID:e24b8c7d32156a9ee9a0f7796a734ef3",
         "GUID:0acc523941302664db1f4e527237feb3"
     ],
-    "includePlatforms": [],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": true,
     "overrideReferences": false,

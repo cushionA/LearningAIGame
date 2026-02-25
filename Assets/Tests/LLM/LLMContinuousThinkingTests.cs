@@ -440,7 +440,7 @@ namespace LLMDataArchitect.Test
                 {
                     string nliInfo = IsRandomNLIType(_generatorType)
                         ? "ランダム（各イテレーションで変更）"
-                        : CachePromptGeneratorWithNLI.GetInstructionDescription(_nliGenerator.CurrentInstructionType);
+                        : _nliGenerator.GetInstructionDescription(_nliGenerator.CurrentInstructionType);
                     UnityEngine.Debug.Log($"自然言語指示: {nliInfo}");
                 }
 
@@ -848,21 +848,6 @@ Use the provided game rules context to inform your tactical decisions.";
             {
                 UnityEngine.Debug.Log($"結果{i + 1} (距離: {distances[i]:F3}):\n{results[i]}\n");
             }
-        }
-
-        [ContextMenu("NLIタイプ一覧を表示")]
-        public void ShowNLITypes()
-        {
-            var allTypes = CachePromptGeneratorWithNLI.GetAllInstructionTypes();
-            var sb = new StringBuilder();
-            sb.AppendLine("=== 利用可能なNLIタイプ ===");
-            foreach (var nliType in allTypes)
-            {
-                string shortName = CachePromptGeneratorWithNLI.GetInstructionShortName(nliType);
-                string description = CachePromptGeneratorWithNLI.GetInstructionDescription(nliType);
-                sb.AppendLine($"  {shortName}: {description}");
-            }
-            UnityEngine.Debug.Log(sb.ToString());
         }
 
         private IEnumerator RunContinuousTest()

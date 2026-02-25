@@ -9,8 +9,6 @@ using Newtonsoft.Json.Converters;
 using NUnit.Framework;
 using R3;
 using System;
-using System.Collections.Generic;
-using UnityEditor.Animations;
 using UnityEngine;
 
 //==============================================ファイルヘッダ=======================================================================
@@ -240,6 +238,12 @@ namespace LearningAIGame.CombatSystem.Core
         /// 被弾時などにキャラクターを停止させるために使用
         /// </summary>
         protected MoveController _moveController;
+
+        /// <summary>
+        /// 最初のレイヤーを記録する変数
+        /// バトル終了後のリセットなどで使用する想定
+        /// </summary>
+        protected int _initialLayer;
 
         #endregion
 
@@ -503,6 +507,7 @@ namespace LearningAIGame.CombatSystem.Core
                 {
                     Debug.Log($"[{nameof(StateSystem)}] 死亡状態に移行しました。");
                     ChangeState(ActionState.死亡);
+                    gameObject.layer = LayerMask.NameToLayer("Interval");// 死亡レイヤーに変更
                     GameManager.Instance.DefeatedReport(this.gameObject);
                     return;
                 }
@@ -819,8 +824,9 @@ namespace LearningAIGame.CombatSystem.Core
 
         public void RoundStart()
         {
-            // 初期状態はガード
+            // 初期状態はガード。レイヤーも戻す
             ChangeState(ActionState.ガード);
+            gameObject.layer = _initialLayer;
         }
 
         public void RoundEnd()

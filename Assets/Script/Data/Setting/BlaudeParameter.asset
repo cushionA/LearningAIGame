@@ -19,7 +19,7 @@ MonoBehaviour:
     minAttackInterval: 0.3
     maxAttackInterval: 1.5
     opportunityAttackRate: 0.7
-    stepUsageRate: 0.6
+    stepUsageRate: 0.701
     punishRate: 0.5
     minEnergyRatio: 0.2
     lightAttackMinEnergy: 0.3
@@ -29,11 +29,11 @@ MonoBehaviour:
     movementAggressiveness: 0.8
     preferredCombatDistanceRange: {x: 2, y: 5}
     dangerDistanceThreshold: 1.5
-    forwardMovementFrequency: 0.7
-    backwardMovementFrequency: 0.1
-    leftMovementFrequency: 0.4
-    rightMovementFrequency: 0.4
-    stanceChangeFrequency: 0.5
+    forwardMovementFrequency: 0.466
+    backwardMovementFrequency: 0.067
+    leftMovementFrequency: 0.553
+    rightMovementFrequency: 0.508
+    stanceChangeFrequency: 0.672
     minStanceChangeInterval: 1
   defensive:
     attackFrequency: 0.3
@@ -55,7 +55,7 @@ MonoBehaviour:
     backwardMovementFrequency: 0.6
     leftMovementFrequency: 0.3
     rightMovementFrequency: 0.3
-    stanceChangeFrequency: 0.3
+    stanceChangeFrequency: 0.337
     minStanceChangeInterval: 2
   adaptive:
     attackFrequency: 0.5
@@ -77,7 +77,7 @@ MonoBehaviour:
     backwardMovementFrequency: 0.4
     leftMovementFrequency: 0.4
     rightMovementFrequency: 0.4
-    stanceChangeFrequency: 0.5
+    stanceChangeFrequency: 0.634
     minStanceChangeInterval: 1.5
   disruptive:
     attackFrequency: 0.6
@@ -126,7 +126,7 @@ MonoBehaviour:
   defaultStrategyData:
     _analysisResult: No analysis due to default tactics.
     _basicTactic: Adaptive
-    _attackCriteria: Speed Priority
-    _continuousAttackCriteria: Cumulative Probability
-    _defenseCriteria: Recent Pattern Focus
-    _continuousDefenseCriteria: Cumulative Probability
+    _attackCriteria: Feint Focus
+    _continuousAttackCriteria: Return Priority
+    _defenseCriteria: Dispersion Focus
+    _continuousDefenseCriteria: Dispersion Focus

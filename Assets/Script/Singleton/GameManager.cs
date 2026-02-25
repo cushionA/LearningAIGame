@@ -153,6 +153,11 @@ namespace LearningAIGame.CombatSystem.Singleton
         [SerializeField]
         private Transform _titleCameraPlace;
 
+        /// <summary>
+        /// これが真の場合、デバッグ用にLLMの応答を保存します。
+        /// </summary>
+        public bool IsDebugMode = false;
+
         #endregion
 
         #region Runtime References
@@ -656,11 +661,13 @@ namespace LearningAIGame.CombatSystem.Singleton
                 _retryMenuUIController.HideImmediate();
             }
 
+            Debug.Log("[GameManager] タイトルへ戻る");
+            await TransitionToSceneAsync(k_TitleSceneName, GameState.Title);
+
+            // カメラ位置をタイトル用に
             _titleCameraPlace.GetPositionAndRotation(out Vector3 titleCamPos, out Quaternion titleCamRot);
             Camera.main.transform.SetLocalPositionAndRotation(titleCamPos, titleCamRot);
 
-            Debug.Log("[GameManager] タイトルへ戻る");
-            await TransitionToSceneAsync(k_TitleSceneName, GameState.Title);
 
             if (_uiController != null)
             {
@@ -1073,7 +1080,7 @@ namespace LearningAIGame.CombatSystem.Singleton
             var npcDamageSystem = _npc.GetComponent<DamageSystemBase>();
 
             // LLM通信コンポーネントを初期化してキャラクター情報を注入
-            _communicator.InitializeWithInjection(playerState, npcState);
+            await _communicator.InitializeWithInjection(playerState, npcState);
 
             // ScreenSpaceGaugeUIControllerへのバインド
             _battleRefs.PlayerGaugeController.BindToCharacter(
@@ -1115,11 +1122,15 @@ namespace LearningAIGame.CombatSystem.Singleton
             _battleRefs.PlayerSpawnPoint.GetPositionAndRotation(out var position, out var rotation);
             _battleRefs.NpcSpawnPoint.GetPositionAndRotation(out var npcPosition, out var npcRotation);
 
-            while (_player.transform.position != position || _npc.transform.position != npcPosition)
+            // 10回まで位置と回転を強制セットして確認（まれに位置ズレすることがあるため）
+            int counter = 0;
+            while ((_player.transform.position != position || _npc.transform.position != npcPosition)
+                    && counter < 10)
             {
                 _player.transform.SetPositionAndRotation(position, rotation);
                 _npc.transform.SetPositionAndRotation(npcPosition, npcRotation);
                 await UniTask.DelayFrame(1);
+                counter++;
             }
 
             Debug.Log($"位置確認{_player.transform.position == _battleRefs.PlayerSpawnPoint.position} {_npc.transform.position == position}");
@@ -1221,7 +1232,7 @@ namespace LearningAIGame.CombatSystem.Singleton
                     await _uiController.BlackoutReleaseAsync();
                 }
 
-                await UniTask.Delay(600);
+                await UniTask.Delay(200);
 
                 PlayCongratulationSE();
             }

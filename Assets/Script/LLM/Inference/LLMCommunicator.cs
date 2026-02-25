@@ -5,9 +5,14 @@ using LearningAIGame.CombatSystem.Data;
 using LLMDataArchitect.Test;
 using LLMUnity;
 using System;
+using System.Collections.Generic;
 using System.Threading;
+using LearningAIGame.CombatSystem.Singleton;
+using System.IO;
+using System.Text;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
+using System.Threading.Tasks;
 
 //==============================================ファイルヘッダ===========================================================
 // LLMCommunicator (UniTask 統合版)
@@ -28,6 +33,11 @@ using Debug = UnityEngine.Debug;
 // - async UniTask に統一
 // - Warmup 完了まで確実に待機
 // - 初期化完了後に AI 稼働開始
+// 
+// **デバッグログ変更点:**
+// - リクエスト毎のファイル追記を廃止
+// - メモリ上の List<string> バッファに蓄積
+// - OnApplicationQuit / OnDestroy 時に一括ファイル書き出し（FlushDebugLog）
 // 
 // 依存ライブラリ: LLMUnity, UniTask
 // 入力元クラス: StateSystem(プレイヤー/NPC), PromptGeneratorBase
@@ -60,7 +70,8 @@ namespace LLMDataArchitect
     {
         Debug,
         Cache,
-        Cache_NLI
+        Cache_NLI,
+        New_NLI
     }
 
     /// <summary>
@@ -134,6 +145,15 @@ namespace LLMDataArchitect
         protected bool _isProcessing = false;
         protected CancellationTokenSource _updateLoopCts;
 
+        // デバッグログ用
+        private string _debugLogFilePath;
+        private int _debugRequestCount;
+
+        /// <summary>
+        /// ゲーム終了時に一括書き出しするためのログバッファ
+        /// </summary>
+        private readonly List<string> _debugLogBuffer = new();
+
         #endregion
 
         #region Properties
@@ -163,11 +183,20 @@ namespace LLMDataArchitect
         #region Unity Lifecycle
 
         /// <summary>
-        /// 破棄時に更新ループをキャンセル
+        /// アプリケーション終了時にログを一括書き出し
+        /// </summary>
+        private void OnApplicationQuit()
+        {
+            FlushDebugLog();
+        }
+
+        /// <summary>
+        /// 破棄時に更新ループをキャンセルし、未書き出しのログを書き出す
         /// </summary>
         private void OnDestroy()
         {
             StopAutoUpdate();
+            FlushDebugLog();
         }
 
         /// <summary>
@@ -187,7 +216,7 @@ namespace LLMDataArchitect
         /// </summary>
         /// <param name="player">プレイヤーのStateSystem</param>
         /// <param name="npc">NPCのStateSystem</param>
-        public void InitializeWithInjection(StateSystem player, StateSystem npc)
+        public async UniTask InitializeWithInjection(StateSystem player, StateSystem npc)
         {
             _playerStateSystem = player;
             _npcStateSystem = npc;
@@ -200,7 +229,7 @@ namespace LLMDataArchitect
                 _ruleBaseAI.InjectionData(_inputData);
             }
 
-            InitializeAsync().Forget();
+            await InitializeAsync();
         }
 
         /// <summary>
@@ -260,12 +289,16 @@ namespace LLMDataArchitect
         {
             _nliType = newNLIType;
 
-            if (_promptGenerator is CachePromptGeneratorWithNLI nliGenerator)
+            if (_promptGenerator is INLIPrompt nliGenerator)
             {
-                nliGenerator.CurrentInstructionType = newNLIType;
-            }
+                nliGenerator.SetInstructionType(newNLIType);
 
-            Debug.Log($"NLIタイプを {CachePromptGeneratorWithNLI.GetInstructionDescription(newNLIType)} に変更しました。");
+                // システムプロンプトとGrammarも更新
+                _llmCharacter.SetPrompt(_promptGenerator.GenerateFixedSection());
+                _llmCharacter.grammarJSONString = _promptGenerator.GenerateGrammar();
+
+                Debug.Log($"NLIタイプを {nliGenerator.GetInstructionDescription(newNLIType)} に変更しました。");
+            }
         }
 
         #endregion
@@ -330,7 +363,7 @@ namespace LLMDataArchitect
         /// <summary>
         /// コミュニケーターを非同期で初期化
         /// </summary>
-        protected virtual async UniTaskVoid InitializeAsync()
+        protected virtual async UniTask InitializeAsync()
         {
             try
             {
@@ -387,6 +420,7 @@ namespace LLMDataArchitect
                 PromptGeneratorType.Debug => new DebugPromptGenerator(),
                 PromptGeneratorType.Cache => new CachePromptGenerator(),
                 PromptGeneratorType.Cache_NLI => new CachePromptGeneratorWithNLI(_nliType),
+                PromptGeneratorType.New_NLI => new NLIPromptGenerator(_nliType),
                 _ => new CachePromptGenerator()
             };
         }
@@ -543,9 +577,12 @@ namespace LLMDataArchitect
                 .AttachExternalCancellation(cancellationToken)
                 .SuppressCancellationThrow();
 
+            double elapsed = (DateTime.Now - start).TotalSeconds;
+
             if (result.IsCanceled)
             {
                 Debug.LogWarning($"LLMリクエストがキャンセルまたはタイムアウトしました ({_timeoutSeconds}秒)。");
+                SaveDebugLog(prompt, null, elapsed, false, "CANCELED_OR_TIMEOUT");
                 return null;
             }
 
@@ -554,20 +591,118 @@ namespace LLMDataArchitect
             if (string.IsNullOrEmpty(output))
             {
                 Debug.LogError("LLMから空の応答が返されました。");
+                SaveDebugLog(prompt, output, elapsed, false, "EMPTY_RESPONSE");
                 return null;
             }
 
-            Debug.Log($"LLM応答を受信 \n文字数: {output.Length} 処理時間：{(DateTime.Now - start).TotalSeconds}秒 \nプロンプト：{prompt} \n応答：{output}");
+            Debug.Log($"LLM応答を受信 \n文字数: {output.Length} 処理時間：{elapsed}秒 \nプロンプト：{prompt} \n応答：{output}");
 
             var (isSuccess, strategy) = StrategyData.TryFromJsonEnglish(output);
 
             if (!isSuccess)
             {
                 Debug.LogError($"JSON解析に失敗しました。応答内容:\n{output}");
+                SaveDebugLog(prompt, output, elapsed, false, "JSON_PARSE_FAILED");
                 return null;
             }
 
+            SaveDebugLog(prompt, output, elapsed, true, $"{strategy.BasicTactic}");
             return strategy;
+        }
+
+        #endregion
+
+        #region Debug Log
+
+        /// <summary>
+        /// デバッグモード時にLLMのプロンプトと応答をメモリバッファに保存（JSONL形式）
+        /// 実際のファイル書き出しは FlushDebugLog() で一括実行される
+        /// </summary>
+        private void SaveDebugLog(string prompt, string response, double elapsedSeconds, bool parseSuccess, string resultNote)
+        {
+            try
+            {
+                if (!GameManager.HasInstance || !GameManager.Instance.IsDebugMode)
+                    return;
+
+                _debugRequestCount++;
+
+                var sb = new StringBuilder();
+                sb.Append('{');
+                sb.Append($"\"requestNumber\":{_debugRequestCount},");
+                sb.Append($"\"timestamp\":\"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}\",");
+                sb.Append($"\"elapsedSeconds\":{elapsedSeconds:F3},");
+                sb.Append($"\"promptLength\":{prompt?.Length ?? 0},");
+                sb.Append($"\"prompt\":{EscapeJsonString(prompt)},");
+                sb.Append($"\"responseLength\":{response?.Length ?? 0},");
+                sb.Append($"\"response\":{EscapeJsonString(response)},");
+                sb.Append($"\"parseSuccess\":{(parseSuccess ? "true" : "false")},");
+                sb.Append($"\"result\":{EscapeJsonString(resultNote)}");
+                sb.Append('}');
+
+                _debugLogBuffer.Add(sb.ToString());
+
+                Debug.Log($"[LLMDebug] バッファに追加 (合計: {_debugLogBuffer.Count}件)");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[LLMDebug] バッファへの追加に失敗: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// バッファに蓄積したログをまとめてファイルへ書き出す
+        /// OnApplicationQuit / OnDestroy から呼ばれる
+        /// バッファが空の場合、またはデバッグモードでない場合は何もしない
+        /// </summary>
+        private void FlushDebugLog()
+        {
+            try
+            {
+                if (_debugLogBuffer.Count == 0)
+                    return;
+
+                if (!GameManager.HasInstance || !GameManager.Instance.IsDebugMode)
+                    return;
+
+                string dir = Path.Combine(Application.persistentDataPath, "LLMDebugLogs");
+                if (!Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+
+                // ファイル名が未決定の場合（一度もリクエストが届かなかった場合の保険）
+                if (string.IsNullOrEmpty(_debugLogFilePath))
+                {
+                    string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                    _debugLogFilePath = Path.Combine(dir, $"LLMDebugLog_{timestamp}.jsonl");
+                }
+
+                File.WriteAllText(_debugLogFilePath, string.Join("\n", _debugLogBuffer) + "\n");
+
+                Debug.Log($"[LLMDebug] ログをフラッシュしました ({_debugLogBuffer.Count}件) → {_debugLogFilePath}");
+
+                // 二重書き出し防止のためバッファをクリア
+                _debugLogBuffer.Clear();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[LLMDebug] ログのフラッシュに失敗: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 文字列をJSON文字列としてエスケープ
+        /// </summary>
+        private static string EscapeJsonString(string str)
+        {
+            if (str == null)
+                return "null";
+            return "\"" + str
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("\n", "\\n")
+                .Replace("\r", "\\r")
+                .Replace("\t", "\\t")
+                + "\"";
         }
 
         #endregion

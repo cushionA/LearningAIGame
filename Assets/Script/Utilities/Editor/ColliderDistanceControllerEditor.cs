@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEditor;
 
+#if UNITY_EDITOR
 namespace LearningAIGame.EditorTools
 {
     /// <summary>
@@ -179,3 +180,4 @@ namespace LearningAIGame.EditorTools
         #endregion
     }
 }
+#endif

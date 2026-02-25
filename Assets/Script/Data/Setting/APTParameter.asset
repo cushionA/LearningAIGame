@@ -42,7 +42,7 @@ MonoBehaviour:
     maxAttackInterval: 2.5
     opportunityAttackRate: 0.5
     stepUsageRate: 0.7
-    punishRate: 0.8
+    punishRate: 0.884
     minEnergyRatio: 0.4
     lightAttackMinEnergy: 0.5
     heavyAttackMinEnergy: 0.6
@@ -125,8 +125,8 @@ MonoBehaviour:
     minStanceChangeInterval: 2
   defaultStrategyData:
     _analysisResult: No analysis due to default tactics.
-    _basicTactic: Adaptive
-    _attackCriteria: Speed Priority
-    _continuousAttackCriteria: Cumulative Probability
+    _basicTactic: Defensive
+    _attackCriteria: Energy Efficiency
+    _continuousAttackCriteria: Energy Efficiency
     _defenseCriteria: Recent Pattern Focus
     _continuousDefenseCriteria: Cumulative Probability

@@ -14,27 +14,27 @@ MonoBehaviour:
   m_EditorClassIdentifier: GameCode::LearningAIGame.CombatSystem.Data.AIParameterContainer
   nlInstructionType: 15
   aggressive:
-    attackFrequency: 0.8
-    comboAttackProbability: 0.6
+    attackFrequency: 0.825
+    comboAttackProbability: 0.869
     minAttackInterval: 0.3
     maxAttackInterval: 1.5
     opportunityAttackRate: 0.7
-    stepUsageRate: 0.6
-    punishRate: 0.5
-    minEnergyRatio: 0.2
-    lightAttackMinEnergy: 0.3
-    heavyAttackMinEnergy: 0.4
-    rushMinEnergy: 0.15
-    comboMinEnergy: 0.5
+    stepUsageRate: 0.288
+    punishRate: 1
+    minEnergyRatio: 0.185
+    lightAttackMinEnergy: 0.063
+    heavyAttackMinEnergy: 0.142
+    rushMinEnergy: 0.273
+    comboMinEnergy: 0.283
     movementAggressiveness: 0.8
     preferredCombatDistanceRange: {x: 2, y: 5}
     dangerDistanceThreshold: 1.5
     forwardMovementFrequency: 0.7
-    backwardMovementFrequency: 0.1
+    backwardMovementFrequency: 0.04
     leftMovementFrequency: 0.4
     rightMovementFrequency: 0.4
-    stanceChangeFrequency: 0.5
-    minStanceChangeInterval: 1
+    stanceChangeFrequency: 0.601
+    minStanceChangeInterval: 0.6
   defensive:
     attackFrequency: 0.3
     comboAttackProbability: 0.2
@@ -58,26 +58,26 @@ MonoBehaviour:
     stanceChangeFrequency: 0.3
     minStanceChangeInterval: 2
   adaptive:
-    attackFrequency: 0.5
-    comboAttackProbability: 0.4
-    minAttackInterval: 0.5
+    attackFrequency: 0.69
+    comboAttackProbability: 0.795
+    minAttackInterval: 0.2
     maxAttackInterval: 2
-    opportunityAttackRate: 0.6
+    opportunityAttackRate: 1
     stepUsageRate: 0.5
-    punishRate: 0.6
-    minEnergyRatio: 0.3
-    lightAttackMinEnergy: 0.4
-    heavyAttackMinEnergy: 0.5
+    punishRate: 1
+    minEnergyRatio: 0.138
+    lightAttackMinEnergy: 0.083
+    heavyAttackMinEnergy: 0.325
     rushMinEnergy: 0.2
     comboMinEnergy: 0.6
     movementAggressiveness: 0.5
     preferredCombatDistanceRange: {x: 4, y: 7}
     dangerDistanceThreshold: 2
-    forwardMovementFrequency: 0.4
-    backwardMovementFrequency: 0.4
-    leftMovementFrequency: 0.4
-    rightMovementFrequency: 0.4
-    stanceChangeFrequency: 0.5
+    forwardMovementFrequency: 0.456
+    backwardMovementFrequency: 0
+    leftMovementFrequency: 0.41
+    rightMovementFrequency: 0.418
+    stanceChangeFrequency: 0.672
     minStanceChangeInterval: 1.5
   disruptive:
     attackFrequency: 0.6
@@ -125,8 +125,8 @@ MonoBehaviour:
     minStanceChangeInterval: 2
   defaultStrategyData:
     _analysisResult: No analysis due to default tactics.
-    _basicTactic: Adaptive
+    _basicTactic: Aggressive
     _attackCriteria: Speed Priority
-    _continuousAttackCriteria: Cumulative Probability
+    _continuousAttackCriteria: Return Priority
     _defenseCriteria: Recent Pattern Focus
-    _continuousDefenseCriteria: Cumulative Probability
+    _continuousDefenseCriteria: Evasive Counter Priority
