@@ -95,7 +95,87 @@ namespace LLMDataArchitect.Test
         /// 固定プロンプトセクション（Output Format Requirements）のキャッシュ
         /// 初回生成後は再利用する
         /// </summary>
-        private string _cachedFixedSection = null;
+        protected string _cachedFixedSection = null;
+
+        #endregion
+
+        #region Must Change除外機構
+
+        // --- Per-slot Must Change exclusions ---
+        protected string _excludeAttackCriteria;
+        protected string _excludeContinuousAttackCriteria;
+        protected string _excludeDefenseCriteria;
+        protected string _excludeContinuousDefenseCriteria;
+
+        /// <summary>
+        /// Must Changeスロットの除外値を設定する。
+        /// 変更があればキャッシュを無効化し、trueを返す。
+        /// </summary>
+        public virtual bool ApplyMustChangeExclusions(
+            string excludeAttack,
+            string excludeContinuousAttack,
+            string excludeDefense,
+            string excludeContinuousDefense)
+        {
+            bool changed = _excludeAttackCriteria != excludeAttack
+                        || _excludeContinuousAttackCriteria != excludeContinuousAttack
+                        || _excludeDefenseCriteria != excludeDefense
+                        || _excludeContinuousDefenseCriteria != excludeContinuousDefense;
+
+            if (!changed)
+                return false;
+
+            _excludeAttackCriteria = excludeAttack;
+            _excludeContinuousAttackCriteria = excludeContinuousAttack;
+            _excludeDefenseCriteria = excludeDefense;
+            _excludeContinuousDefenseCriteria = excludeContinuousDefense;
+
+            _cachedFixedSection = null; // キャッシュ無効化
+            return true;
+        }
+
+        /// <summary>
+        /// 全除外をクリアする
+        /// </summary>
+        public virtual void ClearExclusions()
+        {
+            if (_excludeAttackCriteria != null || _excludeContinuousAttackCriteria != null
+                || _excludeDefenseCriteria != null || _excludeContinuousDefenseCriteria != null)
+            {
+                _excludeAttackCriteria = null;
+                _excludeContinuousAttackCriteria = null;
+                _excludeDefenseCriteria = null;
+                _excludeContinuousDefenseCriteria = null;
+                _cachedFixedSection = null;
+            }
+        }
+
+        /// <summary>
+        /// 配列から除外値を除去する。最低1要素を保証する。
+        /// </summary>
+        protected static string[] FilterWithMinimum(string[] source, string exclude)
+        {
+            if (string.IsNullOrEmpty(exclude))
+                return source;
+
+            int matchCount = 0;
+            foreach (var s in source)
+            {
+                if (s == exclude) matchCount++;
+            }
+
+            if (matchCount == 0 || source.Length - matchCount < 1)
+                return source;
+
+            var filtered = new string[source.Length - matchCount];
+            int idx = 0;
+            foreach (var s in source)
+            {
+                if (s != exclude)
+                    filtered[idx++] = s;
+            }
+            return filtered;
+        }
 
         #endregion
 
@@ -576,42 +656,65 @@ namespace LLMDataArchitect.Test
         }
 
         /// <summary>
-        /// グラマーを返すメソッド
+        /// グラマーを返すメソッド（Must Change除外対応）
         /// </summary>
         /// <returns></returns>
         public override string GenerateGrammar()
         {
-            return @"{
+            string[] allAttack = { "Cumulative Probability", "Recent Pattern Focus", "Speed Priority",
+                "Return Priority", "Feint Focus", "Dispersion Focus", "Energy Efficiency" };
+            string[] allDefense = { "Cumulative Probability", "Recent Pattern Focus", "Counterattack Focus",
+                "Return Priority", "Risk Avoidance", "Evasive Counter Priority", "Dispersion Focus" };
+
+            string[] attackEnum = FilterWithMinimum(allAttack, _excludeAttackCriteria);
+            string[] contAttackEnum = FilterWithMinimum(allAttack, _excludeContinuousAttackCriteria);
+            string[] defenseEnum = FilterWithMinimum(allDefense, _excludeDefenseCriteria);
+            string[] contDefenseEnum = FilterWithMinimum(allDefense, _excludeContinuousDefenseCriteria);
+
+            string ToJsonArray(string[] values)
+            {
+                var sb = new StringBuilder();
+                sb.Append("[");
+                for (int i = 0; i < values.Length; i++)
+                {
+                    sb.Append($"\"{values[i]}\"");
+                    if (i < values.Length - 1) sb.Append(", ");
+                }
+                sb.Append("]");
+                return sb.ToString();
+            }
+
+            return $@"{{
   ""type"": ""object"",
-  ""properties"": {
-    ""AnalysisResult"": {
+  ""properties"": {{
+    ""AnalysisResult"": {{
       ""type"": ""string"",
       ""maxLength"": 100
-    },
-    ""BasicTactic"": {
+    }},
+    ""BasicTactic"": {{
       ""type"": ""string"",
       ""enum"": [""Aggressive"", ""Defensive"", ""Adaptive"", ""Disruptive"", ""Endurance""]
-    },
-    ""AttackCriteria"": {
+    }},
+    ""AttackCriteria"": {{
       ""type"": ""string"",
-      ""enum"": [""Cumulative Probability"", ""Recent Pattern Focus"", ""Speed Priority"", ""Return Priority"", ""Feint Focus"", ""Dispersion Focus"", ""Energy Efficiency""]
-    },
-    ""ContinuousAttackCriteria"": {
+      ""enum"": {ToJsonArray(attackEnum)}
+    }},
+    ""ContinuousAttackCriteria"": {{
       ""type"": ""string"",
-      ""enum"": [""Cumulative Probability"", ""Recent Pattern Focus"", ""Speed Priority"", ""Return Priority"", ""Feint Focus"", ""Dispersion Focus"", ""Energy Efficiency""]
-    },
-    ""DefenseCriteria"": {
+      ""enum"": {ToJsonArray(contAttackEnum)}
+    }},
+    ""DefenseCriteria"": {{
       ""type"": ""string"",
-      ""enum"": [""Cumulative Probability"", ""Recent Pattern Focus"", ""Counterattack Focus"", ""Return Priority"", ""Risk Avoidance"", ""Evasive Counter Priority"", ""Dispersion Focus""]
-    },
-    ""ContinuousDefenseCriteria"": {
+      ""enum"": {ToJsonArray(defenseEnum)}
+    }},
+    ""ContinuousDefenseCriteria"": {{
       ""type"": ""string"",
-      ""enum"": [""Cumulative Probability"", ""Recent Pattern Focus"", ""Counterattack Focus"", ""Return Priority"", ""Risk Avoidance"", ""Evasive Counter Priority"", ""Dispersion Focus""]
-    }
-  },
+      ""enum"": {ToJsonArray(contDefenseEnum)}
+    }}
+  }},
   ""required"": [""AnalysisResult"", ""BasicTactic"", ""AttackCriteria"", ""ContinuousAttackCriteria"", ""DefenseCriteria"", ""ContinuousDefenseCriteria""],
   ""additionalProperties"": false
-}";
+}}";
         }
     }
 }

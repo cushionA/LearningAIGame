@@ -566,6 +566,34 @@ namespace LLMDataArchitect
         /// <returns>LLMが生成した戦術データ。失敗時はnull</returns>
         protected virtual async UniTask<StrategyData> SendLLMRequestAsync(CancellationToken cancellationToken = default)
         {
+            // === Must Change exclusion: physically remove failed criteria from grammar ===
+            if (_inputData.CurrentStrategy != null && _inputData.StrategyResult != null)
+            {
+                var (exAtk, exContAtk, exDef, exContDef) =
+                    _inputData.StrategyResult.GetMustChangeExclusions(_inputData.CurrentStrategy);
+
+                if (_promptGenerator is CachePromptGenerator cacheGen)
+                {
+                    bool exclusionsChanged = cacheGen.ApplyMustChangeExclusions(exAtk, exContAtk, exDef, exContDef);
+                    if (exclusionsChanged)
+                    {
+                        _llmCharacter.SetPrompt(_promptGenerator.GenerateFixedSection());
+                        if (_useGrammar)
+                        {
+                            _llmCharacter.grammarJSONString = _promptGenerator.GenerateGrammar();
+                        }
+                        Debug.Log("[LLMCommunicator] Must Change exclusions updated - system prompt and grammar regenerated.");
+                    }
+                }
+            }
+            else
+            {
+                if (_promptGenerator is CachePromptGenerator cacheGen)
+                {
+                    cacheGen.ClearExclusions();
+                }
+            }
+
             string prompt = _promptGenerator.GeneratePromptByData(_inputData);
             Debug.Log($"生成されたプロンプト (文字数: {prompt.Length}):\n{prompt}");
 

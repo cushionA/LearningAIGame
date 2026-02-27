@@ -507,7 +507,7 @@ namespace LearningAIGame.CombatSystem.Core
                 {
                     Debug.Log($"[{nameof(StateSystem)}] 死亡状態に移行しました。");
                     ChangeState(ActionState.死亡);
-                    gameObject.layer = LayerMask.NameToLayer("Interval");// 死亡レイヤーに変更
+                    gameObject.layer = 10;// 死亡レイヤーに変更
                     GameManager.Instance.DefeatedReport(this.gameObject);
                     return;
                 }
@@ -819,7 +819,7 @@ namespace LearningAIGame.CombatSystem.Core
 
         public void SetUp()
         {
-
+            _initialLayer = gameObject.layer;
         }
 
         public void RoundStart()

@@ -177,6 +177,8 @@ namespace LLMDataArchitect
                         SequentialDefenseConditionFail += count;
                     break;
             }
+
+            Debug.Log($"[StrategyResult] çsìÆåãâ ÇÃí«â¡: {conditionType} - {(isSuccess ? "Success" : "Fail")} x{count}");
         }
 
         /// <summary>
@@ -245,6 +247,43 @@ namespace LLMDataArchitect
             int success = GetResult(conditionType, true);
             int fail = GetResult(conditionType, false);
             return success + fail;
+        }
+
+        /// <summary>
+        /// Checks if a specific condition type is "Must Change" (fail > success)
+        /// </summary>
+        /// <param name="conditionType">Condition type to check</param>
+        /// <returns>True if Must Change</returns>
+        public bool IsMustChange(ConditionType conditionType)
+        {
+            if (GetTotalCount(conditionType) == 0)
+                return false;
+
+            return GetSuccessDifference(conditionType) < 0;
+        }
+
+        /// <summary>
+        /// Returns per-slot exclusion strings for Must Change criteria.
+        /// Returns null for slots that are not Must Change.
+        /// </summary>
+        /// <param name="previousStrategy">Previous turn's strategy data</param>
+        /// <returns>Tuple of 4 exclusion strings (null if not Must Change)</returns>
+        public (string attackExclude, string contAttackExclude, string defenseExclude, string contDefenseExclude)
+            GetMustChangeExclusions(StrategyData previousStrategy)
+        {
+            if (previousStrategy == null)
+                return (null, null, null, null);
+
+            string attackExclude = IsMustChange(ConditionType.Attack)
+                ? previousStrategy.AttackCriteria : null;
+            string contAttackExclude = IsMustChange(ConditionType.SequentialAttack)
+                ? previousStrategy.ContinuousAttackCriteria : null;
+            string defenseExclude = IsMustChange(ConditionType.Defense)
+                ? previousStrategy.DefenseCriteria : null;
+            string contDefenseExclude = IsMustChange(ConditionType.SequentialDefense)
+                ? previousStrategy.ContinuousDefenseCriteria : null;
+
+            return (attackExclude, contAttackExclude, defenseExclude, contDefenseExclude);
         }
 
         /// <summary>

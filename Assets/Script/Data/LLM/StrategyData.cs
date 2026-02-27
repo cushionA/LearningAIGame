@@ -222,6 +222,7 @@ namespace LLMDataArchitect
         /// <returns>‘Î‰ž‚·‚éActionCriteriaType</returns>
         public static ActionCriteriaType GetAttackCriteria(string criteria)
         {
+            Debug.Log($"GetAttackCriteria called with criteria: {criteria}");
             if (AttackCriteriaDictionary.TryGetValue(criteria, out var result))
                 return result;
 

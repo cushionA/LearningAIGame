@@ -137,10 +137,9 @@ namespace LLMDataArchitect.Test
         /// <summary>
         /// 現在の自然言語指示タイプを取得・設定
         /// </summary>
-        public NaturalLanguageInstructionType CurrentInstructionType
+        public NaturalLanguageInstructionType InstructionType
         {
             get => _currentInstructionType;
-            set => _currentInstructionType = value;
         }
 
         #endregion

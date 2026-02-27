@@ -116,7 +116,8 @@ namespace LearningAIGame.CombatSystem.AI
         /// <summary>
         /// 現在認識している状況
         /// </summary>
-        protected ConditionType _currentCondition;
+        protected ConditionType _currentAttackCondition;
+        protected ConditionType _currentDefenseCondition;
 
         /// <summary>
         /// 現在使用している行動指針名
@@ -188,7 +189,7 @@ namespace LearningAIGame.CombatSystem.AI
         /// <summary>
         /// AIがロックされてるかどうかの変数
         /// </summary>
-        private bool _brainLocked = false;
+        private bool _brainLocked = true; 
 
         #endregion
 
@@ -356,13 +357,13 @@ namespace LearningAIGame.CombatSystem.AI
             // 連続防御
             if (_currentTime - _lastDefenseTime < k_SequenceDefenseDuration)
             {
-                _currentCondition = ConditionType.SequentialDefense;
+                _currentDefenseCondition = ConditionType.SequentialDefense;
                 DefenseJudge(StrategyData.GetDefenseCriteria(_llmData.CurrentStrategy.ContinuousDefenseCriteria)).Forget();
             }
             // 初回防御
             else
             {
-                _currentCondition = ConditionType.Defense;
+                _currentDefenseCondition = ConditionType.Defense;
                 DefenseJudge(StrategyData.GetDefenseCriteria(_llmData.CurrentStrategy.DefenseCriteria)).Forget();
             }
         }
@@ -373,7 +374,7 @@ namespace LearningAIGame.CombatSystem.AI
         protected void OnMyAttackEnd(HitReportInfo hitReport)
         {
             // 攻撃結果の記録
-            if (_currentCondition == ConditionType.Attack || _currentCondition == ConditionType.SequentialAttack)
+            if (_currentAttackCondition == ConditionType.Attack || _currentAttackCondition == ConditionType.SequentialAttack)
             {
                 _lastAttackTime = _currentTime;
 
@@ -384,11 +385,11 @@ namespace LearningAIGame.CombatSystem.AI
                     case HitResultType.Avoid:
                     case HitResultType.Stun:
                     case HitResultType.Miss:
-                        _strategyResult.AddResult(_currentCondition, false);
+                        _strategyResult.AddResult(_currentAttackCondition, false);
                         break;
 
                     case HitResultType.Hit:
-                        _strategyResult.AddResult(_currentCondition, true);
+                        _strategyResult.AddResult(_currentAttackCondition, true);
 
                         // ヒット時の追撃行動
                         // 連続攻撃判定
@@ -404,7 +405,7 @@ namespace LearningAIGame.CombatSystem.AI
                         break;
                 }
             }
-            _currentCondition = ConditionType.None;
+            _currentAttackCondition = ConditionType.None;
         }
 
         /// <summary>
@@ -413,7 +414,7 @@ namespace LearningAIGame.CombatSystem.AI
         protected void OnEnemyAttackEnd(HitReportInfo hitReport)
         {
             // 防御結果の記録
-            if (_currentCondition != ConditionType.Attack && _currentCondition != ConditionType.SequentialAttack)
+            if (_currentDefenseCondition == ConditionType.Defense || _currentDefenseCondition == ConditionType.SequentialDefense)
             {
                 _lastDefenseTime = _currentTime;
 
@@ -422,7 +423,7 @@ namespace LearningAIGame.CombatSystem.AI
                     case HitResultType.Block:
 
                         // 結果を追加
-                        _strategyResult.AddResult(_currentCondition, true);
+                        _strategyResult.AddResult(_currentDefenseCondition, true);
 
                         // 確定反撃行動
                         if (_currentParameter.ShouldPunish())
@@ -445,7 +446,7 @@ namespace LearningAIGame.CombatSystem.AI
                     case HitResultType.Guard:
 
                         // 結果を追加
-                        _strategyResult.AddResult(_currentCondition, true);
+                        _strategyResult.AddResult(_currentDefenseCondition, true);
 
                         // ガード時の確定反撃行動
                         if (_myStateSystem.EnergyRatio >= _currentParameter.lightAttackMinEnergy && _currentParameter.ShouldPunish())
@@ -456,7 +457,7 @@ namespace LearningAIGame.CombatSystem.AI
                     case HitResultType.Avoid:
 
                         // 結果を追加
-                        _strategyResult.AddResult(_currentCondition, true);
+                        _strategyResult.AddResult(_currentDefenseCondition, true);
 
                         // エネルギー十分で乱数が噛み合えば敵の強攻撃空振りに攻撃を合わせる
                         if (hitReport.attackType == AttackType.HeavyAttack &&
@@ -468,7 +469,7 @@ namespace LearningAIGame.CombatSystem.AI
 
                         break;
                     case HitResultType.Stun:
-                        _strategyResult.AddResult(_currentCondition, true);
+                        _strategyResult.AddResult(_currentDefenseCondition, true);
                         break;
 
                     case HitResultType.Cancel:
@@ -483,11 +484,11 @@ namespace LearningAIGame.CombatSystem.AI
                         }
                         break;
                     case HitResultType.Hit:
-                        _strategyResult.AddResult(_currentCondition, false);
+                        _strategyResult.AddResult(_currentDefenseCondition, false);
                         break;
                 }
             }
-            _currentCondition = ConditionType.None;
+            _currentDefenseCondition = ConditionType.None;
         }
 
         #endregion
@@ -508,6 +509,10 @@ namespace LearningAIGame.CombatSystem.AI
 
                 Debug.Log($"[{nameof(StrategyAI)}] 敵の攻撃システムの購読を開始しました。");
             }
+            else
+            {
+                Debug.LogWarning($"[{nameof(StrategyAI)}] _enemyAttackSystem is null! Enemy attack subscription skipped.");
+            }
 
             // 自分の攻撃結果システムを購読
             if (_myHitSystem != null)
@@ -518,6 +523,10 @@ namespace LearningAIGame.CombatSystem.AI
 
                 Debug.Log($"[{nameof(StrategyAI)}] 自分の攻撃結果システムの購読を開始しました。");
             }
+            else
+            {
+                Debug.LogWarning($"[{nameof(StrategyAI)}] _myHitSystem is null! My attack result subscription skipped.");
+            }
 
             // 敵の攻撃結果システムを購読
             if (_enemyHitSystem != null)
@@ -527,6 +536,10 @@ namespace LearningAIGame.CombatSystem.AI
                     .AddTo(this);
 
                 Debug.Log($"[{nameof(StrategyAI)}] 敵の攻撃結果システムの購読を開始しました。");
+            }
+            else
+            {
+                Debug.LogWarning($"[{nameof(StrategyAI)}] _enemyHitSystem is null! Enemy attack result subscription skipped.");
             }
         }
 
@@ -797,13 +810,13 @@ namespace LearningAIGame.CombatSystem.AI
             // 連続攻撃
             if (_currentTime - _lastAttackTime < k_SequenceAttackDuration)
             {
-                _currentCondition = ConditionType.SequentialAttack;
+                _currentAttackCondition = ConditionType.SequentialAttack;
                 AttackJudge(StrategyData.GetAttackCriteria(_llmData.CurrentStrategy.ContinuousAttackCriteria));
             }
             // 初回攻撃
             else
             {
-                _currentCondition = ConditionType.Attack;
+                _currentAttackCondition = ConditionType.Attack;
                 AttackJudge(StrategyData.GetAttackCriteria(_llmData.CurrentStrategy.AttackCriteria));
             }
         }
@@ -1155,7 +1168,7 @@ namespace LearningAIGame.CombatSystem.AI
             sb.AppendLine("=== StrategyAI 実行状態 ===");
 
             // 現在の状況
-            sb.AppendLine($"状況: {_currentCondition} | 戦術: {(_llmData?.CurrentStrategy?.BasicTactic ?? "未設定")}");
+            sb.AppendLine($"状況: {_currentAttackCondition}/{_currentDefenseCondition} | 戦術: {(_llmData?.CurrentStrategy?.BasicTactic ?? "未設定")}");
 
             // 自分の状態
             if (_myStateSystem != null)
@@ -1237,9 +1250,9 @@ namespace LearningAIGame.CombatSystem.AI
         /// <exception cref="NotImplementedException"></exception>
         public void SetTarget(GameObject target)
         {
-            _enemyStateSystem = target.GetComponent<StateSystem>();
-            _enemyAttackSystem = target.GetComponent<AttackSystem>();
-            _enemyHitSystem = target.GetComponent<HitSystem>();
+            _enemyStateSystem = target.GetComponentInChildren<StateSystem>();
+            _enemyAttackSystem = target.GetComponentInChildren<AttackSystem>();
+            _enemyHitSystem = target.GetComponentInChildren<HitSystem>();
             Debug.Log($"[{nameof(StrategyAI)}] 敵ターゲットを設定しました: {target.name}");
         }
 

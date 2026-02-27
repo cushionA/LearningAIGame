@@ -222,7 +222,8 @@ namespace LearningAIGame.CombatSystem.AI
             DrawLabelValue("Current State:", stateText);
 
             // 現在の状況
-            DrawLabelValue("Condition:", _currentCondition.ToString());
+            DrawLabelValue("Atk Cond:", _currentAttackCondition.ToString());
+            DrawLabelValue("Def Cond:", _currentDefenseCondition.ToString());
 
             // 現在の構え
             string stanceText = _myStateSystem != null

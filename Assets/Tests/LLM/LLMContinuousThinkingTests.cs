@@ -121,7 +121,7 @@ namespace LLMDataArchitect.Test
         private PromptGeneratorBase _promptGenerator;
 
         // NLI付きジェネレーター（Cache_NLI系の場合に使用）
-        private CachePromptGeneratorWithNLI _nliGenerator;
+        private NLIPromptGenerator _nliGenerator;
 
         // テストデータ保持
         private Dictionary<TestSituationType, LLMInputData> _baseTestData;
@@ -440,7 +440,7 @@ namespace LLMDataArchitect.Test
                 {
                     string nliInfo = IsRandomNLIType(_generatorType)
                         ? "ランダム（各イテレーションで変更）"
-                        : _nliGenerator.GetInstructionDescription(_nliGenerator.CurrentInstructionType);
+                        : _nliGenerator.GetInstructionDescription(_nliGenerator.InstructionType);
                     UnityEngine.Debug.Log($"自然言語指示: {nliInfo}");
                 }
 
@@ -460,7 +460,7 @@ namespace LLMDataArchitect.Test
             if (IsNLIType(type))
             {
                 var nliType = GetNLITypeFromGeneratorType(type);
-                _nliGenerator = new CachePromptGeneratorWithNLI(nliType);
+                _nliGenerator = new NLIPromptGenerator(nliType);
                 Debug.Log($"  → CachePromptGeneratorWithNLI ({nliType}) を生成");
                 return _nliGenerator;
             }
@@ -884,7 +884,7 @@ Use the provided game rules context to inform your tactical decisions.";
                 if (IsRandomNLIType(_generatorType) && _nliGenerator != null)
                 {
                     var randomNLI = GetRandomNLIType();
-                    _nliGenerator.CurrentInstructionType = randomNLI;
+                    _nliGenerator.SetInstructionType(randomNLI);
 
                     if (_showProgressInConsole)
                     {
@@ -921,7 +921,7 @@ Use the provided game rules context to inform your tactical decisions.";
             // NLIタイプを記録
             if (_nliGenerator != null)
             {
-                testResult.nliType = CachePromptGeneratorWithNLI.GetInstructionShortName(_nliGenerator.CurrentInstructionType);
+                testResult.nliType = CachePromptGeneratorWithNLI.GetInstructionShortName(_nliGenerator.InstructionType);
             }
 
             var stopwatch = Stopwatch.StartNew();
