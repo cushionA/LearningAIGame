@@ -4,17 +4,18 @@ For Honor風を採用した3Dアクション戦闘にLLMでリアルタイム判
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+2026/02 完成しました！！
 
 ### 環境
-- **Unity:** Unity6.2（6000.2.2f1）
+- **Unity:** Unity6.3
 - **対象プラットフォーム:** Windows PC
 
 ### 使用LLM関連情報
 - **API:** LLMUnity
-- **使用モデル:** 未定（1-2Bのモデル予定）
+- **使用モデル:** Qwen 3 1.7B
 
 ## アーキテクチャ
-![概略図](https://github.com/cushionA/LearningAIGame/blob/main/%E4%BB%95%E6%A7%98%E6%9B%B8/%E6%88%A6%E9%97%98%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E6%A6%82%E7%95%A5%E5%9B%B3.png?raw=true)
+![概略図](https://github.com/cushionA/LearningAIGame/blob/main/%E4%BB%95%E6%A7%98%E6%9B%B8/LLM%E7%B5%B1%E5%90%88%E3%83%90%E3%83%88%E3%83%AB%E3%82%B7%E3%82%B9%E3%83%86%E3%83%A0%E6%A6%82%E8%A6%81%E5%9B%B3.png?raw=true)
 
 ### 現在の主要クラス
 | クラス名 | 役割 | 責任 |
@@ -37,8 +38,6 @@ BattleCharacterController (統合制御)
 ### Git関連メモ
 - **直接mainにはpushできません。**
 - **mainへの変更統合時はプルリクエスト必須です**
-- **リポジトリへのアクセス権限が切れた場合は座布団までお声掛けください**
-- **アセットを含むプロジェクトのため、privateリポジトリです**
 
 ## プロジェクト構造
 
@@ -52,14 +51,14 @@ Assets/Scripts/
 │   ├── MovementSystem.cs
 │   ├── AttackSystem.cs
 │   ├── DefenseSystem.cs
-│   └── EnergySystem.cs
+│   ├── HitSystem.cs
+│   └── DamageSystem.cs
 ├── Controllers/                    # 制御クラス
-│   ├── PlayerController.cs
-│   └── AIController.cs
-├── Data/                          # データ定義
-│   └── CharacterSettings.cs
-└── Utilities/                     # ユーティリティ
-    └── CombatUtilities.cs
+│   ├── InputHandler.cs
+│   └── StrategyAI.cs
+└── Data/                          # データ定義
+   └── CharacterSettings.cs
+
 ```
 
 ### 開発ガイドライン
