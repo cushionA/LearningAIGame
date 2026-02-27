@@ -234,6 +234,16 @@ namespace LLMDataArchitect.Test
 
         #endregion
 
+        /// <summary>
+        /// NLIタイプを変更する
+        /// </summary>
+        /// <param name="type"></param>
+        /// <exception cref="ArgumentException"></exception>
+        public void SetInstructionType(NaturalLanguageInstructionType type)
+        {
+            _currentInstructionType = type;
+        }
+
         #region 自然言語指示セクション生成
 
         /// <summary>
@@ -665,7 +675,7 @@ namespace LLMDataArchitect.Test
         /// </summary>
         /// <param name="instructionType">自然言語指示タイプ</param>
         /// <returns>日本語説明文</returns>
-        public static string GetInstructionDescription(NaturalLanguageInstructionType instructionType)
+        public string GetInstructionDescription(NaturalLanguageInstructionType instructionType)
         {
             return instructionType switch
             {

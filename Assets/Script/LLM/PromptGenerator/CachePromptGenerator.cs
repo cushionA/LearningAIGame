@@ -257,7 +257,7 @@ namespace LLMDataArchitect.Test
             prompt.AppendLine($"**Performance**: {performanceTag}");
             prompt.AppendLine();
 
-            // === フィードバック（★Cache8互換：前回のBasicTacticを含む） ===
+            // === フィードバック（前回のBasicTacticを含む） ===
             prompt.AppendLine("## 5. Performance Feedback on Last Decision");
             prompt.AppendLine();
 
@@ -265,7 +265,7 @@ namespace LLMDataArchitect.Test
             {
                 var result = inputData.StrategyResult;
 
-                // ★重要: 前回の決定を明示（Cache8の成功要因）
+                // 前回の決定を明示（Cache8の成功要因）
                 prompt.AppendLine("**Previous Turn Decision:**");
                 prompt.AppendLine($"- BasicTactic: {inputData.CurrentStrategy.BasicTactic}");
                 prompt.AppendLine($"- AttackCriteria: {inputData.CurrentStrategy.AttackCriteria}");

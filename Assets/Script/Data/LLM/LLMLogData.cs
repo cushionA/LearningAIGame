@@ -48,6 +48,7 @@ namespace LLMDataArchitect
     /// </summary>
     public class LLMLogData
     {
+
         #region プロパティ
 
         /// <summary>
@@ -206,6 +207,12 @@ namespace LLMDataArchitect
         /// </summary>
         private FixedLengthList<HitSituation> _damageSituations;
 
+        /// <summary>
+        /// インスタンスの同一性確認用の数値
+        /// </summary>
+        private readonly int _hashCode;
+
+
         #endregion
 
         #region コンストラクタ
@@ -222,6 +229,7 @@ namespace LLMDataArchitect
             _hitSituations = new FixedLengthList<HitSituation>(hitSituationSize);
             _damageSituations = new FixedLengthList<HitSituation>(damageSituationSize);
             ActionLog = new ActionProbabilityManager();
+            _hashCode = UnityEngine.Random.Range(int.MinValue, int.MaxValue);
         }
 
         #endregion
@@ -237,6 +245,7 @@ namespace LLMDataArchitect
         {
             _recentActions.Add(action);
             ActionLog.AddAction(action);
+            Debug.Log($"[LLMLogData_{_hashCode}] 行動ログ追加: {action}, RecentActionArray: [{string.Join(", ", _recentActions.GetInOrder())}]");
         }
 
         /// <summary>
@@ -248,6 +257,7 @@ namespace LLMDataArchitect
         {
             _hitSituations.Add(situation);
             HitDamage += situation.GetDamage;
+            Debug.Log($"[LLMLogData_{_hashCode}] 攻撃状況ログ追加: HitState={situation.HitState}, DamageState={situation.DamageState}, GetDamage={situation.GetDamage}, HitDamage累積={HitDamage}");
         }
 
         /// <summary>
@@ -259,6 +269,7 @@ namespace LLMDataArchitect
         {
             _damageSituations.Add(situation);
             TakeDamage += situation.GetDamage;
+            Debug.Log($"[LLMLogData_{_hashCode}] 被ダメージ状況ログ追加: HitState={situation.HitState}, DamageState={situation.DamageState}, GetDamage={situation.GetDamage}, TakeDamage累積={TakeDamage}");
         }
 
         /// <summary>

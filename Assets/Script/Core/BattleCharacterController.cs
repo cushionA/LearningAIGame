@@ -300,7 +300,7 @@ namespace LearningAIGame.CombatSystem.Core
         /// </summary>
         public void LightBlocking(StanceType stance)
         {
-            BlockingReleaseAfterDelay(Math.Max(_actionSetting.WeakAttackStartFrame - 1, 0), stance).Forget();
+            BlockingReleaseAfterDelay(Math.Max(_actionSetting.WeakAttackStartFrame - 2, 0), stance).Forget();
         }
 
         /// <summary>
@@ -308,7 +308,7 @@ namespace LearningAIGame.CombatSystem.Core
         /// </summary>
         public void HeavyBlocking(StanceType stance)
         {
-            BlockingReleaseAfterDelay(Math.Max(_actionSetting.HeavyAttackStartFrame - 1, 0), stance).Forget();
+            BlockingReleaseAfterDelay(Math.Max(_actionSetting.HeavyAttackStartFrame - 2, 0), stance).Forget();
         }
 
         /// <summary>

@@ -9,75 +9,75 @@ using System.Numerics;
 using static LearningAIGame.CombatSystem.Core.StateSystem;
 using static LLMDataArchitect.ActionTable;
 
-//==============================================ƒtƒ@ƒCƒ‹ƒwƒbƒ_=========================================================
+//==============================================ãƒ•ã‚¡ã‚¤ãƒ«ãƒ˜ãƒƒãƒ€=========================================================
 // LLMData
 // 
-// ŠT—v: LLM‚Ö‚Ì“ü—Íƒf[ƒ^\‘¢‚ÆƒeƒXƒgƒf[ƒ^¶¬‹@”\‚ğ’ñ‹Ÿ
+// æ¦‚è¦: LLMã¸ã®å…¥åŠ›ãƒ‡ãƒ¼ã‚¿æ§‹é€ ã¨ãƒ†ã‚¹ãƒˆãƒ‡ãƒ¼ã‚¿ç”Ÿæˆæ©Ÿèƒ½ã‚’æŒã¤
 // 
-// §ìÒ: ¬‚³‚ÈÀ•z’c
+// ä½œæˆè€…: åº§å¸ƒå›£ï¼ˆä»®åï¼‰
 // 
-// ‹@”\à–¾:
-// [LLMInputData\‘¢‘Ì]
-// - RecentActionArray: “G‚Ì’¼‹ßs“®—š—ğ
-// - MyData / EnemyData: ©•ª‚Æ“G‚ÌƒLƒƒƒ‰ƒNƒ^[ƒf[ƒ^iHPAƒGƒlƒ‹ƒM[j
-// - ActionLog: “G‚Ìs“®Šm—¦“ŒviActionProbabilityManagerj
-// - HitSituations / EnemyHitSituations: —^ƒ_ƒ[ƒW/”íƒ_ƒ[ƒW—š—ğ
-// - LastStrategy: ‘O‰ñ‚Ìí—ª”»’fƒf[ƒ^
-// - ToJson: JSONŒ`®‚ÉƒVƒŠƒAƒ‰ƒCƒY
-// - CreateForTestSituation: ƒeƒXƒgó‹µ•Êƒf[ƒ^¶¬
-// - CreateCustom: ƒJƒXƒ^ƒ€ƒpƒ‰ƒ[ƒ^‚©‚çƒf[ƒ^¶¬
+// æ©Ÿèƒ½è©³ç´°:
+// [LLMInputDataæ§‹é€ ä½“]
+// - RecentActionArray: æ•µã®ç›´è¿‘è¡Œå‹•å±¥æ­´
+// - MyData / EnemyData: è‡ªåˆ†ã¨æ•µã®ã‚­ãƒ£ãƒ©ã‚¯ã‚¿ãƒ¼ãƒ‡ãƒ¼ã‚¿ï¼ˆHPã€ã‚¨ãƒãƒ«ã‚®ãƒ¼ï¼‰
+// - ActionLog: æ•µã®è¡Œå‹•ç¢ºç‡é›†è¨ˆï¼ˆActionProbabilityManagerï¼‰
+// - HitSituations / EnemyHitSituations: ä¸ãƒ€ãƒ¡ãƒ¼ã‚¸/è¢«ãƒ€ãƒ¡ãƒ¼ã‚¸å±¥æ­´
+// - LastStrategy: å‰å›ã®æˆ¦ç•¥åˆ¤æ–­ãƒ‡ãƒ¼ã‚¿
+// - ToJson: JSONå½¢å¼ã«ã‚·ãƒªã‚¢ãƒ©ã‚¤ã‚º
+// - CreateForTestSituation: ãƒ†ã‚¹ãƒˆçŠ¶æ³åˆ¥ãƒ‡ãƒ¼ã‚¿ç”Ÿæˆ
+// - CreateCustom: ã‚«ã‚¹ã‚¿ãƒ ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ç”Ÿæˆãƒ‡ãƒ¼ã‚¿ç”Ÿæˆ
 // 
 // [ActionProbabilityManager]
-// - Šes“®iŒã‚ë‰ñ”ğA‰¡‰ñ”ğA‘O‰ñ”ğAƒK[ƒhAƒuƒƒbƒLƒ“ƒOAãUŒ‚A‹­UŒ‚‚È‚Çj‚ÌÀsŠm—¦‚ğŠÇ—
-// - InitializeBasicProbabilities: Šî–{Šm—¦‚Å‰Šú‰»
+// - å„è¡Œå‹•ï¼ˆå‰é€²ã€å¾Œé€€ã€å‰ã‚¹ãƒ†ãƒƒãƒ—ã€ã‚¬ãƒ¼ãƒ‰ã€ãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°ã€å¼±æ”»æ’ƒã€å¼·æ”»æ’ƒãªã©ï¼‰ã®å®Ÿè¡Œç¢ºç‡ã‚’ç®¡ç†
+// - InitializeBasicProbabilities: åŸºæœ¬ç¢ºç‡ã§åˆæœŸåŒ–
 // 
 // [HitSituation]
-// - UŒ‚ƒqƒbƒg/”í’e‚Ìó‹µ‹L˜^i©•ª‚Ìs“®A“G‚Ìs“®Aƒ_ƒ[ƒW—Êj
-// - DamageReportInfo‚©‚ç‚Ì•ÏŠ·ƒRƒ“ƒXƒgƒ‰ƒNƒ^’ñ‹Ÿ
+// - æ”»æ’ƒãƒ’ãƒƒãƒˆ/è¢«å¼¾æ™‚ã®çŠ¶æ³è¨˜éŒ²ï¼ˆè‡ªåˆ†ã®è¡Œå‹•ã€æ•µã®è¡Œå‹•ã€ãƒ€ãƒ¡ãƒ¼ã‚¸é‡ï¼‰
+// - DamageReportInfoçµŒç”±ã®å¤‰æ›ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿æœ‰
 // 
 // [StrategyData]
-// - LLM‚Ì”»’fŒ‹‰Ê‚ğŠi”[iŒ‹˜_A——RAŠî–{ípAs“®ƒe[ƒuƒ‹j
+// - LLMã®åˆ¤æ–­çµæœã‚’æ ¼ç´ï¼ˆè«–ç‚¹ã€ç†ç”±ã€åŸºæœ¬æˆ¦è¡“ã€è¡Œå‹•ãƒ†ãƒ¼ãƒ–ãƒ«ï¼‰
 // 
 // [ActionTable]
-// - ó‹µ•Ê‚Ìs“®ƒ}ƒbƒsƒ“ƒOi“GUŒ‚‘Ì¨A“G‘Ò‹@ó‘ÔA—L—˜/•s—˜ó‹µ‚È‚Çj
-// - CreateDefault / CreateAggressive / CreateDefensive: íp•Êƒe[ƒuƒ‹¶¬
-// - Validate: s“®ƒe[ƒuƒ‹‚Ì‘Ã“–«ŒŸØ
-// - GetStats: UŒ‚/–hŒä”ä—¦‚Ì“Œvî•ñæ“¾
+// - çŠ¶æ³åˆ¥ã®è¡Œå‹•ãƒãƒƒãƒ”ãƒ³ã‚°ï¼ˆæ•µæ”»æ’ƒã®éš›ã€æ•µå¾…æ©ŸçŠ¶æ…‹ã€æœ‰åˆ©/ä¸åˆ©çŠ¶æ³ãªã©ï¼‰
+// - CreateDefault / CreateAggressive / CreateDefensive: æˆ¦è¡“åˆ¥ãƒ†ãƒ¼ãƒ–ãƒ«ç”Ÿæˆ
+// - Validate: è¡Œå‹•ãƒ†ãƒ¼ãƒ–ãƒ«ã®å¦¥å½“æ€§æ¤œè¨¼
+// - GetStats: æ”»æ’ƒ/é˜²å¾¡æ¯”ç‡ã®çµ±è¨ˆã‚’å–å¾—
 // 
-// [•â•ƒNƒ‰ƒX]
-// - Vector3JsonConverter: System.Numerics.Vector3‚ÌJSON•ÏŠ·
-// - ActionTableStats: s“®ƒe[ƒuƒ‹‚Ì“Œvî•ñiUŒ‚/–hŒä”AŠ„‡AípŒXŒüj
+// [è£œåŠ©ã‚¯ãƒ©ã‚¹]
+// - Vector3JsonConverter: System.Numerics.Vector3ã®JSONå¤‰æ›
+// - ActionTableStats: è¡Œå‹•ãƒ†ãƒ¼ãƒ–ãƒ«ã®çµ±è¨ˆæƒ…å ±ï¼ˆæ”»æ’ƒ/é˜²å¾¡æ•°ã€æ¯”ç‡ã€ãƒ‘ã‚¹ç‡ï¼‰
 // 
-// “ü—ÍŒ³ƒNƒ‰ƒX: BattleCharacterController, StateSystem
-// o—ÍæƒNƒ‰ƒX: LLMƒVƒXƒeƒ€iJSONŒ`®j
+// å…¥åŠ›å…ƒã‚¯ãƒ©ã‚¹: BattleCharacterController, StateSystem
+// å‡ºåŠ›å…ˆã‚¯ãƒ©ã‚¹: LLMã‚·ã‚¹ãƒ†ãƒ ï¼ˆJSONå½¢å¼ï¼‰
 // 
-// ‚»‚Ì‘¼:
-// ƒeƒXƒg—pƒf[ƒ^¶¬‹@”\i—D¨/hR/—ò¨/ƒGƒlƒ‹ƒM[•s‘«/‘Ì—ÍŠëŒ¯j‚ğŠÜ‚Ş
-// Vƒvƒƒ“ƒvƒgŒ`®‚É‘Î‰‚µ‚½JSONo—Í\‘¢
+// ãã®ä»–:
+// ãƒ†ã‚¹ãƒˆç”¨ãƒ‡ãƒ¼ã‚¿ç”Ÿæˆæ©Ÿèƒ½ï¼ˆå„ªå‹¢/æ‹®æŠ—/åŠ£å‹¢/ã‚¨ãƒãƒ«ã‚®ãƒ¼ä¸è¶³/ä½“åŠ›å±é™ºï¼‰ã‚’å«ã‚€
+// ã‚·ãƒ³ãƒ—ãƒ«ãƒ—ãƒ­ãƒ³ãƒ—ãƒˆå½¢å¼ã«å¯¾å¿œã™ã‚‹JSONå‡ºåŠ›æ§‹é€ 
 //=====================================================================================================================
 namespace LLMDataArchitect
 {
     /// <summary>
-    /// TestSituationType—ñ‹“Œ^
+    /// TestSituationTypeåˆ—æŒ™å‹
     /// </summary>
     public enum TestSituationType
     {
-        —D¨,      // ©•ª—L—˜
-        hR,      // ŒİŠp
-        —ò¨,      // “G—L—˜
-        ƒGƒlƒ‹ƒM[•s‘«, // ƒGƒlƒ‹ƒM[Šë‹@
-        ‘Ì—ÍŠëŒ¯    // ‘Ì—ÍŠë‹@
+        å„ªå‹¢,      // è‡ªåˆ†æœ‰åˆ©
+        æ‹®æŠ—,      // äº’è§’
+        åŠ£å‹¢,      // æ•µæœ‰åˆ©
+        ã‚¨ãƒãƒ«ã‚®ãƒ¼ä¸è¶³, // ã‚¨ãƒãƒ«ã‚®ãƒ¼ä½ä¸‹
+        ä½“åŠ›å±é™º    // ä½“åŠ›ä½ä¸‹
     }
 
     /// <summary>
-    /// LLM‚É“ü—Í‚·‚éƒf[ƒ^‚Ì\‘¢‘Ì
-    /// Å‰‚ÉStateSystem‚©‚çƒLƒƒƒ‰ƒf[ƒ^‚ÆƒƒOƒf[ƒ^‚ÌQÆ‚ğæ‚é
+    /// LLMã«å…¥åŠ›ã™ã‚‹ãƒ‡ãƒ¼ã‚¿ã®æ§‹é€ ä½“
+    /// æœ€åˆã«StateSystemã‹ã‚‰ã‚­ãƒ£ãƒ©ãƒ‡ãƒ¼ã‚¿ã¨ãƒ­ã‚°ãƒ‡ãƒ¼ã‚¿ã®å‚ç…§ã‚’è²°ã†
     /// </summary>
     public class LLMInputData
     {
         /// <summary>
-        /// ©•ª‚ÌƒLƒƒƒ‰ƒNƒ^[ƒf[ƒ^
-        /// stateSystem‚©‚çQÆ‚ğæ‚é
+        /// è‡ªåˆ†ã®ã‚­ãƒ£ãƒ©ã‚¯ã‚¿ãƒ¼ãƒ‡ãƒ¼ã‚¿
+        /// stateSystemã‹ã‚‰å‚ç…§ã‚’è²°ã†
         /// </summary>
         public CharacterData PlayerData
         {
@@ -86,8 +86,8 @@ namespace LLMDataArchitect
         }
 
         /// <summary>
-        /// “G‚ÌƒLƒƒƒ‰ƒNƒ^[ƒf[ƒ^
-        /// stateSystem‚©‚çQÆ‚ğæ‚é
+        /// æ•µã®ã‚­ãƒ£ãƒ©ã‚¯ã‚¿ãƒ¼ãƒ‡ãƒ¼ã‚¿
+        /// stateSystemã‹ã‚‰å‚ç…§ã‚’è²°ã†
         /// </summary>
         public CharacterData NPCData
         {
@@ -96,14 +96,14 @@ namespace LLMDataArchitect
         }
 
         /// <summary>
-        /// s“®ƒƒO‚ÌWÏ
-        /// QÆ‚Í‚¢‚ç‚È‚¢
+        /// è¡Œå‹•ãƒ­ã‚°ã®é›†åˆ
+        /// å‚ç…§ã¯ã•ã‚Œãªã„
         /// </summary>
         public ActionProbabilityManager ActionLog { get { return NPCLog.ActionLog; } set { NPCLog.ActionLog = value; } }
 
         /// <summary>
-        ///  ƒvƒŒƒCƒ„[‚Ìs“®ƒƒO
-        /// stateSystem‚©‚çQÆ‚ğæ‚é
+        ///  ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®è¡Œå‹•ãƒ­ã‚°
+        /// stateSystemã‹ã‚‰å‚ç…§ã‚’è²°ã†
         /// </summary>
         public LLMLogData PlayerLog
         {
@@ -112,8 +112,8 @@ namespace LLMDataArchitect
         }
 
         /// <summary>
-        ///  NPC‚Ìs“®ƒƒO
-        /// stateSystem‚©‚çQÆ‚ğæ‚é
+        ///  NPCã®è¡Œå‹•ãƒ­ã‚°
+        /// stateSystemã‹ã‚‰å‚ç…§ã‚’è²°ã†
         /// </summary>
         public LLMLogData NPCLog
         {
@@ -122,8 +122,8 @@ namespace LLMDataArchitect
         }
 
         /// <summary>
-        /// NPC‚Ìíp‚Ì¬”Û‚ğ•Û‘¶‚·‚éƒf[ƒ^
-        /// AI‚©‚çQÆ‚ğæ‚é
+        /// NPCã®æˆ¦è¡“ã®æˆæœã‚’ä¿å­˜ã™ã‚‹ãƒ‡ãƒ¼ã‚¿
+        /// AIå´ã‹ã‚‰å‚ç…§ã‚’è²°ã†
         /// </summary>
         public StrategyResult StrategyResult
         {
@@ -132,80 +132,83 @@ namespace LLMDataArchitect
         }
 
         /// <summary>
-        /// ƒvƒŒƒCƒ„[‚Ìs“®A—^ƒ_ƒ[ƒW/”íƒ_ƒ[ƒWƒƒO
+        /// ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®è¡Œå‹•ã€ä¸ãƒ€ãƒ¡ãƒ¼ã‚¸/è¢«ãƒ€ãƒ¡ãƒ¼ã‚¸ãƒ­ã‚°
         /// </summary>
         private CharacterData _playerData;
 
         /// <summary>
-        /// AIƒLƒƒƒ‰ƒNƒ^[‚Ìs“®A—^ƒ_ƒ[ƒW/”íƒ_ƒ[ƒWƒƒO
+        /// AIã‚­ãƒ£ãƒ©ã‚¯ã‚¿ãƒ¼ã®è¡Œå‹•ã€ä¸ãƒ€ãƒ¡ãƒ¼ã‚¸/è¢«ãƒ€ãƒ¡ãƒ¼ã‚¸ãƒ­ã‚°
         /// </summary>
         private CharacterData _npcData;
 
         /// <summary>
-        /// ƒvƒŒƒCƒ„[‚Ìs“®A—^ƒ_ƒ[ƒW/”íƒ_ƒ[ƒWƒƒO
+        /// ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®è¡Œå‹•ã€ä¸ãƒ€ãƒ¡ãƒ¼ã‚¸/è¢«ãƒ€ãƒ¡ãƒ¼ã‚¸ãƒ­ã‚°
         /// </summary>
         private LLMLogData _playerLog;
 
         /// <summary>
-        /// AIƒLƒƒƒ‰ƒNƒ^[‚Ìs“®A—^ƒ_ƒ[ƒW/”íƒ_ƒ[ƒWƒƒO
+        /// AIã‚­ãƒ£ãƒ©ã‚¯ã‚¿ãƒ¼ã®è¡Œå‹•ã€ä¸ãƒ€ãƒ¡ãƒ¼ã‚¸/è¢«ãƒ€ãƒ¡ãƒ¼ã‚¸ãƒ­ã‚°
         /// </summary>
         private LLMLogData _npcLog;
 
         /// <summary>
-        /// AI‚©‚ç‚Ì“ü—Í‚Åíp‚Ì‹L˜^‚ğ•Û‘¶‚·‚é
-        /// Šeíp‚Ì¬”Û‚ğo—Í‚·‚é
+        /// AIå´ã‹ã‚‰ã®å…¥åŠ›ã§æˆ¦è¡“ã®è¨˜éŒ²ã‚’ä¿å­˜ã™ã‚‹
+        /// å„æˆ¦è¡“ã®æˆæœã‚’å‡ºåŠ›ã™ã‚‹
         /// </summary>
         private StrategyResult _strategyResult;
 
         /// <summary>
-        /// Œ»İ‚Ì”»’fƒf[ƒ^
-        /// LLMƒvƒƒ“ƒvƒg‚ğ¶¬‚·‚éÛ‚Í‘O‰ñ‚Ì”»’fƒf[ƒ^‚Æ‚µ‚Äg‚¤
+        /// ç¾åœ¨ã®åˆ¤æ–­ãƒ‡ãƒ¼ã‚¿
+        /// LLMãƒ—ãƒ­ãƒ³ãƒ—ãƒˆã‚’ç”Ÿæˆã™ã‚‹éš›ã¯å‰å›ã®åˆ¤æ–­ãƒ‡ãƒ¼ã‚¿ã¨ã—ã¦ä½¿ã†
         /// </summary>
         public StrategyData? CurrentStrategy { get; set; }
 
         /// <summary>
-        /// ƒvƒƒ“ƒvƒg‚ğ¶¬ŒãA‘O‰ñ”»’f‚ğ‘‚«Š·‚¦‚é
-        /// “¯‚É’¼‹ß‚Ìƒf[ƒ^‚ğ‘‚«Š·‚¦‚éˆ—
+        /// ãƒ—ãƒ­ãƒ³ãƒ—ãƒˆã‚’ç”Ÿæˆã—ã€å‰å›åˆ¤æ–­ã‚’å…¥ã‚Œæ›¿ãˆã‚‹
+        /// ç›´è¿‘ã«æºœã‚ã®ãƒ‡ãƒ¼ã‚¿ã‚’ãƒªã‚»ãƒƒãƒˆã™ã‚‹å‡¦ç†
         /// </summary>
         public void UpdateStrategy(StrategyData newStrategy)
         {
-            // ’¼‹ßƒf[ƒ^‚ÍÁ‚³‚È‚­‚Ä‚à“ü‚ê‘Ö‚í‚é
-            // ’¼‹ßƒf[ƒ^‚ğƒŠƒZƒbƒg
+            // ç›´è¿‘ãƒ‡ãƒ¼ã‚¿ã¯ãƒªã‚»ãƒƒãƒˆã—ãªãã¦ã‚‚ã„ã„ã¸å¤‰æ›´
+            // ç›´è¿‘ãƒ‡ãƒ¼ã‚¿ã‚’ãƒªã‚»ãƒƒãƒˆ
             //PlayerLog.ClearAllRecentLogs();
 
-            // NPC‚Ì’¼‹ßƒf[ƒ^‚ğƒŠƒZƒbƒg
+            // NPCã®ç›´è¿‘ãƒ‡ãƒ¼ã‚¿ã‚’ãƒªã‚»ãƒƒãƒˆ
             // NPCLog.ClearAllRecentLogs();
 
-            // íp¬”Ûƒf[ƒ^‚ğƒŠƒZƒbƒg
+            // æˆ¦è¡“æˆæœãƒ‡ãƒ¼ã‚¿ã‚’ãƒªã‚»ãƒƒãƒˆ
             _strategyResult.Clear();
 
-            // V‚µ‚¢ípƒf[ƒ^‚ğİ’è
+            // æ–°ã—ã„æˆ¦è¡“ãƒ‡ãƒ¼ã‚¿ã‚’è¨­å®š
             CurrentStrategy = newStrategy;
         }
 
 
         /// <summary>
-        /// ƒoƒgƒ‹ŠJn‚ÉƒvƒŒƒCƒ„[‚ÆNPC‚Éƒf[ƒ^‚ğİ’è‚·‚é
-        /// StateSystem‚Éƒf[ƒ^‚ğ’“ü‚·‚é
+        /// ãƒãƒˆãƒ«é–‹å§‹æ™‚ã«ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã¨NPCã«ãƒ‡ãƒ¼ã‚¿ã‚’è¨­å®šã™ã‚‹
+        /// StateSystemã«ãƒ‡ãƒ¼ã‚¿ã‚’æ³¨å…¥ã™ã‚‹
         /// </summary>
         /// <param name="stateSystem"></param>
         /// <returns></returns>
         public void InjectionNewBattle(StateSystem player, StateSystem newNPC)
         {
-            // V‚µ‚¢ƒwƒ‹ƒXƒf[ƒ^‚ÆŠù‘¶ƒƒOƒf[ƒ^‚ğ’“ü
-            newNPC.CreateLLMSourceData(new CharacterData(100, 100), _npcLog);
-            player.CreateLLMSourceData(new CharacterData(100, 100), _playerLog);
+            // æ–°ã—ã„CharacterDataã‚’ç”Ÿæˆã—ã€ãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰ã¨ StateSystem ã®ä¸¡æ–¹ã«è¨­å®šã™ã‚‹
+            _npcData = new CharacterData(100, 100);
+            newNPC.CreateLLMSourceData(_npcData, _npcLog);
+
+            _playerData = new CharacterData(100, 100);
+            player.CreateLLMSourceData(_playerData, _playerLog);
         }
 
         /// <summary>
-        /// ƒRƒ“ƒXƒgƒ‰ƒNƒ^
+        /// ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
         /// </summary>
         /// <param name="player"></param>
         /// <param name="npc"></param>
         public LLMInputData(StateSystem player, StateSystem npc, StrategyResult resultData)
         {
 
-            // StateSystem‚Éì¬‚µ‚½ƒf[ƒ^‚ğ’“ü
+            // StateSystemã«ä½œæˆã—ãŸãƒ‡ãƒ¼ã‚¿ã‚’æ³¨å…¥
             (_playerData, _playerLog) = (new CharacterData(100, 100), new LLMLogData(7, 7, 7));
             player.CreateLLMSourceData(_playerData, _playerLog);
 
@@ -219,48 +222,48 @@ namespace LLMDataArchitect
         }
 
         /// <summary>
-        /// ƒeƒXƒgƒf[ƒ^—p‚Ì‹óƒRƒ“ƒXƒgƒ‰ƒNƒ^
+        /// ãƒ†ã‚¹ãƒˆãƒ‡ãƒ¼ã‚¿ç”¨ã®ç©ºã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
         /// </summary>
         public LLMInputData()
         {
 
         }
 
-        #region ƒeƒXƒgƒf[ƒ^¶¬—p
+        #region ãƒ†ã‚¹ãƒˆãƒ‡ãƒ¼ã‚¿ç”Ÿæˆç”¨
         /// <summary>
-        /// “Á’è‚ÌƒeƒXƒgó‹µ‚É‰‚¶‚½ƒf[ƒ^‚ğ¶¬
+        /// ç‰¹å®šã®ãƒ†ã‚¹ãƒˆçŠ¶æ³ã«å¿œã˜ãŸãƒ‡ãƒ¼ã‚¿ã‚’ç”Ÿæˆ
         /// </summary>
         public static LLMInputData CreateForTestSituation(TestSituationType situationType)
         {
             var rand = new Random();
 
-            // ó‹µ‚É‰‚¶‚½Šî–{İ’è
+            // çŠ¶æ³ã«å¿œã˜ãŸåŸºæœ¬è¨­å®š
             CharacterData myData, enemyData;
             CreateSituationBasedCharacters(situationType, out myData, out enemyData, rand);
 
-            // ©•ª‚Ìó‹µ‚É‰‚¶‚Ä“G‚Ìó‹µ‚ğŒˆ’è
+            // è‡ªåˆ†ã®çŠ¶æ³ã«å¿œã˜ã¦æ•µã®çŠ¶æ³ã‚’è¨­å®š
             TestSituationType enemySituationType = situationType switch
             {
-                TestSituationType.—D¨ => TestSituationType.—ò¨,
-                TestSituationType.—ò¨ => TestSituationType.—D¨,
-                TestSituationType.hR => TestSituationType.hR,
-                TestSituationType.ƒGƒlƒ‹ƒM[•s‘« => TestSituationType.hR,
-                TestSituationType.‘Ì—ÍŠëŒ¯ => TestSituationType.—D¨,
-                _ => TestSituationType.hR
+                TestSituationType.å„ªå‹¢ => TestSituationType.åŠ£å‹¢,
+                TestSituationType.åŠ£å‹¢ => TestSituationType.å„ªå‹¢,
+                TestSituationType.æ‹®æŠ— => TestSituationType.æ‹®æŠ—,
+                TestSituationType.ã‚¨ãƒãƒ«ã‚®ãƒ¼ä¸è¶³ => TestSituationType.æ‹®æŠ—,
+                TestSituationType.ä½“åŠ›å±é™º => TestSituationType.å„ªå‹¢,
+                _ => TestSituationType.æ‹®æŠ—
             };
 
-            // ƒvƒŒƒCƒ„[‚Ì—š—ğ
+            // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®å±¥æ­´
             var playerLog = new LLMLogData();
             playerLog.SetTestData(enemySituationType);
 
-            // ©•ª‚Ì—š—ğ‚Ì¶¬
+            // è‡ªåˆ†ã®å±¥æ­´ã®ç”Ÿæˆ
             var npcLog = new LLMLogData();
             npcLog.SetTestData(situationType);
 
-            // “G‚Ìs“®Šm—¦
+            // æ•µã®è¡Œå‹•ç¢ºç‡
             var actionLog = CreateActionProbabilities(enemySituationType);
 
-            // ‘O‰ñí—ª
+            // å‰å›æˆ¦ç•¥
             var lastStrategy = CreateDefaultStrategy();
 
             var strategyResult = new StrategyResult();
@@ -280,14 +283,14 @@ namespace LLMDataArchitect
         }
 
         /// <summary>
-        /// ó‹µ‚É‰‚¶‚½ƒLƒƒƒ‰ƒNƒ^[ƒf[ƒ^¶¬
+        /// çŠ¶æ³ã«å¿œã˜ãŸã‚­ãƒ£ãƒ©ã‚¯ã‚¿ãƒ¼ãƒ‡ãƒ¼ã‚¿ç”Ÿæˆ
         /// </summary>
         private static void CreateSituationBasedCharacters(TestSituationType situationType,
             out CharacterData myData, out CharacterData enemyData, Random rand)
         {
             switch (situationType)
             {
-                case TestSituationType.—D¨:
+                case TestSituationType.å„ªå‹¢:
                     myData = new CharacterData
                     {
                         Hp = 180,
@@ -304,7 +307,7 @@ namespace LLMDataArchitect
                     };
                     break;
 
-                case TestSituationType.hR:
+                case TestSituationType.æ‹®æŠ—:
                     myData = new CharacterData
                     {
                         Hp = 150,
@@ -321,7 +324,7 @@ namespace LLMDataArchitect
                     };
                     break;
 
-                case TestSituationType.—ò¨:
+                case TestSituationType.åŠ£å‹¢:
                     myData = new CharacterData
                     {
                         Hp = 65,
@@ -338,7 +341,7 @@ namespace LLMDataArchitect
                     };
                     break;
 
-                case TestSituationType.ƒGƒlƒ‹ƒM[•s‘«:
+                case TestSituationType.ã‚¨ãƒãƒ«ã‚®ãƒ¼ä¸è¶³:
                     myData = new CharacterData
                     {
                         Hp = 140,
@@ -355,7 +358,7 @@ namespace LLMDataArchitect
                     };
                     break;
 
-                case TestSituationType.‘Ì—ÍŠëŒ¯:
+                case TestSituationType.ä½“åŠ›å±é™º:
                     myData = new CharacterData
                     {
                         Hp = 35,
@@ -378,26 +381,26 @@ namespace LLMDataArchitect
         }
 
         /// <summary>
-        /// ó‹µ‚É‰‚¶‚½“G‚Ìs“®—š—ğ¶¬
+        /// çŠ¶æ³ã«å¿œã˜ãŸæ•µã®è¡Œå‹•å±¥æ­´ã‚’ç”Ÿæˆ
         /// </summary>
         private static ActionState[] CreateRecentActions(TestSituationType situationType, Random rand)
         {
             switch (situationType)
             {
-                case TestSituationType.—D¨:
-                    return new[] { ActionState.Œã‚ë‰ñ”ğ, ActionState.ƒK[ƒh, ActionState.‰¡‰ñ”ğ, ActionState.ãUŒ‚ƒuƒƒbƒLƒ“ƒO, ActionState.Œã‚ë‰ñ”ğ };
+                case TestSituationType.å„ªå‹¢:
+                    return new[] { ActionState.å¾Œã‚å›é¿, ActionState.ã‚¬ãƒ¼ãƒ‰, ActionState.å¾Œã‚å›é¿, ActionState.å¼±æ”»æ’ƒãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°, ActionState.å¾Œã‚å›é¿ };
 
-                case TestSituationType.hR:
-                    return new[] { ActionState.ãUŒ‚, ActionState.‰¡‰ñ”ğ, ActionState.‹­UŒ‚, ActionState.‘O‰ñ”ğ, ActionState.ãUŒ‚ };
+                case TestSituationType.æ‹®æŠ—:
+                    return new[] { ActionState.å¼±æ”»æ’ƒ, ActionState.å¾Œã‚å›é¿, ActionState.å¼·æ”»æ’ƒ, ActionState.å‰å›é¿, ActionState.å¼±æ”»æ’ƒ };
 
-                case TestSituationType.—ò¨:
-                    return new[] { ActionState.‹­UŒ‚, ActionState.‘O‰ñ”ğUŒ‚, ActionState.ãUŒ‚, ActionState.‰¡‰ñ”ğUŒ‚, ActionState.‹­UŒ‚ };
+                case TestSituationType.åŠ£å‹¢:
+                    return new[] { ActionState.å¼·æ”»æ’ƒ, ActionState.å‰å›é¿æ”»æ’ƒ, ActionState.å¼±æ”»æ’ƒ, ActionState.å¼·æ”»æ’ƒ, ActionState.å¼·æ”»æ’ƒ };
 
-                case TestSituationType.ƒGƒlƒ‹ƒM[•s‘«:
-                    return new[] { ActionState.ãUŒ‚, ActionState.‹­UŒ‚ƒLƒƒƒ“ƒZƒ‹, ActionState.‘O‰ñ”ğ, ActionState.ãUŒ‚, ActionState.‹­UŒ‚ƒLƒƒƒ“ƒZƒ‹ };
+                case TestSituationType.ã‚¨ãƒãƒ«ã‚®ãƒ¼ä¸è¶³:
+                    return new[] { ActionState.å¼±æ”»æ’ƒ, ActionState.å¼·æ”»æ’ƒã‚­ãƒ£ãƒ³ã‚»ãƒ«, ActionState.å‰å›é¿, ActionState.å¼±æ”»æ’ƒ, ActionState.å¼·æ”»æ’ƒã‚­ãƒ£ãƒ³ã‚»ãƒ« };
 
-                case TestSituationType.‘Ì—ÍŠëŒ¯:
-                    return new[] { ActionState.‹­UŒ‚, ActionState.‘O‰ñ”ğUŒ‚, ActionState.‹­UŒ‚, ActionState.ãUŒ‚, ActionState.‘O‰ñ”ğUŒ‚ };
+                case TestSituationType.ä½“åŠ›å±é™º:
+                    return new[] { ActionState.å¼·æ”»æ’ƒ, ActionState.å‰å›é¿æ”»æ’ƒ, ActionState.å¼·æ”»æ’ƒ, ActionState.å¼±æ”»æ’ƒ, ActionState.å‰å›é¿æ”»æ’ƒ };
 
                 default:
                     throw new ArgumentException($"Unknown situation type: {situationType}");
@@ -405,67 +408,67 @@ namespace LLMDataArchitect
         }
 
         /// <summary>
-        /// Œø‰Ê“I‚¾‚Á‚½UŒ‚—š—ğ‚Ì¶¬iÅ‚à‚ƒ_ƒ[ƒW‚ğ‹L˜^j
+        /// åŠ¹æœçš„ã ã£ãŸæ”»æ’ƒå±¥æ­´ã®ç”Ÿæˆï¼ˆå—ã‘ãŸãƒ€ãƒ¡ãƒ¼ã‚¸ã‚‚è¨˜éŒ²ï¼‰
         /// </summary>
         private static HitSituation[] CreateEffectiveAttackHistory(Random rand)
         {
-            // ‹­UŒ‚‚ªŒø‰Ê“I‚¾‚Á‚½ƒVƒiƒŠƒIi“G‚ÌŒã‚ë‰ñ”ğ‚É‚ƒ_ƒ[ƒWj
+            // å¼±æ”»æ’ƒãŒåŠ¹æœçš„ã ã£ãŸã‚·ãƒŠãƒªã‚ªï¼ˆæ•µã®è»½æ”»æ’ƒå¾Œã«é«˜ãƒ€ãƒ¡ãƒ¼ã‚¸ï¼‰
             return new[]
             {
             new HitSituation
             {
-                HitState = ActionState.‹­UŒ‚,
-                DamageState = ActionState.Œã‚ë‰ñ”ğ,
-                // floatŒvZ‚ğŠO‚µAint‚Ì”ÍˆÍ‚Å¶¬‚µ‚Ü‚·
-                GetDamage = 14 + rand.Next(1, 11) // 15-24ƒ_ƒ[ƒW
+                HitState = ActionState.å¼·æ”»æ’ƒ,
+                DamageState = ActionState.å¾Œã‚å›é¿,
+                // floatè¨ˆç®—ã‚’é¿ã‘ã€intã®ç¯„å›²ã§ç”Ÿæˆã—ã¾ã™
+                GetDamage = 14 + rand.Next(1, 11) // 15-24ãƒ€ãƒ¡ãƒ¼ã‚¸
             },
             new HitSituation
             {
-                HitState = ActionState.‹­UŒ‚,
-                DamageState = ActionState.Œã‚ë‰ñ”ğ,
-                GetDamage = 22 + rand.Next(1, 6) // 23-27ƒ_ƒ[ƒW
+                HitState = ActionState.å¼·æ”»æ’ƒ,
+                DamageState = ActionState.å¾Œã‚å›é¿,
+                GetDamage = 22 + rand.Next(1, 6) // 23-27ãƒ€ãƒ¡ãƒ¼ã‚¸
             },
             new HitSituation
             {
-                HitState = ActionState.‹­UŒ‚,
-                DamageState = ActionState.Œã‚ë‰ñ”ğ,
-                GetDamage = 24 + rand.Next(1, 4) // 25-27ƒ_ƒ[ƒW
+                HitState = ActionState.å¼·æ”»æ’ƒ,
+                DamageState = ActionState.å¾Œã‚å›é¿,
+                GetDamage = 24 + rand.Next(1, 4) // 25-27ãƒ€ãƒ¡ãƒ¼ã‚¸
             }
         };
         }
 
         /// <summary>
-        /// ŠëŒ¯‚¾‚Á‚½–hŒä—š—ğ‚Ì¶¬iÅ‚à”íƒ_ƒ[ƒW‚ª‘å‚«‚©‚Á‚½ó‹µj
+        /// å±é™ºã ã£ãŸé˜²å¾¡å±¥æ­´ã®ç”Ÿæˆï¼ˆå—ã‘ã‚‹ãƒ€ãƒ¡ãƒ¼ã‚¸ãŒå¤§ãã‹ã£ãŸçŠ¶æ³ï¼‰
         /// </summary>
         private static HitSituation[] CreateDangerousDefenseHistory(Random rand)
         {
-            // ƒK[ƒh’†‚É“G‚ÌãUŒ‚‚ÅŒy”÷‚Èƒ_ƒ[ƒW‚ğó‚¯‚½ƒVƒiƒŠƒI
+            // ã‚¬ãƒ¼ãƒ‰æ™‚ã«æ•µã®å¼±æ”»æ’ƒã§è»½å¾®ãªãƒ€ãƒ¡ãƒ¼ã‚¸ã‚’å—ã‘ãŸã‚·ãƒŠãƒªã‚ª
             return new[]
             {
             new HitSituation
             {
-                HitState = ActionState.ãUŒ‚ƒuƒƒbƒLƒ“ƒO,
-                DamageState = ActionState.ãUŒ‚,
-                // floatŒvZ‚ğŠO‚µAint‚Ì”ÍˆÍ‚Å¶¬‚µ‚Ü‚·
-                GetDamage = rand.Next(1, 3) // 1-2‚ÌŒy”÷ƒ_ƒ[ƒW
+                HitState = ActionState.å¼±æ”»æ’ƒãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°,
+                DamageState = ActionState.å¼±æ”»æ’ƒ,
+                // floatè¨ˆç®—ã‚’é¿ã‘ã€intã®ç¯„å›²ã§ç”Ÿæˆã—ã¾ã™
+                GetDamage = rand.Next(1, 3) // 1-2ã®è»½å¾®ãƒ€ãƒ¡ãƒ¼ã‚¸
             },
             new HitSituation
             {
-                HitState = ActionState.ãUŒ‚ƒuƒƒbƒLƒ“ƒO,
-                DamageState = ActionState.ãUŒ‚,
-                GetDamage = 1 + rand.Next(1, 3) // 2-3‚ÌŒy”÷ƒ_ƒ[ƒW
+                HitState = ActionState.å¼±æ”»æ’ƒãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°,
+                DamageState = ActionState.å¼±æ”»æ’ƒ,
+                GetDamage = 1 + rand.Next(1, 3) // 2-3ã®è»½å¾®ãƒ€ãƒ¡ãƒ¼ã‚¸
             },
             new HitSituation
             {
-                HitState = ActionState.ãUŒ‚ƒuƒƒbƒLƒ“ƒO,
-                DamageState = ActionState.ãUŒ‚,
-                GetDamage = 1 + rand.Next(1, 3) // 2-3‚ÌŒy”÷ƒ_ƒ[ƒW
+                HitState = ActionState.å¼±æ”»æ’ƒãƒ–ãƒ­ãƒƒã‚­ãƒ³ã‚°,
+                DamageState = ActionState.å¼±æ”»æ’ƒ,
+                GetDamage = 1 + rand.Next(1, 3) // 2-3ã®è»½å¾®ãƒ€ãƒ¡ãƒ¼ã‚¸
             }
         };
         }
 
         /// <summary>
-        /// ó‹µ‚É‰‚¶‚½“G‚Ìs“®Šm—¦¶¬
+        /// çŠ¶æ³ã«å¿œã˜ãŸæ•µã®è¡Œå‹•ç¢ºç‡ç”Ÿæˆ
         /// </summary>
         private static ActionProbabilityManager CreateActionProbabilities(TestSituationType situationType)
         {
@@ -477,7 +480,7 @@ namespace LLMDataArchitect
         }
 
         /// <summary>
-        /// ƒ‰ƒ“ƒ_ƒ€‚Èƒf[ƒ^‚ğ¶¬‚·‚éƒtƒ@ƒNƒgƒŠ[ƒƒ\ƒbƒhiŒã•ûŒİŠ·«‚Ì‚½‚ßc‘¶j
+        /// ãƒ©ãƒ³ãƒ€ãƒ ãªãƒ‡ãƒ¼ã‚¿ã‚’ç”Ÿæˆã™ã‚‹ãƒ•ã‚¡ã‚¯ãƒˆãƒªãƒ¼ãƒ¡ã‚½ãƒƒãƒ‰ï¼ˆå¾Œæ–¹äº’æ›ã®ãŸã‚æ®‹ã™ï¼‰
         /// </summary>
         public static LLMInputData CreateRandom(int recentActionCount = 5, int hitCount = 3)
         {
@@ -487,40 +490,40 @@ namespace LLMDataArchitect
         }
 
         /// <summary>
-        /// í‹µƒ^ƒCƒv‚ğ”»’è
+        /// çŠ¶æ³ã‚¿ã‚¤ãƒ—ã‚’åˆ¤å®š
         /// </summary>
         private static TestSituationType DetermineSituationType(float myHpRatio, float enemyHpRatio, float myEnergyRatio)
         {
             if (myHpRatio < 0.3f)
-                return TestSituationType.‘Ì—ÍŠëŒ¯;
+                return TestSituationType.ä½“åŠ›å±é™º;
             if (myEnergyRatio < 0.3f)
-                return TestSituationType.ƒGƒlƒ‹ƒM[•s‘«;
+                return TestSituationType.ã‚¨ãƒãƒ«ã‚®ãƒ¼ä¸è¶³;
 
             var hpDiff = (myHpRatio - enemyHpRatio) * 100f;
             if (hpDiff >= 20f)
-                return TestSituationType.—D¨;
+                return TestSituationType.å„ªå‹¢;
             if (hpDiff <= -20f)
-                return TestSituationType.—ò¨;
-            return TestSituationType.hR;
+                return TestSituationType.åŠ£å‹¢;
+            return TestSituationType.æ‹®æŠ—;
         }
 
         /// <summary>
-        /// í‹µ‚É‰‚¶‚½‡—“I‚È‹——£‚ğŒvZ
+        /// çŠ¶æ³ã«å¿œã˜ãŸåˆç†çš„ãªè·é›¢ã‚’è¨ˆç®—
         /// </summary>
         private static float GetReasonableDistance(float myHpRatio, float enemyHpRatio, float myEnergyRatio)
         {
-            // —D¨‚ÍŠÔ‡‚¢‚ğæ‚èA—ò¨‚ÍÚ‹ßí‚É‚È‚è‚ª‚¿
+            // å„ªå‹¢æ™‚ã¯é–“åˆã„ãŒé ãã€åŠ£å‹¢æ™‚ã¯æ¥è¿‘æˆ¦ã«ãªã‚ŠãŒã¡
             if (myHpRatio > enemyHpRatio * 1.3f)
-                return 25f;      // —D¨‚Í‹——£‚ğæ‚é
+                return 25f;      // å„ªå‹¢æ™‚ã¯è·é›¢ã‚’ä¿ã¤
             if (myHpRatio < enemyHpRatio * 0.7f)
-                return 8f;       // —ò¨‚ÍÚ‹ßí
+                return 8f;       // åŠ£å‹¢æ™‚ã¯æ¥è¿‘æˆ¦
             if (myEnergyRatio < 0.3f)
-                return 15f;      // ƒGƒlƒ‹ƒM[•s‘«‚Í’†‹——£
-            return 18f;          // ’Êí
+                return 15f;      // ã‚¨ãƒãƒ«ã‚®ãƒ¼ä¸è¶³æ™‚ã¯ä¸­è·é›¢
+            return 18f;          // é€šå¸¸æ™‚
         }
 
         /// <summary>
-        /// ƒfƒtƒHƒ‹ƒg‚Ìí—ªƒf[ƒ^‚ğì¬
+        /// ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆã®æˆ¦ç•¥ãƒ‡ãƒ¼ã‚¿ã‚’ä½œæˆ
         /// </summary>
         private static StrategyData CreateDefaultStrategy()
         {

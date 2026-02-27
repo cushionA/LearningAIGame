@@ -29,7 +29,7 @@ MonoBehaviour:
   _heavyAttackStartFrame: 2
   _heavyAttackDurationFrame: 5
   _blockingEnergyCost: 3
-  _blockingStartDelay: 0.025
+  _blockingStartDelay: 0.012
   _blockingDuration: 0.4
   _blockingStun: 0.45
   _blockingSuccessStun: 0.1

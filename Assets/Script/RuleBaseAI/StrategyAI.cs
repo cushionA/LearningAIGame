@@ -357,13 +357,13 @@ namespace LearningAIGame.CombatSystem.AI
             if (_currentTime - _lastDefenseTime < k_SequenceDefenseDuration)
             {
                 _currentCondition = ConditionType.SequentialDefense;
-                DefenseJudge(StrategyData.GetDefenseCriteria(_llmData.CurrentStrategy.ContinuousDefenseCriteria));
+                DefenseJudge(StrategyData.GetDefenseCriteria(_llmData.CurrentStrategy.ContinuousDefenseCriteria)).Forget();
             }
             // 初回防御
             else
             {
                 _currentCondition = ConditionType.Defense;
-                DefenseJudge(StrategyData.GetDefenseCriteria(_llmData.CurrentStrategy.DefenseCriteria));
+                DefenseJudge(StrategyData.GetDefenseCriteria(_llmData.CurrentStrategy.DefenseCriteria)).Forget();
             }
         }
 
@@ -928,7 +928,7 @@ namespace LearningAIGame.CombatSystem.AI
         /// <summary>
         /// 判断基準に応じた防御行動を行うメソッド
         /// </summary>
-        protected void DefenseJudge(ActionCriteriaType criteriaType)
+        protected async UniTaskVoid DefenseJudge(ActionCriteriaType criteriaType)
         {
             LLMLogData enemyLog = _llmData.PlayerLog;
             StanceType enemyStance = _enemyStateSystem.CurrentStance.CurrentValue;
@@ -946,6 +946,7 @@ namespace LearningAIGame.CombatSystem.AI
                     break;
 
                 case ActionCriteriaType.Defense_CounterattackFocus:
+                    await UniTask.DelayFrame(3); //3 フレーム待ってから反撃行動を取る（暴れが弱攻撃に勝つのは理不尽すぎるので確実に負けるように）
                     ActionAct(ActionState.弱攻撃, enemyStance, true);
                     break;
 

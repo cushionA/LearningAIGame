@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEditor;
 using System.Linq;
-
+#if UNITY_EDITOR
 namespace LearningAIGame.EditorTools
 {
     /// <summary>
@@ -492,3 +492,4 @@ namespace LearningAIGame.EditorTools
         #endregion
     }
 }
+#endif

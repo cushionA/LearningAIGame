@@ -66,3 +66,14 @@ crashlytics-build.properties
 # Temporary auto-generated Android Assets
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# ===========================================
+# Third-party / non-distributable assets
+# (removed from history for public release)
+# ===========================================
+/Assets/NPC/
+/Assets/NPC.meta
+/Assets/Packages/
+/Assets/Packages.meta
+/Assets/StreamingAssets/
+/Assets/StreamingAssets.meta
