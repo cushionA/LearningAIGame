@@ -5,6 +5,8 @@ For Honor風を採用した3Dアクション戦闘にLLMでリアルタイム判
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 2026/02 完成しました！！
+ふりーむのページ
+https://www.freem.ne.jp/win/game/34607
 
 ### 環境
 - **Unity:** Unity6.3
